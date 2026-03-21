@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head><title>Icon Generator</title></head>
+<body>
+<canvas id="c"></canvas>
+<script>
+// Dieses Script kann im Browser geöffnet werden um die Icons zu generieren
+const sizes = [72, 96, 128, 144, 152, 192, 384, 512];
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+sizes.forEach(size => {
+  canvas.width = size;
+  canvas.height = size;
+
+  // Hintergrund
+  const gradient = ctx.createLinearGradient(0, 0, size, size);
+  gradient.addColorStop(0, '#E91E7B');
+  gradient.addColorStop(1, '#C2185B');
+  ctx.fillStyle = gradient;
+
+  // Abgerundetes Rechteck
+  const r = size * 0.15;
+  ctx.beginPath();
+  ctx.moveTo(r, 0);
+  ctx.lineTo(size - r, 0);
+  ctx.quadraticCurveTo(size, 0, size, r);
+  ctx.lineTo(size, size - r);
+  ctx.quadraticCurveTo(size, size, size - r, size);
+  ctx.lineTo(r, size);
+  ctx.quadraticCurveTo(0, size, 0, size - r);
+  ctx.lineTo(0, r);
+  ctx.quadraticCurveTo(0, 0, r, 0);
+  ctx.fill();
+
+  // Herz
+  ctx.fillStyle = 'white';
+  const cx = size / 2;
+  const cy = size * 0.42;
+  const hs = size * 0.2;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy + hs * 1.2);
+  ctx.bezierCurveTo(cx - hs * 2, cy - hs * 0.5, cx - hs, cy - hs * 1.5, cx, cy - hs * 0.3);
+  ctx.bezierCurveTo(cx + hs, cy - hs * 1.5, cx + hs * 2, cy - hs * 0.5, cx, cy + hs * 1.2);
+  ctx.fill();
+
+  // Text "S"
+  ctx.fillStyle = 'white';
+  ctx.font = `bold ${size * 0.22}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('S', cx, cy + hs * 2.0);
+
+  // Download
+  const link = document.createElement('a');
+  link.download = `icon-${size}.png`;
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+});
+
+document.body.innerHTML = '<h1>Icons generiert! Bitte in assets/icons/ speichern.</h1>';
+</script>
+</body>
+</html>

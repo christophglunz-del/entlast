@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#E91E7B">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Kunden - entlast.de</title>
+  <link rel="manifest" href="../manifest.json">
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/patches.css">
+</head>
+<body>
+
+  <header class="app-header">
+    <button class="back-btn" onclick="window.location.href='../index.html'">←</button>
+    <h1>Kundenverwaltung</h1>
+    <div class="sync-status">
+      <div class="sync-dot"></div>
+      <span class="sync-label">Online</span>
+    </div>
+  </header>
+
+  <div class="page-content" id="kundenContent">
+    <div class="search-bar">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="kundenSuche" placeholder="Kunden suchen..."
+             class="form-control" style="padding-left: 44px; border-radius: 25px;">
+    </div>
+    <div id="kundenListe">
+      <div class="loading-spinner"><div class="spinner"></div></div>
+    </div>
+  </div>
+
+  <!-- FAB: Neuer Kunde -->
+  <button class="btn-fab" onclick="KundenModule.neuerKunde()" title="Neuer Kunde">+</button>
+
+  <nav class="bottom-nav">
+    <a href="../index.html"><span class="nav-icon">🏠</span><span>Start</span></a>
+    <a href="kunden.html" class="active"><span class="nav-icon">👥</span><span>Kunden</span></a>
+    <a href="leistung.html"><span class="nav-icon">📋</span><span>Leistung</span></a>
+    <a href="fahrten.html"><span class="nav-icon">🚗</span><span>Fahrten</span></a>
+    <a href="termine.html"><span class="nav-icon">📅</span><span>Termine</span></a>
+  </nav>
+
+  <script src="../js/auth.js"></script>
+  <script src="../js/db.js"></script>
+  <script src="../js/app-init.js"></script>
+  <script src="../js/services-shim.js"></script>
+  <script src="../js/app.js"></script>
+  <script src="../js/kunden.js"></script>
+</body>
+</html>

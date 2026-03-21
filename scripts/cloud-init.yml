@@ -1,0 +1,95 @@
+#cloud-config
+# entlast.de — Hetzner Cloud-Init
+# Dieses YAML in das "Cloud config" Feld bei der VPS-Bestellung einfügen
+
+package_update: true
+package_upgrade: true
+
+packages:
+  - python3
+  - python3-venv
+  - python3-pip
+  - git
+  - curl
+  - wget
+  - sqlite3
+  - bc
+  - mailutils
+  - ufw
+  - fail2ban
+  - restic
+  - debian-keyring
+  - debian-archive-keyring
+  - apt-transport-https
+
+# SSH hardening
+ssh_pwauth: false
+
+users:
+  - name: entlast
+    system: true
+    home: /opt/entlast
+    shell: /bin/bash
+
+runcmd:
+  # Caddy installieren
+  - curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+  - curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | tee /etc/apt/sources.list.d/caddy-stable.list
+  - apt update && apt install -y caddy
+
+  # Firewall
+  - ufw default deny incoming
+  - ufw default allow outgoing
+  - ufw allow ssh
+  - ufw allow http
+  - ufw allow https
+  - ufw --force enable
+
+  # Fail2Ban
+  - systemctl enable fail2ban
+  - systemctl start fail2ban
+
+  # Projekt klonen
+  - git clone https://github.com/christophglunz-del/entlast.git /opt/entlast
+  - cd /opt/entlast && python3 -m venv venv
+  - /opt/entlast/venv/bin/pip install --upgrade pip
+  - /opt/entlast/venv/bin/pip install -r /opt/entlast/requirements.txt
+
+  # Verzeichnisse
+  - mkdir -p /opt/entlast/data/logos
+  - mkdir -p /var/log/caddy
+  - touch /var/log/entlast-backup.log /var/log/entlast-monitor.log
+  - chown -R entlast:entlast /opt/entlast
+  - chown entlast:entlast /var/log/entlast-backup.log /var/log/entlast-monitor.log
+  - chmod +x /opt/entlast/scripts/*.sh
+
+  # Secrets generieren
+  - mkdir -p /etc/entlast
+  - |
+    SECRET_KEY=$(/opt/entlast/venv/bin/python3 -c "import secrets; print(secrets.token_hex(32))")
+    ENCRYPTION_KEY=$(/opt/entlast/venv/bin/python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
+    cat > /etc/entlast/env <<EOF
+    SECRET_KEY=${SECRET_KEY}
+    ENCRYPTION_KEY=${ENCRYPTION_KEY}
+    ENTLAST_ENV=production
+    ENTLAST_DATA_DIR=/opt/entlast/data
+    EOF
+  - chmod 600 /etc/entlast/env
+  - |
+    cat > /etc/entlast/backup.env <<EOF
+    RESTIC_REPOSITORY=sftp:user@storagebox.de:/backups/entlast
+    RESTIC_PASSWORD=CHANGE-ME
+    ALERT_EMAIL=christoph@glunz.org
+    EOF
+  - chmod 600 /etc/entlast/backup.env
+
+  # Systemd + Caddy + Cron installieren
+  - cp /opt/entlast/scripts/entlast.service /etc/systemd/system/
+  - cp /opt/entlast/scripts/Caddyfile /etc/caddy/Caddyfile
+  - cp /opt/entlast/scripts/crontab.entlast /etc/cron.d/entlast
+  - chmod 644 /etc/cron.d/entlast
+  - systemctl daemon-reload
+  - systemctl enable entlast caddy
+  - systemctl start entlast caddy
+
+final_message: "entlast.de VPS ready after $UPTIME seconds. SSH rein und: cd /opt/entlast && source venv/bin/activate && python3 scripts/create_admin.py"

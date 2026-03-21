@@ -1,0 +1,365 @@
+/**
+ * Terminplaner-Modul für Susi's Alltagshilfe
+ */
+
+const TermineModule = {
+  currentWeekStart: null,
+  kundenFarben: {},
+  farben: ['#E91E7B', '#2196F3', '#4CAF50', '#FF9800', '#9C27B0', '#00BCD4', '#FF5722', '#607D8B'],
+
+  async init() {
+    this.currentWeekStart = App.getMontag(new Date());
+    await this.kalenderAnzeigen();
+  },
+
+  async kalenderAnzeigen() {
+    const container = document.getElementById('termineContent');
+    if (!container) return;
+
+    const montag = new Date(this.currentWeekStart);
+    const freitag = new Date(montag);
+    freitag.setDate(freitag.getDate() + 4);
+
+    // Alle Termine laden
+    const termine = await DB.alleTermine();
+    const kunden = await DB.alleKunden();
+    const kundenMap = {};
+    kunden.forEach(k => kundenMap[k.id] = k);
+
+    // Farben zuweisen
+    kunden.forEach((k, i) => {
+      this.kundenFarben[k.id] = this.farben[i % this.farben.length];
+    });
+
+    // Wochentage
+    const tage = [];
+    for (let i = 0; i < 5; i++) {
+      const tag = new Date(montag);
+      tag.setDate(tag.getDate() + i);
+      tage.push(tag);
+    }
+
+    // Termine für diese Woche filtern (inkl. wiederkehrende + Geburtstage)
+    const wochenTermine = this.termineFiltern(termine, tage);
+
+    // Geburtstage dieser Woche einfügen
+    kunden.forEach(k => {
+      if (!k.geburtstag) return;
+      const gbParts = k.geburtstag.split('-'); // YYYY-MM-DD
+      if (gbParts.length < 3) return;
+      const gbMD = `${gbParts[1]}-${gbParts[2]}`; // MM-DD
+      tage.forEach(tag => {
+        const tagStr = tag.toISOString().split('T')[0];
+        if (tagStr.substring(5) === gbMD) {
+          const alter = tag.getFullYear() - parseInt(gbParts[0]);
+          wochenTermine.push({
+            _geburtstag: true,
+            _displayDatum: tagStr,
+            kundeId: k.id,
+            titel: `🎂 ${k.name} wird ${alter}`,
+            startzeit: '00:00',
+            endzeit: '',
+            wiederkehrend: false
+          });
+        }
+      });
+    });
+
+    // Zeitslots (8:00 - 18:00)
+    const zeitSlots = [];
+    for (let h = 8; h <= 18; h++) {
+      zeitSlots.push(`${String(h).padStart(2, '0')}:00`);
+    }
+
+    container.innerHTML = `
+      <!-- Wochennavigation -->
+      <div class="week-nav">
+        <button onclick="TermineModule.vorherigeWoche()">◀</button>
+        <span class="week-label">
+          ${App.formatDatum(montag.toISOString())} - ${App.formatDatum(freitag.toISOString())}
+        </span>
+        <button onclick="TermineModule.naechsteWoche()">▶</button>
+      </div>
+
+      <!-- Heute-Button -->
+      <div class="text-center mb-2">
+        <button class="btn btn-sm btn-outline" onclick="TermineModule.zuHeute()">
+          Heute
+        </button>
+      </div>
+
+      <!-- Kalender-Grid -->
+      <div style="overflow-x: auto;">
+        <div class="week-header">
+          <div>Zeit</div>
+          ${tage.map(t => {
+            const istHeute = t.toISOString().split('T')[0] === App.heute();
+            return `<div style="${istHeute ? 'background: var(--primary-dark);' : ''}">${App.wochentagKurz(t.toISOString())}<br><small>${t.getDate()}.${t.getMonth()+1}.</small></div>`;
+          }).join('')}
+        </div>
+
+        <div class="week-grid">
+          ${zeitSlots.map(zeit => {
+            const stunde = parseInt(zeit);
+            return `
+              <div class="time-slot" style="font-weight: 600;">${zeit}</div>
+              ${tage.map(tag => {
+                const datumStr = tag.toISOString().split('T')[0];
+                const slotTermine = wochenTermine.filter(t => {
+                  const tDatum = t._displayDatum || t.datum;
+                  const tStunde = parseInt(t.startzeit);
+                  return tDatum === datumStr && tStunde === stunde;
+                });
+                return `
+                  <div class="time-slot" onclick="TermineModule.neuerTermin('${datumStr}', '${zeit}')">
+                    ${slotTermine.map(t => {
+                      const kunde = kundenMap[t.kundeId];
+                      const farbe = this.kundenFarben[t.kundeId] || '#E91E7B';
+                      return `
+                        <div class="calendar-event" style="border-left-color: ${farbe}; background: ${farbe}15;"
+                             onclick="event.stopPropagation(); TermineModule.terminBearbeiten(${t.id})">
+                          <div class="event-title" style="color: ${farbe};">${kunde ? kunde.name.split(' ')[0] : 'Termin'}</div>
+                          <div class="event-time">${App.formatZeit(t.startzeit)}-${App.formatZeit(t.endzeit)}</div>
+                        </div>
+                      `;
+                    }).join('')}
+                  </div>
+                `;
+              }).join('')}
+            `;
+          }).join('')}
+        </div>
+      </div>
+
+      <!-- Terminliste für schnellen Überblick -->
+      <div class="section-title mt-3"><span class="icon">📋</span> Termine diese Woche</div>
+      ${wochenTermine.length === 0
+        ? '<div class="card text-center text-muted">Keine Termine in dieser Woche</div>'
+        : wochenTermine.sort((a, b) => {
+            const dA = a._displayDatum || a.datum;
+            const dB = b._displayDatum || b.datum;
+            return dA.localeCompare(dB) || a.startzeit.localeCompare(b.startzeit);
+          }).map(t => {
+            const kunde = kundenMap[t.kundeId];
+            const farbe = this.kundenFarben[t.kundeId] || '#E91E7B';
+            const displayDatum = t._displayDatum || t.datum;
+            return `
+              <div class="list-item" onclick="TermineModule.terminBearbeiten(${t.id})">
+                <div class="item-avatar" style="background: ${farbe}20; color: ${farbe};">
+                  ${kunde ? App.initialen(kunde.name) : '?'}
+                </div>
+                <div class="item-content">
+                  <div class="item-title">${t.titel || (kunde ? kunde.name : 'Termin')}</div>
+                  <div class="item-subtitle">
+                    ${App.wochentagKurz(displayDatum)} ${App.formatDatum(displayDatum)} |
+                    ${App.formatZeit(t.startzeit)} - ${App.formatZeit(t.endzeit)}
+                    ${t.wiederkehrend ? ' | 🔄' : ''}
+                  </div>
+                </div>
+                <div class="item-action">›</div>
+              </div>
+            `;
+          }).join('')
+      }
+
+      ${typeof GCalSync !== 'undefined' ? GCalSync.renderSyncBar() : ''}
+    `;
+  },
+
+  termineFiltern(termine, tage) {
+    const ergebnis = [];
+    const tagStrings = tage.map(t => t.toISOString().split('T')[0]);
+    const wochentage = tage.map(t => t.getDay()); // 0=So, 1=Mo, ...
+
+    for (const termin of termine) {
+      if (termin.wiederkehrend) {
+        // Wiederkehrende Termine
+        const muster = termin.wiederholungsMuster || {};
+        if (muster.wochentag !== undefined) {
+          const idx = wochentage.indexOf(muster.wochentag);
+          if (idx !== -1) {
+            const klon = { ...termin, _displayDatum: tagStrings[idx] };
+            ergebnis.push(klon);
+          }
+        }
+      } else {
+        // Einmalige Termine in dieser Woche
+        if (tagStrings.includes(termin.datum)) {
+          ergebnis.push(termin);
+        }
+      }
+    }
+
+    return ergebnis;
+  },
+
+  async neuerTermin(datum, zeit) {
+    const kunden = await DB.alleKunden();
+    this.terminFormAnzeigen(null, kunden, datum, zeit);
+  },
+
+  async terminBearbeiten(id) {
+    const termin = await DB.terminById(id);
+    if (!termin) return;
+    const kunden = await DB.alleKunden();
+    this.terminFormAnzeigen(termin, kunden);
+  },
+
+  terminFormAnzeigen(termin = null, kunden = [], datum = '', zeit = '') {
+    const container = document.getElementById('termineContent');
+    if (!container) return;
+
+    const kundenOptions = kunden.map(k =>
+      `<option value="${k.id}" ${termin && termin.kundeId === k.id ? 'selected' : ''}>${KundenModule.escapeHtml(k.name)}</option>`
+    ).join('');
+
+    const wochentagOptions = ['', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag']
+      .map((t, i) => {
+        if (i === 0) return '<option value="">-- Wochentag wählen --</option>';
+        const val = i; // 1=Mo, 2=Di, ...
+        const selected = termin && termin.wiederholungsMuster && termin.wiederholungsMuster.wochentag === val;
+        return `<option value="${val}" ${selected ? 'selected' : ''}>${t}</option>`;
+      }).join('');
+
+    container.innerHTML = `
+      <div class="card">
+        <h3 class="card-title mb-2">${termin ? 'Termin bearbeiten' : 'Neuer Termin'}</h3>
+
+        <div class="form-group">
+          <label for="terminKunde">Kunde</label>
+          <select id="terminKunde" class="form-control">
+            <option value="">-- Optional: Kunde wählen --</option>
+            ${kundenOptions}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="terminTitel">Titel</label>
+          <input type="text" id="terminTitel" class="form-control"
+                 value="${termin ? KundenModule.escapeHtml(termin.titel || '') : ''}"
+                 placeholder="Terminbezeichnung">
+        </div>
+
+        <div class="form-group">
+          <label for="terminDatum">Datum</label>
+          <input type="date" id="terminDatum" class="form-control"
+                 value="${termin ? termin.datum : datum || App.heute()}">
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="terminStart">Beginn</label>
+            <input type="time" id="terminStart" class="form-control"
+                   value="${termin ? termin.startzeit : zeit || '09:00'}">
+          </div>
+          <div class="form-group">
+            <label for="terminEnde">Ende</label>
+            <input type="time" id="terminEnde" class="form-control"
+                   value="${termin ? termin.endzeit : ''}">
+          </div>
+        </div>
+
+        <div class="form-check">
+          <input type="checkbox" id="terminWiederkehrend"
+                 ${termin && termin.wiederkehrend ? 'checked' : ''}
+                 onchange="document.getElementById('wiederholungContainer').classList.toggle('hidden')">
+          <label for="terminWiederkehrend">Wiederkehrender Termin</label>
+        </div>
+
+        <div id="wiederholungContainer" class="${termin && termin.wiederkehrend ? '' : 'hidden'}">
+          <div class="form-group">
+            <label for="terminWochentag">Jeden</label>
+            <select id="terminWochentag" class="form-control">
+              ${wochentagOptions}
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="terminNotizen">Notizen</label>
+          <textarea id="terminNotizen" class="form-control" rows="2"
+                    placeholder="Optionale Notizen...">${termin ? KundenModule.escapeHtml(termin.notizen || '') : ''}</textarea>
+        </div>
+      </div>
+
+      <div class="btn-group">
+        <button class="btn btn-primary btn-block" onclick="TermineModule.terminSpeichern(${termin ? termin.id : 'null'})">
+          Speichern
+        </button>
+        <button class="btn btn-secondary" onclick="TermineModule.kalenderAnzeigen()">
+          Abbrechen
+        </button>
+        ${termin ? `
+          <button class="btn btn-danger btn-sm" onclick="TermineModule.terminLoeschen(${termin.id})">
+            Löschen
+          </button>
+        ` : ''}
+      </div>
+    `;
+  },
+
+  async terminSpeichern(id) {
+    const wiederkehrend = document.getElementById('terminWiederkehrend').checked;
+    const wochentag = parseInt(document.getElementById('terminWochentag').value) || 0;
+
+    const daten = {
+      kundeId: parseInt(document.getElementById('terminKunde').value) || null,
+      titel: document.getElementById('terminTitel').value.trim(),
+      datum: document.getElementById('terminDatum').value,
+      startzeit: document.getElementById('terminStart').value,
+      endzeit: document.getElementById('terminEnde').value,
+      wiederkehrend: wiederkehrend ? 1 : 0,
+      wiederholungsMuster: wiederkehrend ? { wochentag } : null,
+      notizen: document.getElementById('terminNotizen').value.trim()
+    };
+
+    if (!daten.startzeit) {
+      App.toast('Bitte eine Startzeit angeben', 'error');
+      return;
+    }
+
+    try {
+      if (id) {
+        await DB.terminAktualisieren(id, daten);
+        App.toast('Termin aktualisiert', 'success');
+      } else {
+        await DB.terminHinzufuegen(daten);
+        App.toast('Termin gespeichert', 'success');
+      }
+      this.kalenderAnzeigen();
+    } catch (err) {
+      console.error('Fehler:', err);
+      App.toast('Fehler beim Speichern', 'error');
+    }
+  },
+
+  async terminLoeschen(id) {
+    if (!await App.confirm('Termin wirklich löschen?')) return;
+    try {
+      await DB.terminLoeschen(id);
+      App.toast('Termin gelöscht', 'success');
+      this.kalenderAnzeigen();
+    } catch (err) {
+      App.toast('Fehler beim Löschen', 'error');
+    }
+  },
+
+  vorherigeWoche() {
+    this.currentWeekStart.setDate(this.currentWeekStart.getDate() - 7);
+    this.kalenderAnzeigen();
+  },
+
+  naechsteWoche() {
+    this.currentWeekStart.setDate(this.currentWeekStart.getDate() + 7);
+    this.kalenderAnzeigen();
+  },
+
+  zuHeute() {
+    this.currentWeekStart = App.getMontag(new Date());
+    this.kalenderAnzeigen();
+  }
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+  TermineModule.init();
+});

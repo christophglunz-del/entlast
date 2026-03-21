@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.pyo
+venv/
+data/*.db
+data/logos/*
+!data/logos/.gitkeep
+.env
+/etc/entlast/
+*.log
+.pytest_cache/

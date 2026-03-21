@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#E91E7B">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="entlast.de">
+    <meta name="description" content="entlast.de - Verwaltung von Entlastungsleistungen nach &sect; 45b SGB XI">
+    <title>entlast.de</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/patches.css">
+</head>
+<body>
+
+    <!-- Header -->
+    <header class="app-header">
+        <img src="assets/logo.png" alt="Logo" class="app-logo" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover;">
+        <h1>entlast.de</h1>
+        <div class="sync-status">
+            <div class="sync-dot"></div>
+            <span class="sync-label">Online</span>
+            <span id="appVersion" style="font-size: 0.6rem; opacity: 0.6; margin-left: 6px;"></span>
+        </div>
+        <button class="header-logout" onclick="Auth.logout()" title="Abmelden">&#x23FB;</button>
+    </header>
+
+    <!-- Dashboard Content -->
+    <div class="page-content">
+
+        <!-- Begruessung -->
+        <div class="card" style="background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white;">
+            <h2 style="font-size: 1.1rem;" id="grussFormel">Willkommen!</h2>
+            <p class="text-sm" style="opacity: 0.9;" id="datumHeute"></p>
+            <p class="text-sm" style="opacity: 0.8;" id="heuteInfo">Dein Tagesueberblick</p>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="route-summary">
+            <a href="pages/kunden.html" class="summary-item" style="text-decoration:none;color:inherit;">
+                <div class="summary-value" id="statKunden">-</div>
+                <div class="summary-label">Kunden</div>
+            </a>
+            <a href="pages/termine.html" class="summary-item" style="text-decoration:none;color:inherit;">
+                <div class="summary-value" id="statHeuteTermine">-</div>
+                <div class="summary-label">Heute Termine</div>
+            </a>
+            <a href="pages/rechnung.html" class="summary-item" style="text-decoration:none;color:inherit;">
+                <div class="summary-value" id="statOffeneRechnungen">-</div>
+                <div class="summary-label">Offene Rechn.</div>
+            </a>
+        </div>
+
+        <!-- Hauptnavigation (Grid) -->
+        <div class="section-title"><span class="icon">&#x1F4F1;</span> Module</div>
+        <div class="dashboard-grid">
+            <a href="pages/kunden.html" class="dash-card">
+                <div class="dash-icon">&#x1F465;</div>
+                <div class="dash-label">Kunden</div>
+                <div class="dash-count" id="dashKunden">-</div>
+            </a>
+
+            <a href="pages/leistung.html" class="dash-card">
+                <div class="dash-icon">&#x1F4CB;</div>
+                <div class="dash-label">Leistung</div>
+                <div class="dash-count">Nachweise</div>
+            </a>
+
+            <a href="pages/fahrten.html" class="dash-card">
+                <div class="dash-icon">&#x1F697;</div>
+                <div class="dash-label">Kilometer</div>
+                <div class="dash-count">Aufzeichnung</div>
+            </a>
+
+            <a href="pages/termine.html" class="dash-card">
+                <div class="dash-icon">&#x1F4C5;</div>
+                <div class="dash-label">Termine</div>
+                <div class="dash-count">Kalender</div>
+            </a>
+
+            <a href="pages/abtretung.html" class="dash-card">
+                <div class="dash-icon">&#x1F4DD;</div>
+                <div class="dash-label">Abtretung</div>
+                <div class="dash-count">Erklaerungen</div>
+            </a>
+
+            <a href="pages/rechnung.html" class="dash-card">
+                <div class="dash-icon">&#x1F4B0;</div>
+                <div class="dash-label">Rechnungen</div>
+                <div class="dash-count" id="dashRechnungen">-</div>
+            </a>
+
+            <a href="pages/entlastung.html" class="dash-card">
+                <div class="dash-icon">&#x23F3;</div>
+                <div class="dash-label">&sect;45b Budgetmonitor</div>
+                <div class="dash-count" id="dashEntlastung">-</div>
+            </a>
+
+            <a href="pages/settings.html" class="dash-card">
+                <div class="dash-icon" style="background: var(--gray-100); color: var(--gray-600);">&#x2699;&#xFE0F;</div>
+                <div class="dash-label">Einstellungen</div>
+                <div class="dash-count">Backup & API</div>
+            </a>
+        </div>
+
+        <!-- Heutige Termine -->
+        <div class="section-title"><span class="icon">&#x1F4C5;</span> Heutige Termine</div>
+        <div id="heuteTermine">
+            <div class="card text-center text-muted text-sm">Wird geladen...</div>
+        </div>
+
+        <!-- Letzte Eintraege -->
+        <div class="section-title"><span class="icon">&#x1F550;</span> Letzte Eintraege</div>
+        <div id="letzteEintraege">
+            <div class="card text-center text-muted text-sm">Wird geladen...</div>
+        </div>
+
+    </div>
+
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav">
+        <a href="index.html" class="active">
+            <span class="nav-icon">&#x1F3E0;</span>
+            <span>Start</span>
+        </a>
+        <a href="pages/kunden.html">
+            <span class="nav-icon">&#x1F465;</span>
+            <span>Kunden</span>
+        </a>
+        <a href="pages/leistung.html">
+            <span class="nav-icon">&#x1F4CB;</span>
+            <span>Leistung</span>
+        </a>
+        <a href="pages/fahrten.html">
+            <span class="nav-icon">&#x1F697;</span>
+            <span>Fahrten</span>
+        </a>
+        <a href="pages/termine.html">
+            <span class="nav-icon">&#x1F4C5;</span>
+            <span>Termine</span>
+        </a>
+    </nav>
+
+    <!-- Scripts: Auth + DB (REST) + App-Init + App -->
+    <script src="js/auth.js"></script>
+    <script src="js/db.js"></script>
+    <script src="js/app-init.js"></script>
+    <script src="js/services-shim.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+        // Dashboard-Daten laden
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Datum anzeigen
+            const heute = new Date();
+            const optionen = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
+            document.getElementById('datumHeute').textContent = heute.toLocaleDateString('de-DE', optionen);
+
+            document.getElementById('appVersion').textContent = 'v' + App.version;
+
+            // Statistiken laden
+            try {
+                const stats = await DB.statistiken();
+                const alleKunden = await DB.alleKunden();
+                const kassenKeywords = ['aok','barmer','dak','techniker','knappschaft','bkk','novitas','energie','lbv','landesamt','krankenkasse','ersatzkasse','pflegekasse'];
+                const aktivePersonen = alleKunden.filter(k => {
+                    if (k.kundentyp === 'inaktiv') return false;
+                    const name = (k.name || '').toLowerCase();
+                    return !kassenKeywords.some(kw => name.includes(kw));
+                });
+                document.getElementById('statKunden').textContent = aktivePersonen.length;
+                document.getElementById('statHeuteTermine').textContent = stats.heuteTermine;
+                document.getElementById('dashKunden').textContent = aktivePersonen.length + ' Kunden';
+                document.getElementById('statOffeneRechnungen').textContent = stats.offeneRechnungen;
+
+                // Entlastungsbetrag: offenen Uebertrag aus Cache laden
+                try {
+                    const entlCache = await DB.settingLesen('entlastung_cache');
+                    if (entlCache) {
+                        const entlDaten = JSON.parse(entlCache);
+                        if (entlDaten.versicherte) {
+                            const typMap = {};
+                            for (const k of alleKunden) typMap[k.name.toLowerCase()] = k.kundentyp || 'pflege';
+
+                            let summeOffen = 0;
+                            for (const [name, v] of Object.entries(entlDaten.versicherte)) {
+                                const typ = typMap[name.toLowerCase()];
+                                if (typ && typ !== 'pflege') continue;
+                                summeOffen += v.verfuegbarerUebertrag || 0;
+                            }
+                            document.getElementById('dashEntlastung').textContent = 'offen: ' + summeOffen.toFixed(2).replace('.', ',') + ' \u20AC';
+                        }
+                    }
+                } catch (e) { console.warn('Entlastung-Stats:', e); }
+            } catch (e) {
+                console.warn('Statistiken konnten nicht geladen werden:', e);
+            }
+
+            // Heutige Termine
+            try {
+                const heuteDatum = App.heute();
+                const termine = await DB.termineFuerDatum(heuteDatum);
+                // Server liefert bereits wiederkehrende Termine mit
+                const heuteTermine = [...termine];
+
+                const kunden = await DB.alleKunden();
+                const kundenMap = {};
+                kunden.forEach(k => kundenMap[k.id] = k);
+
+                // Geburtstage heute
+                const heuteMD = App.heute().substring(5);
+                kunden.forEach(k => {
+                    if (k.geburtstag && k.geburtstag.substring(5) === heuteMD) {
+                        const alter = heute.getFullYear() - parseInt(k.geburtstag.split('-')[0]);
+                        heuteTermine.push({ titel: '\uD83C\uDF82 ' + k.name + ' wird ' + alter, startzeit: '', endzeit: '', kundeId: k.id });
+                    }
+                });
+
+                const termineContainer = document.getElementById('heuteTermine');
+                if (heuteTermine.length === 0) {
+                    termineContainer.innerHTML = '<div class="card text-center text-muted text-sm">Keine Termine heute</div>';
+                } else {
+                    termineContainer.innerHTML = heuteTermine.map(t => {
+                        const kunde = kundenMap[t.kundeId];
+                        return `
+                            <div class="list-item">
+                                <div class="item-avatar">${kunde ? App.initialen(kunde.name) : '\uD83D\uDCC5'}</div>
+                                <div class="item-content">
+                                    <div class="item-title">${t.titel || (kunde ? kunde.name : 'Termin')}</div>
+                                    <div class="item-subtitle">${App.formatZeit(t.startzeit)} - ${App.formatZeit(t.endzeit) || ''}</div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+            } catch (e) {
+                console.warn('Termine konnten nicht geladen werden:', e);
+            }
+
+            // Letzte Leistungseintraege
+            try {
+                const leistungen = await DB.alleLeistungen();
+                const letzte = leistungen.slice(0, 5);
+                const kunden = await DB.alleKunden();
+                const kundenMap = {};
+                kunden.forEach(k => kundenMap[k.id] = k);
+
+                const container = document.getElementById('letzteEintraege');
+                if (letzte.length === 0) {
+                    container.innerHTML = '<div class="card text-center text-muted text-sm">Noch keine Eintraege</div>';
+                } else {
+                    container.innerHTML = letzte.map(l => {
+                        const kunde = kundenMap[l.kundeId];
+                        const stunden = App.stundenBerechnen(l.startzeit, l.endzeit);
+                        return `
+                            <div class="list-item" onclick="window.location.href='pages/leistung.html'">
+                                <div class="item-avatar">${kunde ? App.initialen(kunde.name) : '?'}</div>
+                                <div class="item-content">
+                                    <div class="item-title">${kunde ? kunde.name : 'Unbekannt'}</div>
+                                    <div class="item-subtitle">${App.formatDatum(l.datum)} | ${stunden.toFixed(1)} Std. | ${App.formatBetrag(App.betragBerechnen(stunden))}</div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+            } catch (e) {
+                console.warn('Letzte Eintraege konnten nicht geladen werden:', e);
+            }
+        });
+    </script>
+</body>
+</html>

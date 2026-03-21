@@ -1,0 +1,11 @@
+# entlast.de Cron-Jobs
+# Installiert nach /etc/cron.d/entlast
+
+# Backup: Taeglich 02:00
+0 2 * * * entlast /opt/entlast/scripts/backup.sh >> /var/log/entlast-backup.log 2>&1
+
+# Monitoring: Alle 5 Minuten
+*/5 * * * * entlast /opt/entlast/scripts/monitor.sh >> /var/log/entlast-monitor.log 2>&1
+
+# SQLite VACUUM: Sonntag 03:00 (Defragmentierung)
+0 3 * * 0 entlast cd /opt/entlast && for db in data/*.db; do sqlite3 "$db" "VACUUM;"; done

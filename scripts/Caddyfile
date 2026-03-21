@@ -1,0 +1,34 @@
+entlast.de {
+    # Security Headers
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Frame-Options "DENY"
+        X-Content-Type-Options "nosniff"
+        Content-Security-Policy "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; script-src 'self'"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        -Server
+    }
+
+    # API -> FastAPI Backend
+    handle /api/* {
+        reverse_proxy localhost:8000
+    }
+    handle /auth/* {
+        reverse_proxy localhost:8000
+    }
+
+    # Frontend -> Static Files
+    handle {
+        root * /opt/entlast/frontend
+        file_server
+        try_files {path} /index.html
+    }
+
+    # Logs
+    log {
+        output file /var/log/caddy/entlast.log {
+            roll_size 10mb
+            roll_keep 5
+        }
+    }
+}
