@@ -72,9 +72,6 @@ const Auth = {
         // Globale Variablen setzen
         window.FIRMA = firma;
         window.PFLEGEKASSEN = pflegekassen;
-        // Auch die Modul-Variablen (fuer db.js Kompatibilitaet)
-        FIRMA = firma;
-        PFLEGEKASSEN = pflegekassen;
 
         // CSS-Variablen fuer dynamisches Branding
         if (firma.farbe_primary) {
