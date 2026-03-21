@@ -1,8 +1,9 @@
-"""Router: Firmendaten lesen/aktualisieren + Logo."""
+"""Router: Firmendaten lesen/aktualisieren + Logo-Upload."""
 
 import sqlite3
+import uuid
 from pathlib import Path
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from fastapi.responses import FileResponse
 from app.auth import get_current_user, get_db
 from app.models import FirmaResponse, FirmaUpdate
@@ -89,3 +90,44 @@ async def get_logo(
         raise HTTPException(status_code=404, detail="Logo-Datei nicht gefunden")
 
     return FileResponse(str(logo_path))
+
+
+@router.post("/logo")
+async def upload_logo(
+    file: UploadFile = File(...),
+    user: dict = Depends(get_current_user),
+    db: sqlite3.Connection = Depends(get_db),
+):
+    """Logo hochladen (PNG, JPG, SVG, max 2MB)."""
+    # Validierung
+    allowed = {"image/png", "image/jpeg", "image/svg+xml", "image/webp"}
+    if file.content_type not in allowed:
+        raise HTTPException(400, "Nur PNG, JPG, SVG oder WebP erlaubt")
+
+    content = await file.read()
+    if len(content) > 2 * 1024 * 1024:
+        raise HTTPException(400, "Logo darf maximal 2 MB gross sein")
+
+    # Dateiendung ableiten
+    ext_map = {"image/png": ".png", "image/jpeg": ".jpg", "image/svg+xml": ".svg", "image/webp": ".webp"}
+    ext = ext_map.get(file.content_type, ".png")
+    filename = f"logo_{uuid.uuid4().hex[:8]}{ext}"
+    logo_rel = f"logos/{filename}"
+    logo_path = DATA_DIR / logo_rel
+
+    # Altes Logo loeschen
+    old = db.execute("SELECT logo_datei FROM firma WHERE id = 1").fetchone()
+    if old and old.get("logo_datei"):
+        old_path = DATA_DIR / old["logo_datei"]
+        if old_path.exists():
+            old_path.unlink()
+
+    # Speichern
+    logo_path.parent.mkdir(parents=True, exist_ok=True)
+    logo_path.write_bytes(content)
+
+    # DB aktualisieren
+    db.execute("UPDATE firma SET logo_datei = ? WHERE id = 1", (logo_rel,))
+    db.commit()
+
+    return {"message": "Logo hochgeladen", "logo_datei": logo_rel}

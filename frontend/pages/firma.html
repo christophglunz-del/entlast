@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#E91E7B">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Firmenverwaltung - entlast.de</title>
+  <link rel="manifest" href="../manifest.json">
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/patches.css">
+  <style>
+    .color-preview {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 4px;
+    }
+    .color-swatch {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      border: 2px solid #e2e8ec;
+      cursor: pointer;
+    }
+    .color-swatch::-webkit-color-swatch-wrapper { padding: 0; }
+    .color-swatch::-webkit-color-swatch { border: none; border-radius: 6px; }
+    .color-hex {
+      font-family: monospace;
+      font-size: 0.9rem;
+      color: #3d5a63;
+    }
+    .logo-area {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 16px;
+      background: #f8fafb;
+      border-radius: 12px;
+      border: 2px dashed #e2e8ec;
+      margin-bottom: 20px;
+    }
+    .logo-area img {
+      width: 64px;
+      height: 64px;
+      border-radius: 12px;
+      object-fit: cover;
+      background: #fff;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    .logo-area .logo-placeholder {
+      width: 64px;
+      height: 64px;
+      border-radius: 12px;
+      background: #e2e8ec;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      color: #94a7af;
+    }
+    .logo-info {
+      flex: 1;
+    }
+    .logo-info p {
+      font-size: 0.82rem;
+      color: #6b8a94;
+      margin-top: 4px;
+    }
+    .section-title {
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #6b8a94;
+      margin: 28px 0 12px;
+    }
+    .section-title:first-of-type {
+      margin-top: 0;
+    }
+    .save-bar {
+      position: sticky;
+      bottom: 80px;
+      background: white;
+      padding: 12px 16px;
+      box-shadow: 0 -2px 12px rgba(0,0,0,0.08);
+      border-radius: 12px;
+      margin-top: 20px;
+      display: none;
+    }
+    .save-bar.visible {
+      display: block;
+    }
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    @media (max-width: 480px) {
+      .form-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <button class="back-btn" onclick="window.location.href='../index.html'">&larr;</button>
+    <h1>Firmenverwaltung</h1>
+    <div></div>
+  </header>
+
+  <div class="page-content" id="firmaContent">
+
+    <!-- Logo -->
+    <div class="section-title">Logo</div>
+    <div class="logo-area">
+      <div class="logo-placeholder" id="logoPreview">?</div>
+      <div class="logo-info">
+        <label class="btn btn-sm btn-outline" style="cursor:pointer;">
+          Logo hochladen
+          <input type="file" id="logoFile" accept="image/png,image/jpeg,image/svg+xml,image/webp" style="display:none;">
+        </label>
+        <p>PNG, JPG, SVG oder WebP. Max. 2 MB.</p>
+      </div>
+    </div>
+
+    <!-- Branding -->
+    <div class="section-title">Branding</div>
+    <div class="card">
+      <div class="form-group">
+        <label>Hauptfarbe</label>
+        <div class="color-preview">
+          <input type="color" id="farbePrimary" class="color-swatch" value="#E91E7B">
+          <span class="color-hex" id="farbePrimaryHex">#E91E7B</span>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Dunkle Variante</label>
+        <div class="color-preview">
+          <input type="color" id="farbePrimaryDark" class="color-swatch" value="#C2185B">
+          <span class="color-hex" id="farbePrimaryDarkHex">#C2185B</span>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Untertitel</label>
+        <input type="text" id="untertitel" class="form-control" placeholder="z.B. Die freundliche Alltagshilfe">
+      </div>
+    </div>
+
+    <!-- Stammdaten -->
+    <div class="section-title">Stammdaten</div>
+    <div class="card">
+      <div class="form-group">
+        <label>Firmenname</label>
+        <input type="text" id="firmaName" class="form-control" placeholder="z.B. Susi's Alltagshilfe">
+      </div>
+      <div class="form-group">
+        <label>Inhaber/in</label>
+        <input type="text" id="firmaInhaber" class="form-control" placeholder="Vor- und Nachname">
+      </div>
+      <div class="form-group">
+        <label>Strasse + Nr.</label>
+        <input type="text" id="firmaStrasse" class="form-control">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>PLZ</label>
+          <input type="text" id="firmaPlz" class="form-control" maxlength="5" inputmode="numeric">
+        </div>
+        <div class="form-group">
+          <label>Ort</label>
+          <input type="text" id="firmaOrt" class="form-control">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Telefon</label>
+          <input type="tel" id="firmaTelefon" class="form-control">
+        </div>
+        <div class="form-group">
+          <label>E-Mail</label>
+          <input type="email" id="firmaEmail" class="form-control">
+        </div>
+      </div>
+    </div>
+
+    <!-- Finanzen -->
+    <div class="section-title">Finanzen</div>
+    <div class="card">
+      <div class="form-group">
+        <label>Steuernummer</label>
+        <input type="text" id="firmaSteuernummer" class="form-control" placeholder="z.B. 123/456/78901">
+      </div>
+      <div class="form-group">
+        <label>IBAN</label>
+        <input type="text" id="firmaIban" class="form-control" placeholder="DE...">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>BIC</label>
+          <input type="text" id="firmaBic" class="form-control">
+        </div>
+        <div class="form-group">
+          <label>Bank</label>
+          <input type="text" id="firmaBank" class="form-control">
+        </div>
+      </div>
+      <div class="form-group" style="margin-top:8px;">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+          <input type="checkbox" id="firmaKleinunternehmer" style="width:20px;height:20px;">
+          <span>Kleinunternehmer (kein MwSt-Ausweis, §19 UStG)</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Speichern -->
+    <div class="save-bar visible" id="saveBar">
+      <button class="btn btn-primary btn-block btn-lg" id="saveBtn" onclick="saveFirma()">
+        Speichern
+      </button>
+    </div>
+
+    <div style="height:100px;"></div>
+  </div>
+
+  <nav class="bottom-nav">
+    <a href="../index.html"><span class="nav-icon">&#127968;</span><span>Start</span></a>
+    <a href="kunden.html"><span class="nav-icon">&#128101;</span><span>Kunden</span></a>
+    <a href="leistung.html"><span class="nav-icon">&#128203;</span><span>Leistung</span></a>
+    <a href="fahrten.html"><span class="nav-icon">&#128663;</span><span>Fahrten</span></a>
+    <a href="termine.html"><span class="nav-icon">&#128197;</span><span>Termine</span></a>
+  </nav>
+
+  <script src="../js/auth.js"></script>
+  <script src="../js/db.js"></script>
+  <script src="../js/app-init.js"></script>
+  <script src="../js/app.js"></script>
+  <script>
+    const fields = {
+      firmaName: 'name', firmaInhaber: 'inhaber', firmaStrasse: 'strasse',
+      firmaPlz: 'plz', firmaOrt: 'ort', firmaTelefon: 'telefon',
+      firmaEmail: 'email', firmaSteuernummer: 'steuernummer',
+      firmaIban: 'iban', firmaBic: 'bic', firmaBank: 'bank',
+      untertitel: 'untertitel'
+    };
+
+    // Daten laden
+    document.addEventListener('DOMContentLoaded', async () => {
+      try {
+        const res = await fetch('/api/v1/firma', { credentials: 'include' });
+        if (!res.ok) return;
+        const firma = await res.json();
+
+        // Textfelder befuellen
+        for (const [elId, key] of Object.entries(fields)) {
+          const el = document.getElementById(elId);
+          if (el && firma[key]) el.value = firma[key];
+        }
+
+        // Farben
+        document.getElementById('farbePrimary').value = firma.farbe_primary || '#E91E7B';
+        document.getElementById('farbePrimaryHex').textContent = firma.farbe_primary || '#E91E7B';
+        document.getElementById('farbePrimaryDark').value = firma.farbe_primary_dark || '#C2185B';
+        document.getElementById('farbePrimaryDarkHex').textContent = firma.farbe_primary_dark || '#C2185B';
+
+        // Checkbox
+        document.getElementById('firmaKleinunternehmer').checked = firma.kleinunternehmer !== false;
+
+        // Logo
+        if (firma.logo_datei) {
+          document.getElementById('logoPreview').innerHTML =
+            '<img src="/api/v1/firma/logo?' + Date.now() + '" alt="Logo">';
+        }
+      } catch (e) {
+        console.error('Firmendaten laden:', e);
+      }
+    });
+
+    // Farb-Picker live aktualisieren
+    document.getElementById('farbePrimary').addEventListener('input', (e) => {
+      document.getElementById('farbePrimaryHex').textContent = e.target.value;
+      document.documentElement.style.setProperty('--primary', e.target.value);
+    });
+    document.getElementById('farbePrimaryDark').addEventListener('input', (e) => {
+      document.getElementById('farbePrimaryDarkHex').textContent = e.target.value;
+      document.documentElement.style.setProperty('--primary-dark', e.target.value);
+    });
+
+    // Logo Upload
+    document.getElementById('logoFile').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      if (file.size > 2 * 1024 * 1024) {
+        App.toast('Logo darf maximal 2 MB gross sein', 'error');
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const res = await fetch('/api/v1/firma/logo', {
+          method: 'POST',
+          credentials: 'include',
+          body: formData
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.detail || 'Upload fehlgeschlagen');
+        }
+        // Vorschau aktualisieren
+        const url = URL.createObjectURL(file);
+        document.getElementById('logoPreview').innerHTML =
+          '<img src="' + url + '" alt="Logo">';
+        App.toast('Logo hochgeladen');
+      } catch (err) {
+        App.toast(err.message, 'error');
+      }
+    });
+
+    // Speichern
+    async function saveFirma() {
+      const btn = document.getElementById('saveBtn');
+      btn.disabled = true;
+      btn.textContent = 'Wird gespeichert\u2026';
+
+      const data = {};
+      for (const [elId, key] of Object.entries(fields)) {
+        const val = document.getElementById(elId).value.trim();
+        if (val) data[key] = val;
+      }
+      data.farbe_primary = document.getElementById('farbePrimary').value;
+      data.farbe_primary_dark = document.getElementById('farbePrimaryDark').value;
+      data.kleinunternehmer = document.getElementById('firmaKleinunternehmer').checked;
+
+      try {
+        const res = await fetch('/api/v1/firma', {
+          method: 'PUT',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.detail || 'Speichern fehlgeschlagen');
+        }
+        App.toast('Firmendaten gespeichert');
+      } catch (err) {
+        App.toast(err.message, 'error');
+      }
+
+      btn.disabled = false;
+      btn.textContent = 'Speichern';
+    }
+  </script>
+</body>
+</html>
