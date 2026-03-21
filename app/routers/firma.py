@@ -131,3 +131,13 @@ async def upload_logo(
     db.commit()
 
     return {"message": "Logo hochgeladen", "logo_datei": logo_rel}
+
+
+@router.get("/lexoffice-import")
+async def import_from_lexoffice(
+    user: dict = Depends(get_current_user),
+    db: sqlite3.Connection = Depends(get_db),
+):
+    """Firmendaten von Lexoffice-Profil importieren."""
+    from app.services.lexoffice import fetch_profile
+    return await fetch_profile(db)
