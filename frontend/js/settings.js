@@ -10,7 +10,7 @@ const SettingsModule = {
   async anzeigen() {
     const container = document.getElementById('settingsContent');
     if (!container) return;
-    if (!window.FIRMA) { console.warn('Settings: FIRMA nicht geladen'); return; }
+    if (!window.FIRMA) window.FIRMA = {};
 
     // Gespeicherte Einstellungen laden
     const lexofficeKey = await DB.settingLesen('lexoffice_api_key') || '';
