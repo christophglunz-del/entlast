@@ -3,6 +3,16 @@
  * Verwendet jsPDF
  */
 
+// FIRMA-Fallback fuer PDF-Generierung (falls Auth noch nicht fertig)
+if (!window.FIRMA || window.FIRMA === null) {
+    window.FIRMA = {
+        name: '', inhaber: '', strasse: '', plz: '', ort: '',
+        telefon: '', email: '', steuernummer: '', ikNummer: '',
+        iban: '', bic: '', bank: '', stundensatz: 32.5, kmSatz: 0.30,
+        startAdresse: '', kleinunternehmer: true, angebotsId: ''
+    };
+}
+
 const PDFHelper = {
   // Standard-Schriften und -Farben
   PINK: [233, 30, 123],
@@ -151,7 +161,7 @@ const PDFHelper = {
     doc.setFont('helvetica', 'bold');
     doc.text('IK-Nummer:', 15, y);
     doc.setFont('helvetica', 'normal');
-    doc.text(FIRMA.ikNummer, 70, y);
+    doc.text(((FIRMA||{}).ikNummer||''), 70, y);
     y += 12;
 
     // Leistungs-Tabelle Header
@@ -322,14 +332,14 @@ const PDFHelper = {
         }
         doc.setFontSize(7);
         doc.text(App.wochentagKurz(fahrt.datum), colX[0] + 2, y + 4);
-        doc.text(fahrt.startAdresse || FIRMA.startAdresse, colX[1] + 2, y + 4, { maxWidth: colWidths[1] - 4 });
+        doc.text(fahrt.startAdresse || ((FIRMA||{}).startAdresse||''), colX[1] + 2, y + 4, { maxWidth: colWidths[1] - 4 });
 
         const ziele = (fahrt.zielAdressen || []).join(' > ');
         doc.text(ziele || '-', colX[2] + 2, y + 4, { maxWidth: colWidths[2] - 4 });
         doc.text(fahrt.routeBeschreibung || '', colX[3] + 2, y + 4, { maxWidth: colWidths[3] - 4 });
 
         const km = fahrt.gesamtKm || 0;
-        const betrag = km * FIRMA.kmSatz;
+        const betrag = km * ((FIRMA||{}).kmSatz||0.30);
         gesamtKm += km;
         gesamtBetrag += betrag;
 
@@ -352,7 +362,7 @@ const PDFHelper = {
     doc.text(gesamtKm.toFixed(1) + ' km', colX[4] + 2, y);
     doc.text(App.formatBetrag(gesamtBetrag), colX[5] + 2, y);
     y += 6;
-    doc.text(`Kilometerpreis: ${FIRMA.kmSatz.toFixed(2).replace('.', ',')} €/km`, colX[3] + 2, y);
+    doc.text(`Kilometerpreis: ${((FIRMA||{}).kmSatz||0.30).toFixed(2).replace('.', ',')} €/km`, colX[3] + 2, y);
 
     this.addFooter(doc);
     return doc;
@@ -422,12 +432,12 @@ const PDFHelper = {
     doc.text('2) Bevollmächtigte / Abtretungsempfängerin (Leistungserbringerin)', 15, y);
     y += LH + 1;
     doc.setFont('helvetica', 'normal');
-    doc.text(`${FIRMA.name} \u2013 ${FIRMA.inhaber}`, 15, y); y += LH;
-    doc.text(`Anschrift: ${FIRMA.strasse}, ${FIRMA.plz} ${FIRMA.ort}`, 15, y); y += LH;
-    doc.text(`Telefon: ${FIRMA.telefon || '015560117030'}`, 15, y); y += LH;
-    doc.text(`E-Mail: ${FIRMA.email || 'hallo@susisalltagshilfe.de'}`, 15, y); y += LH;
-    doc.text(`IK-Nummer: ${FIRMA.ikNummer}`, 15, y); y += LH;
-    doc.text(`Angebots-ID: ${FIRMA.angebotsId || '080123F8M2'}`, 15, y); y += LH;
+    doc.text(`${((FIRMA||{}).name||'')} \u2013 ${((FIRMA||{}).inhaber||'')}`, 15, y); y += LH;
+    doc.text(`Anschrift: ${((FIRMA||{}).strasse||'')}, ${((FIRMA||{}).plz||'')} ${((FIRMA||{}).ort||'')}`, 15, y); y += LH;
+    doc.text(`Telefon: ${((FIRMA||{}).telefon||'') || '015560117030'}`, 15, y); y += LH;
+    doc.text(`E-Mail: ${((FIRMA||{}).email||'') || 'hallo@susisalltagshilfe.de'}`, 15, y); y += LH;
+    doc.text(`IK-Nummer: ${((FIRMA||{}).ikNummer||'')}`, 15, y); y += LH;
+    doc.text(`Angebots-ID: ${((FIRMA||{}).angebotsId||'') || '080123F8M2'}`, 15, y); y += LH;
     doc.text('Status: Anerkannter Anbieter von Entlastungsleistungen nach AnFöVO NRW (\u00A7\u00A045a SGB XI)', 15, y);
     y += LH + 2;
 
@@ -435,10 +445,10 @@ const PDFHelper = {
     doc.text('Bankverbindung für Direktzahlung:', 15, y);
     y += LH + 1;
     doc.setFont('helvetica', 'normal');
-    doc.text(`Kontoinhaberin: ${FIRMA.inhaber}`, 15, y); y += LH;
-    doc.text(`IBAN: ${FIRMA.iban || 'DE69 4526 1547 0152 4789 01'}`, 15, y); y += LH;
-    doc.text(`BIC: ${FIRMA.bic || 'GENODEM1SPO'}`, 15, y); y += LH;
-    doc.text(`Bank: ${FIRMA.bank || 'Volksbank Sprockhövel'}`, 15, y);
+    doc.text(`Kontoinhaberin: ${((FIRMA||{}).inhaber||'')}`, 15, y); y += LH;
+    doc.text(`IBAN: ${((FIRMA||{}).iban||'') || 'DE69 4526 1547 0152 4789 01'}`, 15, y); y += LH;
+    doc.text(`BIC: ${((FIRMA||{}).bic||'') || 'GENODEM1SPO'}`, 15, y); y += LH;
+    doc.text(`Bank: ${((FIRMA||{}).bank||'') || 'Volksbank Sprockhövel'}`, 15, y);
     y += 8;
 
     doc.line(15, y, pageWidth - 15, y);
@@ -453,7 +463,7 @@ const PDFHelper = {
     doc.setFontSize(9);
 
     const vollmachtText = `Hiermit bevollmächtige ich, ${kunde.name || '____________'}, die unter Ziffer 2 genannte Person ` +
-      `(${FIRMA.name} / ${FIRMA.inhaber}), mich gegenüber meiner Pflegekasse in Angelegenheiten der ` +
+      `(${((FIRMA||{}).name||'')} / ${((FIRMA||{}).inhaber||'')}), mich gegenüber meiner Pflegekasse in Angelegenheiten der ` +
       'Pflegeversicherung nach dem SGB XI zu vertreten, soweit dies für die Beantragung, Abrechnung und Klärung ' +
       'von Leistungen erforderlich ist, insbesondere für:';
     const vollmachtLines = doc.splitTextToSize(vollmachtText, textWidth);
@@ -474,7 +484,7 @@ const PDFHelper = {
     y += 2;
 
     const zusatz = `Diese Vollmacht umfasst ausdrücklich auch die Zustimmung zur Direktabrechnung und Direktzahlung an den ` +
-      `Leistungserbringer (${FIRMA.name} / ${FIRMA.inhaber}), soweit dies nach den Regelungen der Pflegekasse ` +
+      `Leistungserbringer (${((FIRMA||{}).name||'')} / ${((FIRMA||{}).inhaber||'')}), soweit dies nach den Regelungen der Pflegekasse ` +
       'und den gesetzlichen Vorgaben zulässig ist.';
     const zusatzLines = doc.splitTextToSize(zusatz, textWidth);
     doc.text(zusatzLines, 15, y);
@@ -663,9 +673,9 @@ const PDFHelper = {
     doc.setFont('helvetica', 'normal');
     doc.text('Bitte überweisen Sie den Betrag auf folgendes Konto:', 15, y);
     y += 6;
-    doc.text(`Bank: ${FIRMA.bank}`, 15, y); y += 5;
-    doc.text(`IBAN: ${FIRMA.iban}`, 15, y); y += 5;
-    doc.text(`Kontoinhaber: ${FIRMA.inhaber}`, 15, y); y += 12;
+    doc.text(`Bank: ${((FIRMA||{}).bank||'')}`, 15, y); y += 5;
+    doc.text(`IBAN: ${((FIRMA||{}).iban||'')}`, 15, y); y += 5;
+    doc.text(`Kontoinhaber: ${((FIRMA||{}).inhaber||'')}`, 15, y); y += 12;
 
     // Grußformel
     doc.text('Mit freundlichen Grüßen', 15, y);
@@ -717,7 +727,7 @@ const PDFHelper = {
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(...this.GRAY);
-    doc.text(`${FIRMA.inhaber} | ${FIRMA.strasse}, ${FIRMA.plz} ${FIRMA.ort} | IK: ${FIRMA.ikNummer}`, pw / 2, y, { align: 'center' });
+    doc.text(`${((FIRMA||{}).inhaber||'')} | ${((FIRMA||{}).strasse||'')}, ${((FIRMA||{}).plz||'')} ${((FIRMA||{}).ort||'')} | IK: ${((FIRMA||{}).ikNummer||'')}`, pw / 2, y, { align: 'center' });
     y += 4;
     doc.setDrawColor(...this.PINK);
     doc.setLineWidth(0.4);
@@ -736,14 +746,14 @@ const PDFHelper = {
     const tageSet = new Set();
     fahrten.forEach(f => {
       gesamtKm += f.gesamtKm || 0;
-      gesamtBetrag += (f.gesamtKm || 0) * FIRMA.kmSatz;
+      gesamtBetrag += (f.gesamtKm || 0) * ((FIRMA||{}).kmSatz||0.30);
       if (f.datum) tageSet.add(f.datum);
     });
 
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(...this.BLACK);
-    const summaryText = `${anzahlFahrten} Fahrten | ${tageSet.size} Tage | ${gesamtKm.toFixed(1)} km gesamt | ${FIRMA.kmSatz.toFixed(2).replace('.', ',')} €/km | Gesamt: ${App.formatBetrag(gesamtBetrag)}`;
+    const summaryText = `${anzahlFahrten} Fahrten | ${tageSet.size} Tage | ${gesamtKm.toFixed(1)} km gesamt | ${((FIRMA||{}).kmSatz||0.30).toFixed(2).replace('.', ',')} €/km | Gesamt: ${App.formatBetrag(gesamtBetrag)}`;
     doc.text(summaryText, pw / 2, y, { align: 'center' });
     y += 8;
 
@@ -799,13 +809,13 @@ const PDFHelper = {
       }
 
       const km = f.gesamtKm || 0;
-      const betrag = km * FIRMA.kmSatz;
+      const betrag = km * ((FIRMA||{}).kmSatz||0.30);
       const ziele = (f.zielAdressen || []).join(' → ');
 
       doc.text(String(idx + 1), cols[0].x + 1, y + 2.5);
       doc.text(App.formatDatum(f.datum), cols[1].x + 1, y + 2.5);
       doc.text(App.wochentagKurz(f.datum), cols[2].x + 1, y + 2.5);
-      doc.text((f.startAdresse || FIRMA.startAdresse).substring(0, 30), cols[3].x + 1, y + 2.5);
+      doc.text((f.startAdresse || ((FIRMA||{}).startAdresse||'')).substring(0, 30), cols[3].x + 1, y + 2.5);
       doc.text(ziele.substring(0, 48) || '-', cols[4].x + 1, y + 2.5);
       doc.text((f.notiz || '').substring(0, 26), cols[5].x + 1, y + 2.5);
       doc.text(km.toFixed(1), cols[6].x + 1, y + 2.5);
@@ -830,7 +840,7 @@ const PDFHelper = {
     y += 6;
     doc.setFontSize(7);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Kilometerpreis: ${FIRMA.kmSatz.toFixed(2).replace('.', ',')} €/km | Fahrzeug: privater PKW | Kleinunternehmer gem. § 19 Abs. 1 UStG`, 10, y);
+    doc.text(`Kilometerpreis: ${((FIRMA||{}).kmSatz||0.30).toFixed(2).replace('.', ',')} €/km | Fahrzeug: privater PKW | Kleinunternehmer gem. § 19 Abs. 1 UStG`, 10, y);
 
     // Wochenweise Aufschlüsselung
     y += 10;
@@ -856,7 +866,7 @@ const PDFHelper = {
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(7);
       Object.entries(wochen).sort((a, b) => a[0] - b[0]).forEach(([kw, data]) => {
-        doc.text(`KW ${kw}: ${data.fahrten} Fahrten, ${data.km.toFixed(1)} km, ${App.formatBetrag(data.km * FIRMA.kmSatz)}`, 12, y);
+        doc.text(`KW ${kw}: ${data.fahrten} Fahrten, ${data.km.toFixed(1)} km, ${App.formatBetrag(data.km * ((FIRMA||{}).kmSatz||0.30))}`, 12, y);
         y += 4;
       });
     }
