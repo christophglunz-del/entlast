@@ -4,7 +4,7 @@ entlast.de {
         Strict-Transport-Security "max-age=31536000; includeSubDomains"
         X-Frame-Options "DENY"
         X-Content-Type-Options "nosniff"
-        Content-Security-Policy "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; script-src 'self'"
+        Content-Security-Policy "default-src 'self'; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data:; script-src 'self' https://cdn.jsdelivr.net https://unpkg.com; connect-src 'self'"
         Referrer-Policy "strict-origin-when-cross-origin"
         -Server
     }
