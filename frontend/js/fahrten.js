@@ -176,8 +176,9 @@ const FahrtenModule = {
       maxZoom: 19
     }).addTo(this.map);
 
-    const startMarker = L.marker([51.3993, 7.1859], { title: FIRMA.startAdresse }).addTo(this.map);
-    startMarker.bindPopup(`<b>Basis</b><br>${FIRMA.startAdresse}`);
+    const startAddr = (FIRMA || {}).startAdresse || 'Basis';
+    const startMarker = L.marker([51.3993, 7.1859], { title: startAddr }).addTo(this.map);
+    startMarker.bindPopup(`<b>Basis</b><br>${startAddr}`);
     this.markers = [startMarker];
   },
 
