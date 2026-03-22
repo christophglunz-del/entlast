@@ -35,7 +35,7 @@ const FahrtenModule = {
     let gesamtBetrag = 0;
     fahrten.forEach(f => {
       gesamtKm += f.gesamtKm || 0;
-      gesamtBetrag += (f.gesamtKm || 0) * FIRMA.kmSatz;
+      gesamtBetrag += (f.gesamtKm || 0) * ((FIRMA||{}).kmSatz||0.30);
     });
 
     // Wochentage Mo-Fr
@@ -152,7 +152,7 @@ const FahrtenModule = {
                 <div class="item-title">${(f.zielAdressen || []).join(' → ') || f.notiz || 'Fahrt'}</div>
                 <div class="item-subtitle">
                   ${f.gesamtKm ? f.gesamtKm.toFixed(1) + ' km' : '0 km'} |
-                  ${App.formatBetrag((f.gesamtKm || 0) * FIRMA.kmSatz)}
+                  ${App.formatBetrag((f.gesamtKm || 0) * ((FIRMA||{}).kmSatz||0.30))}
                   ${f.trackingKm ? ' | 📍 GPS' : ''}
                 </div>
               </div>
@@ -377,8 +377,8 @@ const FahrtenModule = {
         </div>
 
         <div id="fahrtBetrag" class="card" style="background: var(--primary-bg); text-align: center;">
-          <span class="fw-bold text-primary">${App.formatBetrag(gpsKm * FIRMA.kmSatz)}</span>
-          <span class="text-sm text-muted"> (${FIRMA.kmSatz.toFixed(2).replace('.', ',')} €/km)</span>
+          <span class="fw-bold text-primary">${App.formatBetrag(gpsKm * ((FIRMA||{}).kmSatz||0.30))}</span>
+          <span class="text-sm text-muted"> (${((FIRMA||{}).kmSatz||0.30).toFixed(2).replace('.', ',')} €/km)</span>
         </div>
       </div>
 
@@ -406,11 +406,11 @@ const FahrtenModule = {
     const fahrt = {
       datum,
       wochentag: App.wochentagName(datum),
-      startAdresse: FIRMA.startAdresse,
+      startAdresse: ((FIRMA||{}).startAdresse||''),
       zielAdressen,
       gesamtKm: km,
       trackingKm: gpsKm,
-      betrag: km * FIRMA.kmSatz,
+      betrag: km * ((FIRMA||{}).kmSatz||0.30),
       notiz,
       gpsTrack: this.gpsTrack.length > 0 ? JSON.stringify(this.gpsTrack) : null
     };
@@ -441,7 +441,7 @@ const FahrtenModule = {
         <div class="form-group">
           <label>Start</label>
           <input type="text" id="fahrtStart" class="form-control"
-                 value="${FIRMA.startAdresse}" readonly>
+                 value="${((FIRMA||{}).startAdresse||'')}" readonly>
         </div>
 
         <div class="form-group">
@@ -551,11 +551,11 @@ const FahrtenModule = {
 
   kmAktualisieren() {
     const km = parseFloat(document.getElementById('fahrtKm')?.value || document.getElementById('trackKmInput')?.value) || 0;
-    const betrag = km * FIRMA.kmSatz;
+    const betrag = km * ((FIRMA||{}).kmSatz||0.30);
     const betragEl = document.getElementById('fahrtBetrag');
     if (betragEl) {
       if (betragEl.tagName === 'DIV' && betragEl.classList.contains('card')) {
-        betragEl.innerHTML = `<span class="fw-bold text-primary">${App.formatBetrag(betrag)}</span><span class="text-sm text-muted"> (${FIRMA.kmSatz.toFixed(2).replace('.', ',')} €/km)</span>`;
+        betragEl.innerHTML = `<span class="fw-bold text-primary">${App.formatBetrag(betrag)}</span><span class="text-sm text-muted"> (${((FIRMA||{}).kmSatz||0.30).toFixed(2).replace('.', ',')} €/km)</span>`;
       } else {
         betragEl.textContent = App.formatBetrag(betrag);
       }
@@ -563,11 +563,11 @@ const FahrtenModule = {
   },
 
   async routeBerechnen() {
-    const adressen = [FIRMA.startAdresse];
+    const adressen = [((FIRMA||{}).startAdresse||'')];
     document.querySelectorAll('.ziel-adresse').forEach(input => {
       if (input.value.trim()) adressen.push(input.value.trim());
     });
-    adressen.push(FIRMA.startAdresse);
+    adressen.push(((FIRMA||{}).startAdresse||''));
 
     if (adressen.length < 3) {
       App.toast('Bitte mindestens ein Ziel eingeben', 'info');
@@ -636,10 +636,10 @@ const FahrtenModule = {
     const fahrt = {
       datum,
       wochentag: App.wochentagName(datum),
-      startAdresse: FIRMA.startAdresse,
+      startAdresse: ((FIRMA||{}).startAdresse||''),
       zielAdressen,
       gesamtKm: parseFloat(document.getElementById('fahrtKm')?.value) || 0,
-      betrag: (parseFloat(document.getElementById('fahrtKm')?.value) || 0) * FIRMA.kmSatz,
+      betrag: (parseFloat(document.getElementById('fahrtKm')?.value) || 0) * ((FIRMA||{}).kmSatz||0.30),
       notiz: document.getElementById('fahrtNotiz')?.value.trim() || ''
     };
 
@@ -700,7 +700,7 @@ const FahrtenModule = {
           <div class="form-group">
             <label>Betrag</label>
             <div id="editFahrtBetrag" class="form-control" style="background: var(--gray-100); display: flex; align-items: center;">
-              ${App.formatBetrag((fahrt.gesamtKm || 0) * FIRMA.kmSatz)}
+              ${App.formatBetrag((fahrt.gesamtKm || 0) * ((FIRMA||{}).kmSatz||0.30))}
             </div>
           </div>
         </div>
@@ -724,7 +724,7 @@ const FahrtenModule = {
   editKmAktualisieren() {
     const km = parseFloat(document.getElementById('editFahrtKm')?.value) || 0;
     const betragEl = document.getElementById('editFahrtBetrag');
-    if (betragEl) betragEl.textContent = App.formatBetrag(km * FIRMA.kmSatz);
+    if (betragEl) betragEl.textContent = App.formatBetrag(km * ((FIRMA||{}).kmSatz||0.30));
   },
 
   async fahrtAktualisieren(id) {
@@ -736,7 +736,7 @@ const FahrtenModule = {
     });
 
     try {
-      await DB.fahrtAktualisieren(id, { gesamtKm: km, betrag: km * FIRMA.kmSatz, notiz, zielAdressen });
+      await DB.fahrtAktualisieren(id, { gesamtKm: km, betrag: km * ((FIRMA||{}).kmSatz||0.30), notiz, zielAdressen });
       App.toast('Aktualisiert', 'success');
       this.wocheAnzeigen();
     } catch (err) {
@@ -818,7 +818,7 @@ const FahrtenModule = {
     let zeilen = '';
     fahrten.forEach(f => {
       const km = f.gesamtKm || 0;
-      const betrag = km * FIRMA.kmSatz;
+      const betrag = km * ((FIRMA||{}).kmSatz||0.30);
       gesamtKm += km;
       gesamtBetrag += betrag;
 
@@ -894,7 +894,7 @@ const FahrtenModule = {
     let zeilen = '';
     fahrten.forEach(f => {
       const km = f.gesamtKm || 0;
-      const betrag = km * FIRMA.kmSatz;
+      const betrag = km * ((FIRMA||{}).kmSatz||0.30);
       gesamtKm += km;
       gesamtBetrag += betrag;
 
