@@ -399,5 +399,4 @@ const AbtretungModule = {
   }
 };
 
-if (window._entlastReady) { AbtretungModule.init(); }
-else { document.addEventListener('entlast-ready', () => AbtretungModule.init()); }
+document.addEventListener('entlast-ready', () => AbtretungModule.init());

@@ -432,5 +432,4 @@ const LeistungModule = {
   }
 };
 
-if (window._entlastReady) { LeistungModule.init(); }
-else { document.addEventListener('entlast-ready', () => LeistungModule.init()); }
+document.addEventListener('entlast-ready', () => LeistungModule.init());

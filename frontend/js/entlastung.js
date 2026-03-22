@@ -762,5 +762,4 @@ const EntlastungModule = {
 };
 
 // Initialisierung
-if (window._entlastReady) { App.init(); EntlastungModule.init(); }
-else { document.addEventListener('entlast-ready', () => { App.init(); EntlastungModule.init(); }); }
+document.addEventListener('entlast-ready', () => { App.init(); EntlastungModule.init(); });

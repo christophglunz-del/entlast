@@ -1011,5 +1011,4 @@ const FahrtenModule = {
   }
 };
 
-if (window._entlastReady) { FahrtenModule.init(); }
-else { document.addEventListener('entlast-ready', () => FahrtenModule.init()); }
+document.addEventListener('entlast-ready', () => FahrtenModule.init());

@@ -360,5 +360,4 @@ const TermineModule = {
   }
 };
 
-if (window._entlastReady) { TermineModule.init(); }
-else { document.addEventListener('entlast-ready', () => TermineModule.init()); }
+document.addEventListener('entlast-ready', () => TermineModule.init());
