@@ -36,19 +36,8 @@ const SettingsModule = {
           <span class="card-title">Firmendaten</span>
           <span class="card-icon pink">🏠</span>
         </div>
-        <div class="text-sm">
-          <p><strong>${F.name || 'Nicht konfiguriert'}</strong></p>
-          <p>${F.inhaber || '-'}</p>
-          <p>${F.strasse || '-'}, ${F.plz || ''} ${F.ort || ''}</p>
-          <p>Tel: ${F.telefon || '-'}</p>
-          <p>E-Mail: ${F.email || '-'}</p>
-          <p>StNr: ${F.steuernummer || '-'}</p>
-          <p>IK: ${F.ikNummer || '-'}</p>
-          <p>IBAN: ${F.iban || '-'} (${F.bank || '-'})</p>
-          <p>Stundensatz: ${App.formatBetrag(F.stundensatz || 0)}</p>
-          <p>km-Satz: ${(F.kmSatz || 0).toFixed(2).replace('.', ',')} €/km</p>
-          ${F.kleinunternehmer ? '<p class="text-muted mt-1">Kleinunternehmer gem. § 19 Abs. 1 UStG</p>' : ''}
-        </div>
+        <p class="text-sm text-muted">${F.name || 'Noch nicht konfiguriert'}</p>
+        <a href="../pages/firma.html" class="btn btn-sm btn-outline mt-1">Firmendaten bearbeiten →</a>
       </div>
 
       <!-- Statistiken -->
@@ -96,7 +85,7 @@ const SettingsModule = {
             </div>
           </div>
           <div class="form-hint">Für automatische Rechnungserstellung</div>
-          ${lexofficeKeyOk ? '<button class="btn btn-sm btn-outline mt-1" onclick="SettingsModule.lexofficeUebernehmen()" id="lexofficeUebernehmenBtn">Daten von Lexoffice übernehmen</button>' : ''}
+          ${lexofficeKeyOk ? '<div class="btn-group mt-1"><button class="btn btn-sm btn-outline" onclick="SettingsModule.lexofficeTesten()" id="lexofficeTestenBtn">🔗 Verbindung testen</button><button class="btn btn-sm btn-outline" onclick="SettingsModule.lexofficeUebernehmen()" id="lexofficeUebernehmenBtn">Daten von Lexoffice übernehmen</button></div>' : ''}
         </div>
 
         <div class="form-group">
@@ -222,6 +211,32 @@ const SettingsModule = {
       const placeholder = document.getElementById('gcalSettingsPlaceholder');
       if (placeholder) placeholder.innerHTML = gcalCard;
     }
+  },
+
+  async lexofficeTesten() {
+    const btn = document.getElementById('lexofficeTestenBtn');
+    if (!btn) return;
+    const origText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Teste\u2026';
+    try {
+      const res = await fetch('/api/v1/firma/lexoffice-import', { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        App.toast('\u2713 Lexoffice verbunden \u2014 Firma: ' + (data.name || 'OK'), 'success');
+      } else if (res.status === 400) {
+        App.toast('\u2717 API-Key nicht konfiguriert', 'error');
+      } else if (res.status === 401) {
+        App.toast('\u2717 API-Key ung\u00fcltig', 'error');
+      } else {
+        const err = await res.json().catch(() => ({}));
+        App.toast('\u2717 Fehler: ' + (err.detail || res.statusText), 'error');
+      }
+    } catch (err) {
+      App.toast('\u2717 Verbindungsfehler: ' + err.message, 'error');
+    }
+    btn.disabled = false;
+    btn.textContent = origText;
   },
 
   async lexofficeUebernehmen() {

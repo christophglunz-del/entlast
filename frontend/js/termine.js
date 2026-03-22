@@ -9,7 +9,15 @@ const TermineModule = {
 
   async init() {
     this.currentWeekStart = App.getMontag(new Date());
-    await this.kalenderAnzeigen();
+    const params = new URLSearchParams(window.location.search);
+    this._preselectedKundeId = params.get('kundeId');
+    if (this._preselectedKundeId) {
+      window.history.replaceState({}, '', window.location.pathname);
+      const kunden = await DB.alleKunden();
+      this.terminFormAnzeigen(null, kunden, App.heute(), '09:00');
+    } else {
+      await this.kalenderAnzeigen();
+    }
   },
 
   async kalenderAnzeigen() {
@@ -209,9 +217,12 @@ const TermineModule = {
     const container = document.getElementById('termineContent');
     if (!container) return;
 
-    const kundenOptions = kunden.map(k =>
-      `<option value="${k.id}" ${termin && termin.kundeId === k.id ? 'selected' : ''}>${KundenModule.escapeHtml(k.name)}</option>`
-    ).join('');
+    const preselect = this._preselectedKundeId ? parseInt(this._preselectedKundeId) : null;
+    const kundenOptions = kunden.map(k => {
+      const selected = (termin && termin.kundeId === k.id) || (!termin && preselect === k.id);
+      return `<option value="${k.id}" ${selected ? 'selected' : ''}>${KundenModule.escapeHtml(k.name)}</option>`;
+    }).join('');
+    if (preselect) this._preselectedKundeId = null;
 
     const wochentagOptions = ['', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag']
       .map((t, i) => {

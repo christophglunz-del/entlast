@@ -47,9 +47,14 @@ async def fetch_profile(db: sqlite3.Connection) -> dict:
     firma["plz"] = addr.get("zip", "")
     firma["ort"] = addr.get("city", "")
 
+    # Inhaber aus created.userName (falls vorhanden)
+    created = profile.get("created", {})
+    if created.get("userName"):
+        firma["inhaber"] = created["userName"]
+
     # Kontakt
     firma["telefon"] = profile.get("phoneNumber", "")
-    firma["email"] = profile.get("email", "")
+    firma["email"] = profile.get("email") or created.get("userEmail", "")
 
     # Steuerdaten
     firma["steuernummer"] = profile.get("taxNumber", "")

@@ -24,9 +24,25 @@ async def get_statistiken(
         "SELECT COUNT(*) as c FROM termine WHERE datum = ?", (heute,)
     ).fetchone()["c"]
 
+    # Neue Felder
+    kunden_ohne_abtretung = db.execute(
+        "SELECT COUNT(*) as c FROM kunden WHERE aktiv=1 AND kundentyp='pflege' "
+        "AND id NOT IN (SELECT DISTINCT kunde_id FROM abtretungen)"
+    ).fetchone()["c"]
+    rechnungen_ueberfaellig = db.execute(
+        "SELECT COUNT(*) as c FROM rechnungen WHERE status='offen' "
+        "AND datum < date('now', '-30 days')"
+    ).fetchone()["c"]
+    termine_diese_woche = db.execute(
+        "SELECT COUNT(*) as c FROM termine WHERE datum BETWEEN date('now') AND date('now', '+7 days')"
+    ).fetchone()["c"]
+
     return {
         "kunden": kunden,
         "leistungen": leistungen,
         "offene_rechnungen": offene_rechnungen,
         "heute_termine": heute_termine,
+        "kunden_ohne_abtretung": kunden_ohne_abtretung,
+        "rechnungen_ueberfaellig": rechnungen_ueberfaellig,
+        "termine_diese_woche": termine_diese_woche,
     }

@@ -116,10 +116,13 @@
     <div class="logo-area">
       <div class="logo-placeholder" id="logoPreview">?</div>
       <div class="logo-info">
-        <label class="btn btn-sm btn-outline" style="cursor:pointer;">
-          Logo hochladen
-          <input type="file" id="logoFile" accept="image/png,image/jpeg,image/svg+xml,image/webp" style="display:none;">
-        </label>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <label class="btn btn-sm btn-outline" style="cursor:pointer;">
+            Logo hochladen
+            <input type="file" id="logoFile" accept="image/png,image/jpeg,image/svg+xml,image/webp" style="display:none;">
+          </label>
+          <button class="btn btn-sm btn-outline" id="logoEntfernenBtn" onclick="logoEntfernen()" style="display:none;">Logo entfernen</button>
+        </div>
         <p>PNG, JPG, SVG oder WebP. Max. 2 MB.</p>
       </div>
     </div>
@@ -140,6 +143,12 @@
           <input type="color" id="farbePrimaryDark" class="color-swatch" value="#C2185B">
           <span class="color-hex" id="farbePrimaryDarkHex">#C2185B</span>
         </div>
+      </div>
+      <div style="display:flex; gap:8px; margin-top:8px;">
+        <button onclick="setFarbe('#E91E7B','#C2185B')" style="width:36px;height:36px;border-radius:50%;background:#E91E7B;border:2px solid #ddd;" title="Pink"></button>
+        <button onclick="setFarbe('#2A7B8E','#1a5a6a')" style="width:36px;height:36px;border-radius:50%;background:#2A7B8E;border:2px solid #ddd;" title="Teal"></button>
+        <button onclick="setFarbe('#4CAF50','#388E3C')" style="width:36px;height:36px;border-radius:50%;background:#4CAF50;border:2px solid #ddd;" title="Grün"></button>
+        <button onclick="setFarbe('#FF9800','#F57C00')" style="width:36px;height:36px;border-radius:50%;background:#FF9800;border:2px solid #ddd;" title="Orange"></button>
       </div>
       <div class="form-group">
         <label>Untertitel</label>
@@ -286,6 +295,7 @@
         if (firma.logo_datei) {
           document.getElementById('logoPreview').innerHTML =
             '<img src="/api/v1/firma/logo?' + Date.now() + '" alt="Logo">';
+          document.getElementById('logoEntfernenBtn').style.display = '';
         }
       } catch (e) {
         console.error('Firmendaten laden:', e);
@@ -334,6 +344,35 @@
         App.toast(err.message, 'error');
       }
     });
+
+    // Logo entfernen
+    async function logoEntfernen() {
+      try {
+        const res = await fetch('/api/v1/firma', {
+          method: 'PUT',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ logo_datei: null })
+        });
+        if (!res.ok) throw new Error('Fehler beim Entfernen');
+        document.getElementById('logoPreview').innerHTML = '?';
+        document.getElementById('logoPreview').className = 'logo-placeholder';
+        document.getElementById('logoEntfernenBtn').style.display = 'none';
+        App.toast('Logo entfernt');
+      } catch (err) {
+        App.toast(err.message, 'error');
+      }
+    }
+
+    // Farb-Preset setzen
+    function setFarbe(primary, dark) {
+      document.getElementById('farbePrimary').value = primary;
+      document.getElementById('farbePrimaryHex').textContent = primary;
+      document.getElementById('farbePrimaryDark').value = dark;
+      document.getElementById('farbePrimaryDarkHex').textContent = dark;
+      document.documentElement.style.setProperty('--primary', primary);
+      document.documentElement.style.setProperty('--primary-dark', dark);
+    }
 
     // Speichern
     async function saveFirma() {

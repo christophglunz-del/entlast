@@ -7,7 +7,15 @@ const LeistungModule = {
   signaturePad: null,
 
   async init() {
-    await this.listeAnzeigen();
+    const params = new URLSearchParams(window.location.search);
+    this._preselectedKundeId = params.get('kundeId');
+    if (this._preselectedKundeId) {
+      // URL-Parameter verbrauchen, damit Reload nicht erneut triggert
+      window.history.replaceState({}, '', window.location.pathname);
+      await this.neueLeistung();
+    } else {
+      await this.listeAnzeigen();
+    }
   },
 
   async listeAnzeigen() {
@@ -148,9 +156,12 @@ const LeistungModule = {
     const container = document.getElementById('leistungContent');
     if (!container) return;
 
-    const kundenOptions = kunden.map(k =>
-      `<option value="${k.id}" ${leistung && leistung.kundeId === k.id ? 'selected' : ''}>${this.escapeHtml(k.name)}</option>`
-    ).join('');
+    const preselect = this._preselectedKundeId ? parseInt(this._preselectedKundeId) : null;
+    const kundenOptions = kunden.map(k => {
+      const selected = (leistung && leistung.kundeId === k.id) || (!leistung && preselect === k.id);
+      return `<option value="${k.id}" ${selected ? 'selected' : ''}>${this.escapeHtml(k.name)}</option>`;
+    }).join('');
+    if (preselect) this._preselectedKundeId = null; // einmalig verbrauchen
 
     container.innerHTML = `
       <form id="leistungForm" onsubmit="event.preventDefault(); LeistungModule.speichern(${leistung ? leistung.id : 'null'});">

@@ -38,6 +38,11 @@
             <p class="text-sm" style="opacity: 0.8;" id="heuteInfo">Dein Tagesueberblick</p>
         </div>
 
+        <!-- Warnungen -->
+        <div id="warnungen" style="display:none; background:#fef2f2; border-left:4px solid #dc2626;" class="card">
+            <div id="warnungenInhalt"></div>
+        </div>
+
         <!-- Quick Stats -->
         <div class="route-summary">
             <a href="pages/kunden.html" class="summary-item" style="text-decoration:none;color:inherit;">
@@ -45,8 +50,8 @@
                 <div class="summary-label">Kunden</div>
             </a>
             <a href="pages/termine.html" class="summary-item" style="text-decoration:none;color:inherit;">
-                <div class="summary-value" id="statHeuteTermine">-</div>
-                <div class="summary-label">Heute Termine</div>
+                <div class="summary-value" id="statDieseWoche">-</div>
+                <div class="summary-label">Diese Woche</div>
             </a>
             <a href="pages/rechnung.html" class="summary-item" style="text-decoration:none;color:inherit;">
                 <div class="summary-value" id="statOffeneRechnungen">-</div>
@@ -112,8 +117,8 @@
             </a>
         </div>
 
-        <!-- Heutige Termine -->
-        <div class="section-title"><span class="icon">&#x1F4C5;</span> Heutige Termine</div>
+        <!-- Termine diese Woche -->
+        <div class="section-title"><span class="icon">&#x1F4C5;</span> Termine diese Woche</div>
         <div id="heuteTermine">
             <div class="card text-center text-muted text-sm">Wird geladen...</div>
         </div>
@@ -177,9 +182,22 @@
                     return !kassenKeywords.some(kw => name.includes(kw));
                 });
                 document.getElementById('statKunden').textContent = aktivePersonen.length;
-                document.getElementById('statHeuteTermine').textContent = stats.heuteTermine;
+                document.getElementById('statDieseWoche').textContent = stats.termineDieseWoche;
                 document.getElementById('dashKunden').textContent = aktivePersonen.length + ' Kunden';
                 document.getElementById('statOffeneRechnungen').textContent = stats.offeneRechnungen;
+
+                // Warnungen anzeigen
+                const warnungen = [];
+                if (stats.kundenOhneAbtretung > 0) {
+                    warnungen.push('<a href="pages/abtretung.html" style="color:#dc2626; text-decoration:underline;">\u26A0\uFE0F ' + stats.kundenOhneAbtretung + ' Kunden ohne Abtretungserklaerung</a>');
+                }
+                if (stats.rechnungenUeberfaellig > 0) {
+                    warnungen.push('<a href="pages/rechnung.html" style="color:#dc2626; text-decoration:underline;">\u26A0\uFE0F ' + stats.rechnungenUeberfaellig + ' Rechnungen seit &gt;30 Tagen offen</a>');
+                }
+                if (warnungen.length > 0) {
+                    document.getElementById('warnungen').style.display = 'block';
+                    document.getElementById('warnungenInhalt').innerHTML = warnungen.map(w => '<div style="padding:4px 0;">' + w + '</div>').join('');
+                }
 
                 // Entlastungsbetrag: offenen Uebertrag aus Cache laden
                 try {
@@ -204,38 +222,48 @@
                 console.warn('Statistiken konnten nicht geladen werden:', e);
             }
 
-            // Heutige Termine
+            // Termine diese Woche
             try {
                 const heuteDatum = App.heute();
-                const termine = await DB.termineFuerDatum(heuteDatum);
-                // Server liefert bereits wiederkehrende Termine mit
-                const heuteTermine = [...termine];
+                const alle = await DB.alleTermine();
+                const in7Tagen = new Date();
+                in7Tagen.setDate(in7Tagen.getDate() + 7);
+                const in7TagenStr = in7Tagen.toISOString().split('T')[0];
+                const dieseWoche = alle.filter(t => t.datum >= heuteDatum && t.datum <= in7TagenStr);
 
                 const kunden = await DB.alleKunden();
                 const kundenMap = {};
                 kunden.forEach(k => kundenMap[k.id] = k);
 
-                // Geburtstage heute
-                const heuteMD = App.heute().substring(5);
-                kunden.forEach(k => {
-                    if (k.geburtstag && k.geburtstag.substring(5) === heuteMD) {
-                        const alter = heute.getFullYear() - parseInt(k.geburtstag.split('-')[0]);
-                        heuteTermine.push({ titel: '\uD83C\uDF82 ' + k.name + ' wird ' + alter, startzeit: '', endzeit: '', kundeId: k.id });
-                    }
-                });
+                // Geburtstage diese Woche
+                const wochenTermine = [...dieseWoche];
+                for (let d = new Date(heute); d <= in7Tagen; d.setDate(d.getDate() + 1)) {
+                    const tagMD = d.toISOString().substring(5, 10);
+                    const tagStr = d.toISOString().split('T')[0];
+                    kunden.forEach(k => {
+                        if (k.geburtstag && k.geburtstag.substring(5) === tagMD) {
+                            const alter = d.getFullYear() - parseInt(k.geburtstag.split('-')[0]);
+                            wochenTermine.push({ datum: tagStr, titel: '\uD83C\uDF82 ' + k.name + ' wird ' + alter, startzeit: '', endzeit: '', kundeId: k.id });
+                        }
+                    });
+                }
+
+                // Nach Datum und Startzeit sortieren
+                wochenTermine.sort((a, b) => (a.datum + (a.startzeit || '')).localeCompare(b.datum + (b.startzeit || '')));
 
                 const termineContainer = document.getElementById('heuteTermine');
-                if (heuteTermine.length === 0) {
-                    termineContainer.innerHTML = '<div class="card text-center text-muted text-sm">Keine Termine heute</div>';
+                if (wochenTermine.length === 0) {
+                    termineContainer.innerHTML = '<div class="card text-center text-muted text-sm">Keine Termine diese Woche</div>';
                 } else {
-                    termineContainer.innerHTML = heuteTermine.map(t => {
+                    termineContainer.innerHTML = wochenTermine.map(t => {
                         const kunde = kundenMap[t.kundeId];
+                        const tagLabel = t.datum === heuteDatum ? 'Heute' : new Date(t.datum + 'T00:00:00').toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'short' });
                         return `
                             <div class="list-item">
                                 <div class="item-avatar">${kunde ? App.initialen(kunde.name) : '\uD83D\uDCC5'}</div>
                                 <div class="item-content">
                                     <div class="item-title">${t.titel || (kunde ? kunde.name : 'Termin')}</div>
-                                    <div class="item-subtitle">${App.formatZeit(t.startzeit)} - ${App.formatZeit(t.endzeit) || ''}</div>
+                                    <div class="item-subtitle">${tagLabel} | ${App.formatZeit(t.startzeit)} - ${App.formatZeit(t.endzeit) || ''}</div>
                                 </div>
                             </div>
                         `;

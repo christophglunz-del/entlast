@@ -289,6 +289,16 @@ const KundenModule = {
           </div>
         </div>
 
+        ${kunde ? `
+        <div class="card" style="padding: 8px 12px;">
+          <div class="d-flex gap-1" style="flex-wrap: wrap;">
+            <a href="leistung.html?kundeId=${kunde.id}" class="btn btn-sm btn-outline">📋 Leistungen</a>
+            <a href="termine.html?kundeId=${kunde.id}" class="btn btn-sm btn-outline">📅 Termine</a>
+            <a href="abtretung.html?kundeId=${kunde.id}" class="btn btn-sm btn-outline">📝 Abtretung</a>
+          </div>
+        </div>
+        ` : ''}
+
         <div class="btn-group">
           <button type="submit" class="btn btn-primary btn-block">
             ${kunde ? 'Speichern' : 'Anlegen'}
@@ -333,11 +343,13 @@ const KundenModule = {
       if (this.currentKunde) {
         await DB.kundeAktualisieren(this.currentKunde.id, daten);
         App.toast('Kunde aktualisiert', 'success');
+        this.zurueckZurListe();
       } else {
-        await DB.kundeHinzufuegen(daten);
+        const result = await DB.kundeHinzufuegen(daten);
+        const neueId = result.id || result;
         App.toast('Kunde angelegt', 'success');
+        this.nextStepsAnzeigen(neueId, daten.name);
       }
-      this.zurueckZurListe();
     } catch (err) {
       console.error('Fehler beim Speichern:', err);
       App.toast('Fehler beim Speichern', 'error');
@@ -355,6 +367,30 @@ const KundenModule = {
       console.error('Fehler beim Löschen:', err);
       App.toast('Fehler beim Löschen', 'error');
     }
+  },
+
+  nextStepsAnzeigen(kundeId, name) {
+    const container = document.getElementById('kundenContent');
+    if (!container) return;
+
+    container.innerHTML = `
+      <div class="card text-center" style="padding: 24px;">
+        <div style="font-size: 2rem; margin-bottom: 12px;">✅</div>
+        <h3 class="card-title mb-2">Kunde angelegt!</h3>
+        <p class="text-muted mb-3">${this.escapeHtml(name)} wurde erfolgreich gespeichert.</p>
+        <div class="btn-group" style="flex-direction: column; gap: 8px;">
+          <a href="leistung.html?kundeId=${kundeId}" class="btn btn-primary btn-block">
+            📋 Leistung erfassen
+          </a>
+          <a href="termine.html?kundeId=${kundeId}" class="btn btn-outline btn-block">
+            📅 Termin anlegen
+          </a>
+          <button class="btn btn-secondary btn-block" onclick="KundenModule.zurueckZurListe()">
+            ← Zurück zur Liste
+          </button>
+        </div>
+      </div>
+    `;
   },
 
   zurueckZurListe() {
