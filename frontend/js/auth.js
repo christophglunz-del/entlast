@@ -92,16 +92,32 @@ const Auth = {
             metaTheme.setAttribute('content', firma.farbe_primary);
         }
 
-        // Logo setzen
-        const logoEl = document.querySelector('.app-logo');
-        if (logoEl) {
-            logoEl.setAttribute('src', '/api/v1/firma/logo');
-        }
-        // Auch das Header-Logo (img im Header)
-        const headerImg = document.querySelector('.app-header img');
-        if (headerImg) {
-            headerImg.setAttribute('src', '/api/v1/firma/logo');
-        }
+        // Logo setzen (mit Fallback-Platzhalter)
+        const logoEls = document.querySelectorAll('.app-logo, .app-header img');
+        logoEls.forEach(el => {
+            if (firma.logo_datei) {
+                el.setAttribute('src', '/api/v1/firma/logo');
+            } else {
+                // SVG-Platzhalter: weisser Kreis mit "Ihr Logo"
+                el.setAttribute('src', 'data:image/svg+xml,' + encodeURIComponent(
+                    '<svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 72 72">' +
+                    '<circle cx="36" cy="36" r="35" fill="white" stroke="#ddd" stroke-width="1"/>' +
+                    '<text x="36" y="33" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#999">Ihr</text>' +
+                    '<text x="36" y="44" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#999">Logo</text>' +
+                    '</svg>'
+                ));
+            }
+            el.onerror = function() {
+                this.setAttribute('src', 'data:image/svg+xml,' + encodeURIComponent(
+                    '<svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 72 72">' +
+                    '<circle cx="36" cy="36" r="35" fill="white" stroke="#ddd" stroke-width="1"/>' +
+                    '<text x="36" y="33" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#999">Ihr</text>' +
+                    '<text x="36" y="44" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#999">Logo</text>' +
+                    '</svg>'
+                ));
+                this.onerror = null;
+            };
+        });
 
         // Firmenname im Header
         const titleEl = document.querySelector('.app-header h1');
