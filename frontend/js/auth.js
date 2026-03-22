@@ -86,7 +86,12 @@ const Auth = {
             iban: '', bic: '', bank: '', stundensatz: 32.5, kmSatz: 0.30,
             startAdresse: '', kleinunternehmer: true, angebotsId: ''
         };
-        window.FIRMA = Object.assign({}, FIRMA_DEFAULTS, firma);
+        // Null-Werte aus Server-Antwort filtern (sonst ueberschreiben sie die Defaults)
+        const firmaClean = {};
+        for (const [k, v] of Object.entries(firma)) {
+            if (v !== null && v !== undefined) firmaClean[k] = v;
+        }
+        window.FIRMA = Object.assign({}, FIRMA_DEFAULTS, firmaClean);
         window.PFLEGEKASSEN = pflegekassen;
 
         // CSS-Variablen fuer dynamisches Branding
