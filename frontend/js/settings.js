@@ -96,6 +96,7 @@ const SettingsModule = {
             </div>
           </div>
           <div class="form-hint">Für automatische Rechnungserstellung</div>
+          ${lexofficeKeyOk ? '<button class="btn btn-sm btn-outline mt-1" onclick="SettingsModule.lexofficeUebernehmen()" id="lexofficeUebernehmenBtn">Daten von Lexoffice übernehmen</button>' : ''}
         </div>
 
         <div class="form-group">
@@ -221,6 +222,27 @@ const SettingsModule = {
       const placeholder = document.getElementById('gcalSettingsPlaceholder');
       if (placeholder) placeholder.innerHTML = gcalCard;
     }
+  },
+
+  async lexofficeUebernehmen() {
+    const btn = document.getElementById('lexofficeUebernehmenBtn');
+    if (!btn) return;
+    const origText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Wird importiert\u2026';
+    try {
+      // Firmendaten importieren
+      const firmaRes = await fetch('/api/v1/firma/lexoffice-import', { credentials: 'include' });
+      if (!firmaRes.ok) throw new Error('Firmendaten-Import fehlgeschlagen');
+      // Kunden synchronisieren
+      const kundenRes = await DB.syncMitLexoffice();
+      App.toast('Lexoffice-Daten übernommen (Firma + Kunden)', 'success');
+    } catch (err) {
+      console.error('Lexoffice-Import:', err);
+      App.toast('Fehler: ' + err.message, 'error');
+    }
+    btn.disabled = false;
+    btn.textContent = origText;
   },
 
   keyAendern(inputId, label, placeholder) {
