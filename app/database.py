@@ -174,6 +174,8 @@ def init_mandant_db(db_datei: str):
                 titel TEXT,
                 notiz TEXT,
                 erledigt INTEGER NOT NULL DEFAULT 0,
+                wiederkehrend INTEGER NOT NULL DEFAULT 0,
+                wiederholungs_muster TEXT,
                 created_at TEXT NOT NULL DEFAULT (datetime('now')),
                 FOREIGN KEY (kunde_id) REFERENCES kunden(id)
             );
@@ -251,6 +253,15 @@ def init_mandant_db(db_datei: str):
             CREATE INDEX IF NOT EXISTS idx_audit_log_timestamp ON audit_log(timestamp);
             CREATE INDEX IF NOT EXISTS idx_audit_log_user ON audit_log(user_id);
         """)
+        conn.commit()
+
+        # --- Migrationen fuer bestehende Datenbanken ---
+        # Neue Spalten in termine (wiederkehrend + wiederholungs_muster)
+        existing_cols = {row["name"] for row in conn.execute("PRAGMA table_info(termine)").fetchall()}
+        if "wiederkehrend" not in existing_cols:
+            conn.execute("ALTER TABLE termine ADD COLUMN wiederkehrend INTEGER NOT NULL DEFAULT 0")
+        if "wiederholungs_muster" not in existing_cols:
+            conn.execute("ALTER TABLE termine ADD COLUMN wiederholungs_muster TEXT")
         conn.commit()
     finally:
         conn.close()

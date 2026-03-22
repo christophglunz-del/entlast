@@ -2,7 +2,7 @@
 
 from datetime import date, datetime
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Any, Optional
 
 
 # --- Auth ---
@@ -242,23 +242,29 @@ class FahrtResponse(BaseModel):
 # --- Termine ---
 
 class TerminCreate(BaseModel):
-    kunde_id: int
+    model_config = {"populate_by_name": True}
+    kunde_id: int = Field(..., alias="kundeId")
     datum: str
-    von: str | None = None
-    bis: str | None = None
+    von: str | None = Field(None, alias="startzeit")
+    bis: str | None = Field(None, alias="endzeit")
     titel: str | None = None
-    notiz: str | None = None
+    notiz: str | None = Field(None, alias="notizen")
     erledigt: bool = False
+    wiederkehrend: int | None = 0
+    wiederholungs_muster: Any | None = Field(None, alias="wiederholungsMuster")
 
 
 class TerminUpdate(BaseModel):
-    kunde_id: int | None = None
+    model_config = {"populate_by_name": True}
+    kunde_id: int | None = Field(None, alias="kundeId")
     datum: str | None = None
-    von: str | None = None
-    bis: str | None = None
+    von: str | None = Field(None, alias="startzeit")
+    bis: str | None = Field(None, alias="endzeit")
     titel: str | None = None
-    notiz: str | None = None
+    notiz: str | None = Field(None, alias="notizen")
     erledigt: bool | None = None
+    wiederkehrend: int | None = None
+    wiederholungs_muster: Any | None = Field(None, alias="wiederholungsMuster")
 
 
 class TerminResponse(BaseModel):
@@ -267,9 +273,14 @@ class TerminResponse(BaseModel):
     datum: str
     von: str | None = None
     bis: str | None = None
+    startzeit: str | None = None
+    endzeit: str | None = None
     titel: str | None = None
     notiz: str | None = None
+    notizen: str | None = None
     erledigt: bool = False
+    wiederkehrend: int = 0
+    wiederholungsMuster: dict | None = None
     created_at: str | None = None
 
 

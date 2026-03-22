@@ -1,5 +1,6 @@
 """Router: Termine-CRUD."""
 
+import json
 import sqlite3
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -10,15 +11,29 @@ router = APIRouter(prefix="/termine", tags=["termine"])
 
 
 def _row_to_response(row: dict) -> TerminResponse:
+    # wiederholungs_muster: JSON-String aus DB -> dict fuer Response
+    muster_raw = row.get("wiederholungs_muster")
+    muster_dict = None
+    if muster_raw:
+        try:
+            muster_dict = json.loads(muster_raw)
+        except (json.JSONDecodeError, TypeError):
+            muster_dict = None
+
     return TerminResponse(
         id=row["id"],
         kunde_id=row["kunde_id"],
         datum=row["datum"],
         von=row.get("von"),
         bis=row.get("bis"),
+        startzeit=row.get("von"),
+        endzeit=row.get("bis"),
         titel=row.get("titel"),
         notiz=row.get("notiz"),
+        notizen=row.get("notiz"),
         erledigt=bool(row.get("erledigt", 0)),
+        wiederkehrend=row.get("wiederkehrend", 0),
+        wiederholungsMuster=muster_dict,
         created_at=row.get("created_at"),
     )
 
@@ -83,9 +98,14 @@ async def create_termin(
     if not kunde:
         raise HTTPException(status_code=400, detail="Kunde nicht gefunden")
 
+    # wiederholungs_muster: dict/str -> JSON-String fuer DB
+    muster = termin.wiederholungs_muster
+    if muster is not None and not isinstance(muster, str):
+        muster = json.dumps(muster)
+
     cursor = db.execute(
-        """INSERT INTO termine (kunde_id, datum, von, bis, titel, notiz, erledigt)
-           VALUES (?, ?, ?, ?, ?, ?, ?)""",
+        """INSERT INTO termine (kunde_id, datum, von, bis, titel, notiz, erledigt, wiederkehrend, wiederholungs_muster)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         (
             termin.kunde_id,
             termin.datum,
@@ -94,6 +114,8 @@ async def create_termin(
             termin.titel,
             termin.notiz,
             1 if termin.erledigt else 0,
+            termin.wiederkehrend or 0,
+            muster,
         ),
     )
     db.commit()
@@ -121,6 +143,11 @@ async def update_termin(
     # Boolean-Feld umwandeln
     if "erledigt" in data:
         data["erledigt"] = 1 if data["erledigt"] else 0
+
+    # wiederholungs_muster: dict/str -> JSON-String fuer DB
+    if "wiederholungs_muster" in data and data["wiederholungs_muster"] is not None:
+        if not isinstance(data["wiederholungs_muster"], str):
+            data["wiederholungs_muster"] = json.dumps(data["wiederholungs_muster"])
 
     set_clause = ", ".join(f"{k} = ?" for k in data)
     values = list(data.values())

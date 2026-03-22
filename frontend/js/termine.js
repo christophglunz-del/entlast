@@ -186,6 +186,15 @@ const TermineModule = {
         if (muster.wochentag !== undefined) {
           const idx = wochentage.indexOf(muster.wochentag);
           if (idx !== -1) {
+            // Intervall pruefen (alle X Wochen ab Startdatum)
+            const intervall = muster.intervall || 1;
+            if (intervall > 1 && termin.datum) {
+              const start = new Date(termin.datum);
+              const zielTag = new Date(tagStrings[idx]);
+              const diffMs = zielTag - start;
+              const diffWochen = Math.round(diffMs / (7 * 24 * 60 * 60 * 1000));
+              if (diffWochen < 0 || diffWochen % intervall !== 0) continue;
+            }
             const klon = { ...termin, _displayDatum: tagStrings[idx] };
             ergebnis.push(klon);
           }
@@ -284,6 +293,13 @@ const TermineModule = {
               ${wochentagOptions}
             </select>
           </div>
+          <div class="form-group">
+            <label for="terminIntervall">Wiederholung</label>
+            <select id="terminIntervall" class="form-control">
+              <option value="1" ${termin && termin.wiederholungsMuster && termin.wiederholungsMuster.intervall === 1 ? 'selected' : ''}>Wöchentlich</option>
+              <option value="2" ${termin && termin.wiederholungsMuster && termin.wiederholungsMuster.intervall === 2 ? 'selected' : ''}>Alle 2 Wochen</option>
+            </select>
+          </div>
         </div>
 
         <div class="form-group">
@@ -312,6 +328,7 @@ const TermineModule = {
   async terminSpeichern(id) {
     const wiederkehrend = document.getElementById('terminWiederkehrend').checked;
     const wochentag = parseInt(document.getElementById('terminWochentag').value) || 0;
+    const intervall = parseInt(document.getElementById('terminIntervall').value) || 1;
 
     const daten = {
       kundeId: parseInt(document.getElementById('terminKunde').value) || null,
@@ -320,7 +337,7 @@ const TermineModule = {
       startzeit: document.getElementById('terminStart').value,
       endzeit: document.getElementById('terminEnde').value,
       wiederkehrend: wiederkehrend ? 1 : 0,
-      wiederholungsMuster: wiederkehrend ? { wochentag } : null,
+      wiederholungsMuster: wiederkehrend ? { wochentag, intervall } : null,
       notizen: document.getElementById('terminNotizen').value.trim()
     };
 
