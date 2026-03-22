@@ -1,7 +1,9 @@
 """Router: Lexoffice-Synchronisation (Kunden + Rechnungen) + API-Proxy."""
 
 import sqlite3
+import asyncio
 import logging
+import time
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request
 from app.auth import get_current_user, get_db
@@ -87,6 +89,11 @@ async def sync_kunden(
     }
 
 
+# Rate-Limiter: max 2 Requests/Sekunde an Lexoffice
+_last_request_time = 0.0
+_rate_lock = asyncio.Lock()
+
+
 @router.get("/proxy/{endpoint:path}")
 async def lexoffice_proxy(
     endpoint: str,
@@ -94,26 +101,43 @@ async def lexoffice_proxy(
     user: dict = Depends(get_current_user),
     db: sqlite3.Connection = Depends(get_db),
 ):
-    """Proxy fuer Lexoffice-API — leitet Requests an Lexoffice weiter."""
+    """Proxy fuer Lexoffice-API mit Rate-Limiting + Retry."""
     from app.services.lexoffice import _get_api_key, LEXOFFICE_BASE
+    global _last_request_time
 
     api_key = _get_api_key(db)
-
-    # Query-Parameter durchreichen
     params = dict(request.query_params)
+    headers = {"Authorization": f"Bearer {api_key}", "Accept": "application/json"}
 
-    async with httpx.AsyncClient(timeout=30) as client:
-        res = await client.get(
-            f"{LEXOFFICE_BASE}/{endpoint}",
-            params=params,
-            headers={"Authorization": f"Bearer {api_key}", "Accept": "application/json"},
-        )
+    max_retries = 3
+    for attempt in range(max_retries):
+        # Rate-Limiting: min 500ms zwischen Requests
+        async with _rate_lock:
+            now = time.time()
+            wait = 0.5 - (now - _last_request_time)
+            if wait > 0:
+                await asyncio.sleep(wait)
+            _last_request_time = time.time()
 
-    if res.status_code == 401:
-        raise HTTPException(401, "Lexoffice API-Key ungueltig")
-    if res.status_code == 429:
-        raise HTTPException(429, "Lexoffice Rate-Limit erreicht")
-    if res.status_code >= 400:
-        raise HTTPException(res.status_code, f"Lexoffice: {res.text[:200]}")
+        async with httpx.AsyncClient(timeout=30) as client:
+            res = await client.get(
+                f"{LEXOFFICE_BASE}/{endpoint}",
+                params=params,
+                headers=headers,
+            )
 
-    return res.json()
+        if res.status_code == 429:
+            # Retry nach Wartezeit
+            wait_secs = 2 ** attempt
+            logger.warning(f"Lexoffice 429 fuer {endpoint}, warte {wait_secs}s (Versuch {attempt + 1})")
+            await asyncio.sleep(wait_secs)
+            continue
+
+        if res.status_code == 401:
+            raise HTTPException(401, "Lexoffice API-Key ungueltig")
+        if res.status_code >= 400:
+            raise HTTPException(res.status_code, f"Lexoffice: {res.text[:200]}")
+
+        return res.json()
+
+    raise HTTPException(429, "Lexoffice Rate-Limit nach 3 Versuchen")
