@@ -231,25 +231,43 @@ const PDFHelper = {
     doc.text(App.formatBetrag(gesamtBetrag), 175, y);
     y += 15;
 
-    // Unterschrift (letzte Leistung mit Unterschrift verwenden)
-    const mitUnterschrift = leistungen.find(l => l.unterschrift);
-    if (mitUnterschrift) {
+    // Unterschriften (Betreuer + Versicherter)
+    const mitBetreuer = leistungen.find(l => l.unterschriftBetreuer);
+    const mitVersicherter = leistungen.find(l => l.unterschriftVersicherter);
+
+    if (mitBetreuer || mitVersicherter) {
       y += 5;
       doc.setFontSize(8);
       doc.setFont('helvetica', 'normal');
-      doc.text('Datum, Unterschrift des Versicherten:', 15, y);
-      y += 3;
 
-      try {
-        doc.addImage(mitUnterschrift.unterschrift, 'PNG', 15, y, 60, 25);
-      } catch (e) {
-        console.warn('Unterschrift konnte nicht eingefügt werden:', e);
+      if (mitBetreuer) {
+        doc.text('Unterschrift Betreuer/in:', 15, y);
+        y += 3;
+        try {
+          doc.addImage(mitBetreuer.unterschriftBetreuer, 'PNG', 15, y, 60, 25);
+        } catch (e) {
+          console.warn('Betreuer-Unterschrift konnte nicht eingefügt werden:', e);
+        }
+        y += 28;
+        doc.setDrawColor(...this.GRAY);
+        doc.setLineWidth(0.2);
+        doc.line(15, y, 80, y);
+        y += 10;
       }
-      y += 28;
 
-      doc.setDrawColor(...this.GRAY);
-      doc.setLineWidth(0.2);
-      doc.line(15, y, 80, y);
+      if (mitVersicherter) {
+        doc.text('Unterschrift Versicherte/r:', 15, y);
+        y += 3;
+        try {
+          doc.addImage(mitVersicherter.unterschriftVersicherter, 'PNG', 15, y, 60, 25);
+        } catch (e) {
+          console.warn('Versicherten-Unterschrift konnte nicht eingefügt werden:', e);
+        }
+        y += 28;
+        doc.setDrawColor(...this.GRAY);
+        doc.setLineWidth(0.2);
+        doc.line(15, y, 80, y);
+      }
     }
 
     this.addFooter(doc, false);

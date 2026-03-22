@@ -5,6 +5,8 @@
 
 const LeistungModule = {
   signaturePad: null,
+  sigPadBetreuer: null,
+  sigPadVersicherter: null,
 
   async init() {
     const params = new URLSearchParams(window.location.search);
@@ -55,52 +57,47 @@ const LeistungModule = {
       const mi = parseInt(m);
       const ji = parseInt(j);
 
-      // Pro Kunde in diesem Monat: Unterschrift-Status prüfen
-      const kundenIds = [...new Set(eintraege.map(l => l.kundeId))];
-      const hatUnterschrift = eintraege.some(l => l.unterschrift);
-
       html += `
         <div class="section-title">
           <span class="icon">📅</span> ${App.monatsName(mi)} ${j}
         </div>
-        <div class="d-flex gap-1 mb-1" style="flex-wrap: wrap;">
-          ${kundenIds.map(kid => {
-            const k = kundenMap[kid];
-            if (!k) return '';
-            return `
-              <button class="btn btn-sm btn-outline" onclick="LeistungModule.monatsPdfErstellen(${kid}, ${mi}, ${ji})">
-                📄 PDF ${this.escapeHtml(k.name)}
-              </button>
-            `;
-          }).join('')}
-          ${!hatUnterschrift ? `
-            <button class="btn btn-sm btn-primary" onclick="LeistungModule.monatsUnterschrift('${monat}')">
-              ✍️ Monat unterschreiben
-            </button>
-          ` : `
-            <span class="badge badge-success" style="padding: 6px 12px;">✓ Unterschrieben</span>
-          `}
-        </div>
       `;
 
-      for (const l of eintraege) {
-        const kunde = kundenMap[l.kundeId];
-        const stunden = App.stundenBerechnen(l.startzeit, l.endzeit);
-        const betrag = App.betragBerechnen(stunden);
-        const arten = this.leistungsArtenKurz(l);
+      // Pro Kunde in diesem Monat: Karte anzeigen
+      const kundenIds = [...new Set(eintraege.map(l => l.kundeId))];
+      for (const kid of kundenIds) {
+        const k = kundenMap[kid];
+        if (!k) continue;
+        const kundeEintraege = eintraege.filter(l => l.kundeId === kid);
+        const anzahl = kundeEintraege.length;
+        let gesamtStunden = 0;
+        let gesamtBetrag = 0;
+        for (const l of kundeEintraege) {
+          const std = App.stundenBerechnen(l.startzeit, l.endzeit);
+          gesamtStunden += std;
+          gesamtBetrag += App.betragBerechnen(std);
+        }
+        const alleUnterschrieben = kundeEintraege.every(
+          l => l.unterschriftBetreuer && l.unterschriftVersicherter
+        );
 
         html += `
-          <div class="list-item" onclick="LeistungModule.detailAnzeigen(${l.id})">
-            <div class="item-avatar">${kunde ? App.initialen(kunde.name) : '?'}</div>
+          <div class="list-item" onclick="LeistungModule.monatsUebersichtAnzeigen(${kid}, ${mi}, ${ji})">
+            <div class="item-avatar">${App.initialen(k.name)}</div>
             <div class="item-content">
-              <div class="item-title">${kunde ? this.escapeHtml(kunde.name) : 'Unbekannt'}</div>
+              <div class="item-title">${this.escapeHtml(k.name)}</div>
               <div class="item-subtitle">
-                ${App.formatDatum(l.datum)} | ${App.formatZeit(l.startzeit)}-${App.formatZeit(l.endzeit)} |
-                ${stunden.toFixed(1)} Std. | ${App.formatBetrag(betrag)}
+                ${anzahl} ${anzahl === 1 ? 'Eintrag' : 'Einträge'} |
+                ${gesamtStunden.toFixed(1).replace('.', ',')} Std. |
+                ${App.formatBetrag(gesamtBetrag)}
               </div>
-              <div class="text-xs text-muted mt-1">${arten}</div>
             </div>
-            <div class="item-action">›</div>
+            <div class="item-action">
+              ${alleUnterschrieben
+                ? '<span class="badge badge-success">✓ Unterschrieben</span>'
+                : '<span class="badge badge-warning">⏳ Offen</span>'
+              }
+            </div>
           </div>
         `;
       }
@@ -279,66 +276,207 @@ const LeistungModule = {
     }
   },
 
-  // Monats-Unterschrift: Eine Unterschrift für alle Einträge eines Monats
-  async monatsUnterschrift(monatKey) {
-    const [j, m] = monatKey.split('-');
+  // Monatsübersicht für einen Kunden anzeigen
+  async monatsUebersichtAnzeigen(kundeId, monat, jahr) {
     const container = document.getElementById('leistungContent');
+    if (!container) return;
+
+    const kunde = await DB.kundeById(kundeId);
+    if (!kunde) { App.toast('Kunde nicht gefunden', 'error'); return; }
+
+    const alleLeistungen = await DB.leistungenFuerMonat(monat, jahr);
+    const leistungen = alleLeistungen
+      .filter(l => l.kundeId === kundeId)
+      .sort((a, b) => a.datum.localeCompare(b.datum));
+
+    if (leistungen.length === 0) {
+      App.toast('Keine Leistungen in diesem Monat', 'info');
+      return;
+    }
+
+    // Berechnung
+    let gesamtStunden = 0;
+    let gesamtBetrag = 0;
+    let tabelleHtml = '';
+    for (const l of leistungen) {
+      const std = App.stundenBerechnen(l.startzeit, l.endzeit);
+      const betrag = App.betragBerechnen(std);
+      gesamtStunden += std;
+      gesamtBetrag += betrag;
+      const arten = this.leistungsArtenKurz(l);
+      tabelleHtml += `
+        <tr onclick="LeistungModule.detailAnzeigen(${l.id})" style="cursor:pointer;">
+          <td>${App.formatDatum(l.datum)}</td>
+          <td>${App.formatZeit(l.startzeit)}</td>
+          <td>${App.formatZeit(l.endzeit)}</td>
+          <td>${std.toFixed(2).replace('.', ',')}</td>
+          <td>${App.formatBetrag(betrag)}</td>
+          <td>${arten}</td>
+        </tr>
+      `;
+    }
+
+    // Prüfe ob bereits unterschrieben
+    const ersteMitBetreuer = leistungen.find(l => l.unterschriftBetreuer);
+    const ersteMitVersicherter = leistungen.find(l => l.unterschriftVersicherter);
+    const hatBetreuerSig = !!ersteMitBetreuer;
+    const hatVersicherterSig = !!ersteMitVersicherter;
+    const alleUnterschrieben = hatBetreuerSig && hatVersicherterSig;
 
     container.innerHTML = `
       <div class="card">
-        <h3 class="card-title mb-2">Monatsunterschrift — ${App.monatsName(parseInt(m))} ${j}</h3>
-        <p class="text-sm text-muted mb-2">
-          Die Unterschrift gilt für alle Leistungseinträge dieses Monats.
-        </p>
+        <h3 class="card-title mb-2">
+          ${this.escapeHtml(kunde.name)} — ${App.monatsName(monat)} ${jahr}
+        </h3>
+
+        <div style="overflow-x: auto;">
+          <table class="table" style="width:100%; border-collapse:collapse; font-size:0.9rem;">
+            <thead>
+              <tr style="background: var(--primary-color); color: #fff;">
+                <th style="padding:6px 8px;">Datum</th>
+                <th style="padding:6px 8px;">Von</th>
+                <th style="padding:6px 8px;">Bis</th>
+                <th style="padding:6px 8px;">Std.</th>
+                <th style="padding:6px 8px;">Betrag</th>
+                <th style="padding:6px 8px;">Leistungsart</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${tabelleHtml}
+              <tr style="font-weight:bold; border-top:2px solid var(--primary-color);">
+                <td colspan="3" style="padding:6px 8px;">Gesamt</td>
+                <td style="padding:6px 8px;">${gesamtStunden.toFixed(2).replace('.', ',')}</td>
+                <td style="padding:6px 8px;">${App.formatBetrag(gesamtBetrag)}</td>
+                <td></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 class="card-title mb-2">Unterschriften</h3>
 
         <div class="form-group">
-          <label for="unterschriftDatum">Datum der Unterschrift</label>
-          <input type="date" id="unterschriftDatum" class="form-control" value="${App.heute()}">
+          <label><strong>Unterschrift Betreuer/in</strong></label>
+          ${hatBetreuerSig ? `
+            <div id="sigBetreuerPreview">
+              <img src="${ersteMitBetreuer.unterschriftBetreuer}" style="max-width:100%; height:80px; border:1px solid #ddd; border-radius:8px; background:#fff;">
+              <br>
+              <button type="button" class="btn btn-sm btn-danger mt-1" onclick="LeistungModule.unterschriftLoeschen('betreuer', ${kundeId}, ${monat}, ${jahr})">
+                Unterschrift löschen
+              </button>
+            </div>
+          ` : `
+            <div class="signature-wrapper">
+              <canvas id="sigBetreuerCanvas"></canvas>
+              <div class="sig-placeholder">Hier unterschreiben</div>
+            </div>
+            <div id="sigBetreuerActions" class="signature-actions"></div>
+          `}
         </div>
 
-        <div class="signature-wrapper">
-          <canvas id="monatsSignatur"></canvas>
-          <div class="sig-placeholder">Hier unterschreiben</div>
+        <div class="form-group mt-2">
+          <label><strong>Unterschrift Versicherte/r</strong></label>
+          ${hatVersicherterSig ? `
+            <div id="sigVersicherterPreview">
+              <img src="${ersteMitVersicherter.unterschriftVersicherter}" style="max-width:100%; height:80px; border:1px solid #ddd; border-radius:8px; background:#fff;">
+              <br>
+              <button type="button" class="btn btn-sm btn-danger mt-1" onclick="LeistungModule.unterschriftLoeschen('versicherter', ${kundeId}, ${monat}, ${jahr})">
+                Unterschrift löschen
+              </button>
+            </div>
+          ` : `
+            <div class="signature-wrapper">
+              <canvas id="sigVersicherterCanvas"></canvas>
+              <div class="sig-placeholder">Hier unterschreiben</div>
+            </div>
+            <div id="sigVersicherterActions" class="signature-actions"></div>
+          `}
         </div>
-        <div id="monatsSigActions" class="signature-actions"></div>
       </div>
 
       <div class="btn-group mt-2">
-        <button class="btn btn-primary btn-block" onclick="LeistungModule.monatsUnterschriftSpeichern('${monatKey}')">
-          Unterschrift speichern
+        ${!alleUnterschrieben ? `
+          <button class="btn btn-primary btn-block" onclick="LeistungModule.unterschriftenSpeichern(${kundeId}, ${monat}, ${jahr})">
+            Unterschriften speichern
+          </button>
+        ` : ''}
+        <button class="btn btn-success btn-block ${!alleUnterschrieben ? 'btn-disabled' : ''}"
+                onclick="LeistungModule.monatsPdfErstellen(${kundeId}, ${monat}, ${jahr})"
+                ${!alleUnterschrieben ? 'disabled' : ''}>
+          📄 PDF erzeugen
         </button>
         <button class="btn btn-secondary" onclick="LeistungModule.zurueckZurListe()">
-          Abbrechen
+          ← Zurück
         </button>
       </div>
     `;
 
+    // Signature Pads initialisieren (nur für fehlende Unterschriften)
     setTimeout(() => {
-      this.signaturePad = initSignaturePad('monatsSignatur', 'monatsSigActions');
+      if (!hatBetreuerSig) {
+        this.sigPadBetreuer = initSignaturePad('sigBetreuerCanvas', 'sigBetreuerActions');
+      }
+      if (!hatVersicherterSig) {
+        this.sigPadVersicherter = initSignaturePad('sigVersicherterCanvas', 'sigVersicherterActions');
+      }
     }, 100);
   },
 
-  async monatsUnterschriftSpeichern(monatKey) {
-    if (!this.signaturePad || this.signaturePad.isEmpty()) {
-      App.toast('Bitte unterschreiben', 'error');
+  // Unterschriften für alle Leistungen eines Kunden im Monat speichern
+  async unterschriftenSpeichern(kundeId, monat, jahr) {
+    const sigBetreuer = this.sigPadBetreuer ? this.sigPadBetreuer.toDataURL() : null;
+    const sigVersicherter = this.sigPadVersicherter ? this.sigPadVersicherter.toDataURL() : null;
+
+    if (!sigBetreuer && !sigVersicherter) {
+      App.toast('Bitte mindestens eine Unterschrift setzen', 'error');
       return;
     }
 
-    const unterschrift = this.signaturePad.toDataURL();
-    const unterschriftDatum = document.getElementById('unterschriftDatum').value || App.heute();
-    const [j, m] = monatKey.split('-');
-
     try {
-      const leistungen = await DB.leistungenFuerMonat(parseInt(m), parseInt(j));
-      // Unterschrift auf alle Einträge dieses Monats setzen
+      const alleLeistungen = await DB.leistungenFuerMonat(monat, jahr);
+      const leistungen = alleLeistungen.filter(l => l.kundeId === kundeId);
+
+      const update = {};
+      if (sigBetreuer) update.unterschriftBetreuer = sigBetreuer;
+      if (sigVersicherter) update.unterschriftVersicherter = sigVersicherter;
+
       for (const l of leistungen) {
-        await DB.leistungAktualisieren(l.id, { unterschrift, unterschriftDatum });
+        await DB.leistungAktualisieren(l.id, update);
       }
-      App.toast(`Unterschrift für ${App.monatsName(parseInt(m))} gespeichert`, 'success');
-      this.zurueckZurListe();
+
+      App.toast('Unterschriften gespeichert', 'success');
+      // Ansicht neu laden
+      await this.monatsUebersichtAnzeigen(kundeId, monat, jahr);
     } catch (err) {
       console.error('Fehler:', err);
       App.toast('Fehler beim Speichern', 'error');
+    }
+  },
+
+  // Unterschrift löschen (Betreuer oder Versicherter)
+  async unterschriftLoeschen(typ, kundeId, monat, jahr) {
+    const label = typ === 'betreuer' ? 'Betreuer-Unterschrift' : 'Versicherten-Unterschrift';
+    if (!await App.confirm(`${label} wirklich löschen?`)) return;
+
+    try {
+      const alleLeistungen = await DB.leistungenFuerMonat(monat, jahr);
+      const leistungen = alleLeistungen.filter(l => l.kundeId === kundeId);
+
+      const update = {};
+      if (typ === 'betreuer') update.unterschriftBetreuer = null;
+      else update.unterschriftVersicherter = null;
+
+      for (const l of leistungen) {
+        await DB.leistungAktualisieren(l.id, update);
+      }
+
+      App.toast(`${label} gelöscht`, 'success');
+      await this.monatsUebersichtAnzeigen(kundeId, monat, jahr);
+    } catch (err) {
+      console.error('Fehler:', err);
+      App.toast('Fehler beim Löschen', 'error');
     }
   },
 
@@ -428,6 +566,14 @@ const LeistungModule = {
     if (this.signaturePad) {
       this.signaturePad.destroy?.();
       this.signaturePad = null;
+    }
+    if (this.sigPadBetreuer) {
+      this.sigPadBetreuer.destroy?.();
+      this.sigPadBetreuer = null;
+    }
+    if (this.sigPadVersicherter) {
+      this.sigPadVersicherter.destroy?.();
+      this.sigPadVersicherter = null;
     }
     const container = document.getElementById('leistungContent');
     if (container) {
