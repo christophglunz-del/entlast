@@ -3,6 +3,16 @@
  * Login/Logout + Session-Pruefung + Firmendaten laden
  */
 
+// FIRMA sofort mit Defaults initialisieren (wird von Auth.init ueberschrieben)
+if (!window.FIRMA) {
+    window.FIRMA = {
+        name: '', inhaber: '', strasse: '', plz: '', ort: '',
+        telefon: '', email: '', steuernummer: '', ikNummer: '',
+        iban: '', bic: '', bank: '', stundensatz: 32.5, kmSatz: 0.30,
+        startAdresse: '', kleinunternehmer: true, angebotsId: ''
+    };
+}
+
 const Auth = {
 
     async login(username, password) {
