@@ -17,6 +17,7 @@ const SettingsModule = {
     const container = document.getElementById('settingsContent');
     if (!container) return;
     if (!window.FIRMA) window.FIRMA = {};
+    const F = Object.assign({}, window.FIRMA);
 
     // Gespeicherte Einstellungen laden
     const lexofficeKey = await DB.settingLesen('lexoffice_api_key') || '';
@@ -37,17 +38,17 @@ const SettingsModule = {
           <span class="card-icon pink">🏠</span>
         </div>
         <div class="text-sm">
-          <p><strong>${FIRMA.name || 'Nicht konfiguriert'}</strong></p>
-          <p>${FIRMA.inhaber || '-'}</p>
-          <p>${FIRMA.strasse || '-'}, ${FIRMA.plz || ''} ${FIRMA.ort || ''}</p>
-          <p>Tel: ${FIRMA.telefon || '-'}</p>
-          <p>E-Mail: ${FIRMA.email || '-'}</p>
-          <p>StNr: ${FIRMA.steuernummer || '-'}</p>
-          <p>IK: ${FIRMA.ikNummer || '-'}</p>
-          <p>IBAN: ${FIRMA.iban || '-'} (${FIRMA.bank || '-'})</p>
+          <p><strong>${F.name || 'Nicht konfiguriert'}</strong></p>
+          <p>${F.inhaber || '-'}</p>
+          <p>${F.strasse || '-'}, ${F.plz || ''} ${F.ort || ''}</p>
+          <p>Tel: ${F.telefon || '-'}</p>
+          <p>E-Mail: ${F.email || '-'}</p>
+          <p>StNr: ${F.steuernummer || '-'}</p>
+          <p>IK: ${F.ikNummer || '-'}</p>
+          <p>IBAN: ${F.iban || '-'} (${F.bank || '-'})</p>
           <p>Stundensatz: ${App.formatBetrag(FIRMA.stundensatz || 0)}</p>
           <p>km-Satz: ${(FIRMA.kmSatz || 0).toFixed(2).replace('.', ',')} €/km</p>
-          ${FIRMA.kleinunternehmer ? '<p class="text-muted mt-1">Kleinunternehmer gem. § 19 Abs. 1 UStG</p>' : ''}
+          ${F.kleinunternehmer ? '<p class="text-muted mt-1">Kleinunternehmer gem. § 19 Abs. 1 UStG</p>' : ''}
         </div>
       </div>
 
