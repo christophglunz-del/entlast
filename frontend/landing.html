@@ -483,11 +483,45 @@
     </div>
 </section>
 
+<!-- VERSAND & SCHNITTSTELLEN -->
+<section class="problem" id="versand">
+    <div class="container">
+        <h2 class="section-title">Versand &amp; Schnittstellen</h2>
+        <p class="section-sub">entlast.de erstellt Ihre Rechnungen als PDF. F&uuml;r den Versand nutzen Sie einen dieser Dienste:</p>
+        <div class="problem-grid">
+            <div class="problem-card fade-in">
+                <div class="p-icon" style="background: #f0f7f8;">
+                    <svg viewBox="0 0 24 24" style="stroke: var(--teal);"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                </div>
+                <h3>Fax-Versand</h3>
+                <p><strong>Direkt aus der App</strong> &uuml;ber die Sipgate-API (ab 30,80 &euro;/Monat inkl. MwSt.). <strong>Oder g&uuml;nstiger:</strong> Die fertige PDF einfach bei <a href="https://simple-fax.de" target="_blank" rel="noopener">simple-fax.de</a> hochladen &mdash; 7 Cent pro Seite, keine Grundgeb&uuml;hr.</p>
+            </div>
+            <div class="problem-card fade-in">
+                <div class="p-icon" style="background: #f0f7f8;">
+                    <svg viewBox="0 0 24 24" style="stroke: var(--teal);"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                </div>
+                <h3>Brief-Versand</h3>
+                <p>&Uuml;ber <a href="https://letterxpress.de" target="_blank" rel="noopener">LetterXpress</a> &mdash; Prepaid-Guthaben, <strong>verf&auml;llt nicht</strong>. Ein Brief kostet <strong>0,96 &euro;</strong> komplett (Druck, Kuvert, Porto). Allein das Porto kostet bei der Post schon 0,95 &euro;.</p>
+            </div>
+            <div class="problem-card fade-in">
+                <div class="p-icon" style="background: #f0f7f8;">
+                    <svg viewBox="0 0 24 24" style="stroke: var(--teal);"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                </div>
+                <h3>Lexoffice (optional)</h3>
+                <p>Die Anbindung an <a href="https://www.lexoffice.de" target="_blank" rel="noopener">Lexoffice</a> erfordert deren XL-Tarif (ca. 39 &euro;/Monat inkl. MwSt.). entlast.de funktioniert aber <strong>komplett ohne Lexoffice</strong> &mdash; mit eigener Rechnungserstellung und DATEV-Export.</p>
+            </div>
+        </div>
+        <div style="max-width: 720px; margin: 32px auto 0; padding: 20px 24px; background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); font-size: 0.92rem; color: var(--text-muted); line-height: 1.6;">
+            <strong style="color: var(--text);">Offen f&uuml;r weitere Schnittstellen:</strong> Jede API kann auf Wunsch angebunden werden. Sobald der elektronische Datenaustausch mit den Pflegekassen (DTA) ab Ende 2027 standardisiert ist, wird diese Schnittstelle direkt in entlast.de integriert.
+        </div>
+    </div>
+</section>
+
 <!-- PRICING -->
 <section class="pricing">
     <div class="container">
-        <h2 class="section-title">Faire Preise für kleine Betriebe</h2>
-        <p class="section-sub">Andere Software ist für große Pflegedienste gemacht — und entsprechend teuer.</p>
+        <h2 class="section-title">Faire Preise f&uuml;r kleine Betriebe</h2>
+        <p class="section-sub">Andere Software ist f&uuml;r gro&szlig;e Pflegedienste gemacht &mdash; und entsprechend teuer.</p>
         <div class="table-wrap">
             <table class="price-table">
                 <thead>
@@ -502,21 +536,26 @@
                 <tbody>
                     <tr class="highlight">
                         <td>Preis / Monat</td>
-                        <td><span class="price-tag">19 €<small>/Monat</small></span></td>
-                        <td>49 €</td>
-                        <td>89 €</td>
-                        <td>149 €</td>
+                        <td><span class="price-tag">19 &euro;<small>/Monat</small></span></td>
+                        <td>49 &euro;</td>
+                        <td>89 &euro;</td>
+                        <td>149 &euro;</td>
                     </tr>
                     <tr><td>Kunden &amp; Budgets</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
-                    <tr><td>Fax-Versand</td><td class="check">&#10003;</td><td class="cross">&#10005;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
-                    <tr><td>Brief-Versand</td><td class="check">&#10003;</td><td class="cross">&#10005;</td><td class="cross">&#10005;</td><td class="check">&#10003;</td></tr>
-                    <tr><td>Lexoffice-Anbindung</td><td class="check">&#10003;</td><td class="cross">&#10005;</td><td class="cross">&#10005;</td><td class="cross">&#10005;</td></tr>
-                    <tr><td>DSGVO-Verschlüsselung</td><td class="check">&#10003;</td><td class="cross">&#10005;</td><td class="cross">&#10005;</td><td class="cross">&#10005;</td></tr>
+                    <tr><td>Fax-Versand *</td><td class="check">&#10003;</td><td class="cross">&#10005;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
+                    <tr><td>Brief-Versand **</td><td class="check">&#10003;</td><td class="cross">&#10005;</td><td class="cross">&#10005;</td><td class="check">&#10003;</td></tr>
+                    <tr><td>Lexoffice-Anbindung ***</td><td class="check">&#10003;</td><td class="cross">&#10005;</td><td class="cross">&#10005;</td><td class="cross">&#10005;</td></tr>
+                    <tr><td>DSGVO-Verschl&uuml;sselung</td><td class="check">&#10003;</td><td class="cross">&#10005;</td><td class="cross">&#10005;</td><td class="cross">&#10005;</td></tr>
                     <tr><td>Multi-Device</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td><td class="check">&#10003;</td></tr>
                 </tbody>
             </table>
         </div>
-        <p class="price-note">30 Tage kostenlos testen. Keine Einrichtungsgebühr. Monatlich kündbar.</p>
+        <p class="price-note" style="text-align: left; max-width: 720px; margin: 20px auto 0; font-size: 0.82rem;">
+            * Fax via Sipgate-API (ab 30,80 &euro;/Monat) oder manuell &uuml;ber simple-fax.de (7 Ct./Seite, keine Grundgeb&uuml;hr)<br>
+            ** Brief via LetterXpress (0,96 &euro;/Brief, Prepaid-Guthaben)<br>
+            *** Erfordert Lexoffice XL (ca. 39 &euro;/Monat) &mdash; entlast.de funktioniert auch ohne Lexoffice
+        </p>
+        <p class="price-note">30 Tage kostenlos testen. Keine Einrichtungsgeb&uuml;hr. Monatlich k&uuml;ndbar.</p>
     </div>
 </section>
 
