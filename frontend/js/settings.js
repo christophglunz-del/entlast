@@ -157,7 +157,24 @@ const SettingsModule = {
         </div>
       </div>
 
-      <!-- Google Calendar -->
+      <!-- Kalender-Abo -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Kalender abonnieren</span>
+          <span class="card-icon blue">📅</span>
+        </div>
+        <p class="text-sm text-muted">Alle Termine aus entlast.de in Ihrer Kalender-App anzeigen (Google, Apple, Outlook).</p>
+        <div class="form-group mt-1">
+          <label>Abo-URL (zum Kopieren)</label>
+          <div style="display:flex;gap:8px;">
+            <input type="text" id="icalUrl" class="form-control" readonly
+                   value="https://entlast.de/api/v1/ical/susi" style="font-size:0.8rem;">
+            <button class="btn btn-sm btn-outline" onclick="navigator.clipboard.writeText(document.getElementById('icalUrl').value).then(()=>App.toast('URL kopiert','success'))">Kopieren</button>
+          </div>
+          <div class="form-hint mt-1">Kalender-App &rarr; Kalender hinzuf&uuml;gen &rarr; Per URL abonnieren &rarr; URL einf&uuml;gen</div>
+        </div>
+      </div>
+
       <div id="gcalSettingsPlaceholder"></div>
 
       <!-- Datensicherung -->
