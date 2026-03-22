@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const { user, firma, pflegekassen } = await Auth.init();
 
         // FIRMA-Defaults sicherstellen (verhindert null-Crashes)
+        if (!window.FIRMA) window.FIRMA = {};
         const FIRMA_DEFAULTS = {
             name: '', inhaber: '', strasse: '', plz: '', ort: '',
             telefon: '', email: '', steuernummer: '', ikNummer: '',
