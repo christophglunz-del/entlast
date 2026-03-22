@@ -46,8 +46,8 @@ const SettingsModule = {
           <p>StNr: ${F.steuernummer || '-'}</p>
           <p>IK: ${F.ikNummer || '-'}</p>
           <p>IBAN: ${F.iban || '-'} (${F.bank || '-'})</p>
-          <p>Stundensatz: ${App.formatBetrag(FIRMA.stundensatz || 0)}</p>
-          <p>km-Satz: ${(FIRMA.kmSatz || 0).toFixed(2).replace('.', ',')} €/km</p>
+          <p>Stundensatz: ${App.formatBetrag(F.stundensatz || 0)}</p>
+          <p>km-Satz: ${(F.kmSatz || 0).toFixed(2).replace('.', ',')} €/km</p>
           ${F.kleinunternehmer ? '<p class="text-muted mt-1">Kleinunternehmer gem. § 19 Abs. 1 UStG</p>' : ''}
         </div>
       </div>
