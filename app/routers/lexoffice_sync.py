@@ -1,8 +1,9 @@
-"""Router: Lexoffice-Synchronisation (Kunden + Rechnungen)."""
+"""Router: Lexoffice-Synchronisation (Kunden + Rechnungen) + API-Proxy."""
 
 import sqlite3
 import logging
-from fastapi import APIRouter, Depends
+import httpx
+from fastapi import APIRouter, Depends, HTTPException, Request
 from app.auth import get_current_user, get_db
 
 logger = logging.getLogger("entlast.lexoffice")
@@ -84,3 +85,35 @@ async def sync_kunden(
         "aktualisiert": aktualisiert,
         "unveraendert": unveraendert,
     }
+
+
+@router.get("/proxy/{endpoint:path}")
+async def lexoffice_proxy(
+    endpoint: str,
+    request: Request,
+    user: dict = Depends(get_current_user),
+    db: sqlite3.Connection = Depends(get_db),
+):
+    """Proxy fuer Lexoffice-API — leitet Requests an Lexoffice weiter."""
+    from app.services.lexoffice import _get_api_key, LEXOFFICE_BASE
+
+    api_key = _get_api_key(db)
+
+    # Query-Parameter durchreichen
+    params = dict(request.query_params)
+
+    async with httpx.AsyncClient(timeout=30) as client:
+        res = await client.get(
+            f"{LEXOFFICE_BASE}/{endpoint}",
+            params=params,
+            headers={"Authorization": f"Bearer {api_key}", "Accept": "application/json"},
+        )
+
+    if res.status_code == 401:
+        raise HTTPException(401, "Lexoffice API-Key ungueltig")
+    if res.status_code == 429:
+        raise HTTPException(429, "Lexoffice Rate-Limit erreicht")
+    if res.status_code >= 400:
+        raise HTTPException(res.status_code, f"Lexoffice: {res.text[:200]}")
+
+    return res.json()
