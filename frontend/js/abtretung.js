@@ -279,9 +279,9 @@ const AbtretungModule = {
 
         <p><strong>2) Bevollmächtigte / Abtretungsempfängerin</strong></p>
         <p style="margin: 8px 0; padding: 10px; background: var(--gray-50); border-radius: 8px;">
-          ${FIRMA.name} – ${FIRMA.inhaber}<br>
-          ${FIRMA.strasse}, ${FIRMA.plz} ${FIRMA.ort}<br>
-          IK-Nummer: ${FIRMA.ikNummer} · Angebots-ID: ${FIRMA.angebotsId || '080123F8M2'}
+          ${(FIRMA||{}).name || ''} – ${(FIRMA||{}).inhaber || ''}<br>
+          ${(FIRMA||{}).strasse || ''}, ${(FIRMA||{}).plz || ''} ${(FIRMA||{}).ort || ''}<br>
+          IK-Nummer: ${(FIRMA||{}).ikNummer || ''} · Angebots-ID: ${(FIRMA||{}).angebotsId || '080123F8M2'}
         </p>
 
         <hr style="border: none; border-top: 1px solid var(--gray-200); margin: 12px 0;">

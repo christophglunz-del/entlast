@@ -78,7 +78,7 @@ async def fetch_contacts(db: sqlite3.Connection) -> list[dict]:
         while True:
             res = await client.get(
                 f"{LEXOFFICE_BASE}/contacts",
-                params={"page": page, "size": 100},
+                params={"page": page, "size": 100, "customer": "true"},
                 headers={"Authorization": f"Bearer {api_key}", "Accept": "application/json"},
             )
             if res.status_code == 401:

@@ -69,8 +69,14 @@ const Auth = {
             console.warn('Pflegekassen konnten nicht geladen werden:', e);
         }
 
-        // Globale Variablen setzen
-        window.FIRMA = firma;
+        // Globale Variablen setzen (mit Defaults gegen null-Crashes)
+        const FIRMA_DEFAULTS = {
+            name: '', inhaber: '', strasse: '', plz: '', ort: '',
+            telefon: '', email: '', steuernummer: '', ikNummer: '',
+            iban: '', bic: '', bank: '', stundensatz: 32.5, kmSatz: 0.30,
+            startAdresse: '', kleinunternehmer: true, angebotsId: ''
+        };
+        window.FIRMA = Object.assign({}, FIRMA_DEFAULTS, firma);
         window.PFLEGEKASSEN = pflegekassen;
 
         // CSS-Variablen fuer dynamisches Branding
