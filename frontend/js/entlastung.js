@@ -312,7 +312,7 @@ const EntlastungModule = {
 
     for (const voucher of apiCache.relevanteRechnungen) {
       const detail = apiCache.cache[voucher.id];
-      if (!detail || !detail.lineItems || !detail.lineItems.length) continue;
+      if (!detail) continue;
 
       const shipping = detail.shippingConditions || {};
       const leistungsEnde = shipping.shippingEndDate
@@ -321,35 +321,35 @@ const EntlastungModule = {
       const rechnungsJahr = leistungsEnde.getFullYear();
       const rechnungsMonat = leistungsEnde.getMonth();
 
-      for (const item of detail.lineItems) {
-        const name = (item.name || '').trim();
-        const nameLower = name.toLowerCase();
-        if (!name || nameLower === 'alltagshilfe'
-            || nameLower.includes('reinigung') || nameLower.includes('außenanlagen')
-            || nameLower.includes('pflege von') || nameLower.startsWith('erläuterung')) continue;
+      // Gesamtbetrag der Rechnung
+      const betrag = voucher.totalAmount || (detail.lineItems || []).reduce((s, i) => s + (i.lineItemAmount || 0), 0);
+      if (betrag <= 0) continue;
 
-        const betrag = item.lineItemAmount || 0;
-        if (betrag <= 0) continue;
+      // Versichertenname: aus address.name (Rechnungsempfänger) oder contactName
+      const versicherterName = (detail.address && detail.address.name) ? detail.address.name.trim() : (voucher.contactName || '').trim();
+      if (!versicherterName) continue;
 
-        if (!versicherteDaten[name]) {
-          versicherteDaten[name] = {
-            vorjahr: {},
-            laufend: {},
-            kasse: ''
-          };
-        }
+      // Kassenname: aus contactName im Voucher (wenn Rechnung an Kasse geht)
+      // oder aus der Adresse (wenn Rechnung direkt an Versicherten geht)
+      const kasse = voucher.contactName || '';
 
-        if (detail.address && detail.address.name) {
-          versicherteDaten[name].kasse = detail.address.name;
-        }
+      if (!versicherteDaten[versicherterName]) {
+        versicherteDaten[versicherterName] = {
+          vorjahr: {},
+          laufend: {},
+          kasse: kasse
+        };
+      }
+      if (kasse && !versicherteDaten[versicherterName].kasse) {
+        versicherteDaten[versicherterName].kasse = kasse;
+      }
 
-        if (rechnungsJahr === vorjahr) {
-          versicherteDaten[name].vorjahr[rechnungsMonat] =
-            (versicherteDaten[name].vorjahr[rechnungsMonat] || 0) + betrag;
-        } else if (rechnungsJahr === aktuellesJahr) {
-          versicherteDaten[name].laufend[rechnungsMonat] =
-            (versicherteDaten[name].laufend[rechnungsMonat] || 0) + betrag;
-        }
+      if (rechnungsJahr === vorjahr) {
+        versicherteDaten[versicherterName].vorjahr[rechnungsMonat] =
+          (versicherteDaten[versicherterName].vorjahr[rechnungsMonat] || 0) + betrag;
+      } else if (rechnungsJahr === aktuellesJahr) {
+        versicherteDaten[versicherterName].laufend[rechnungsMonat] =
+          (versicherteDaten[versicherterName].laufend[rechnungsMonat] || 0) + betrag;
       }
     }
 
