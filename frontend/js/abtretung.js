@@ -399,4 +399,5 @@ const AbtretungModule = {
   }
 };
 
-document.addEventListener('entlast-ready', () => AbtretungModule.init());
+if (window._entlastReady && window.FIRMA) { AbtretungModule.init(); }
+else { document.addEventListener('entlast-ready', () => AbtretungModule.init()); }

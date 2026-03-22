@@ -544,4 +544,5 @@ const KundenModule = {
 };
 
 // Warten bis Auth + FIRMA bereit
-document.addEventListener('entlast-ready', () => KundenModule.init());
+if (window._entlastReady && window.FIRMA) { KundenModule.init(); }
+else { document.addEventListener('entlast-ready', () => KundenModule.init()); }

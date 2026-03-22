@@ -1826,4 +1826,5 @@ const RechnungModule = {
   }
 };
 
-document.addEventListener('entlast-ready', () => RechnungModule.init());
+if (window._entlastReady && window.FIRMA) { RechnungModule.init(); }
+else { document.addEventListener('entlast-ready', () => RechnungModule.init()); }

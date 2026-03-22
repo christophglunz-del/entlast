@@ -241,5 +241,9 @@ const SettingsModule = {
   }
 };
 
-// Warten bis Auth + FIRMA bereit (immer auf Event warten, nie sofort)
-document.addEventListener('entlast-ready', () => SettingsModule.init());
+// Init: Event kann bereits gefeuert sein bevor dieses Script geladen wird
+if (window._entlastReady && window.FIRMA) {
+  SettingsModule.init();
+} else {
+  document.addEventListener('entlast-ready', () => SettingsModule.init());
+}

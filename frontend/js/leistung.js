@@ -432,4 +432,5 @@ const LeistungModule = {
   }
 };
 
-document.addEventListener('entlast-ready', () => LeistungModule.init());
+if (window._entlastReady && window.FIRMA) { LeistungModule.init(); }
+else { document.addEventListener('entlast-ready', () => LeistungModule.init()); }
