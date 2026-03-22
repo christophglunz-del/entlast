@@ -74,9 +74,10 @@ const PDFHelper = {
   /**
    * Fußzeile
    */
-  addFooter(doc) {
+  addFooter(doc, mitUStHinweis = true) {
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
+    const F = FIRMA || {};
 
     doc.setDrawColor(...this.PINK);
     doc.setLineWidth(0.3);
@@ -84,14 +85,13 @@ const PDFHelper = {
 
     doc.setFontSize(7);
     doc.setTextColor(...this.GRAY);
-    doc.text(
-      "Susi's Alltagshilfe | Susanne Schlosser | Kreisstr. 12 | 45525 Hattingen | StNr: 323/5096/5116 | IK: 462524110",
-      pageWidth / 2, pageHeight - 16, { align: 'center' }
-    );
-    doc.text(
-      'N26 | IBAN: DE73 1001 1001 2270 9718 12 | Kleinunternehmer gem. § 19 Abs. 1 UStG',
-      pageWidth / 2, pageHeight - 12, { align: 'center' }
-    );
+    const zeile1 = [F.name, F.inhaber, F.strasse, [F.plz, F.ort].filter(Boolean).join(' '), F.steuernummer ? 'StNr: ' + F.steuernummer : '', F.ikNummer ? 'IK: ' + F.ikNummer : ''].filter(Boolean).join(' | ');
+    doc.text(zeile1 || 'entlast.de', pageWidth / 2, pageHeight - 16, { align: 'center' });
+
+    if (mitUStHinweis) {
+      const zeile2 = [F.bank, F.iban ? 'IBAN: ' + F.iban : '', F.kleinunternehmer ? 'Kleinunternehmer gem. \u00A7 19 Abs. 1 UStG' : ''].filter(Boolean).join(' | ');
+      doc.text(zeile2, pageWidth / 2, pageHeight - 12, { align: 'center' });
+    }
   },
 
   /**
@@ -213,7 +213,7 @@ const PDFHelper = {
 
       // Seitenumbruch wenn nötig
       if (y > pageHeight - 60) {
-        this.addFooter(doc);
+        this.addFooter(doc, false);
         doc.addPage();
         y = 20;
       }
@@ -252,15 +252,7 @@ const PDFHelper = {
       doc.line(15, y, 80, y);
     }
 
-    // Kleinunternehmer-Hinweis
-    doc.setFontSize(7);
-    doc.setTextColor(...this.GRAY);
-    doc.text(
-      'Gemäß § 19 Abs. 1 UStG wird keine Umsatzsteuer berechnet.',
-      15, pageHeight - 25
-    );
-
-    this.addFooter(doc);
+    this.addFooter(doc, false);
     return doc;
   },
 
@@ -492,7 +484,7 @@ const PDFHelper = {
 
     doc.text('Die Vollmacht gilt ab dem Datum meiner Unterschrift und gilt bis auf Widerruf.', 15, y);
 
-    this.addFooter(doc);
+    this.addFooter(doc, false);
 
     // === SEITE 2 ===
     doc.addPage();
@@ -577,7 +569,7 @@ const PDFHelper = {
     doc.setFontSize(9);
     doc.text(`Name in Druckbuchstaben: ${kunde.name || '____________'}`, 15, y);
 
-    this.addFooter(doc);
+    this.addFooter(doc, false);
     return doc;
   },
 
