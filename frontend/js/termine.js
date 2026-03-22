@@ -7,6 +7,16 @@ const TermineModule = {
   kundenFarben: {},
   farben: ['#E91E7B', '#2196F3', '#4CAF50', '#FF9800', '#9C27B0', '#00BCD4', '#FF5722', '#607D8B'],
 
+  istLetzterImMonat(termin, displayDatum) {
+    if (!termin.wiederkehrend) return false;
+    const muster = termin.wiederholungsMuster || termin.wiederholungs_muster || {};
+    const intervall = muster.intervall || 1;
+    const datum = new Date((displayDatum || termin.datum) + 'T00:00:00');
+    const naechster = new Date(datum);
+    naechster.setDate(naechster.getDate() + 7 * intervall);
+    return naechster.getMonth() !== datum.getMonth();
+  },
+
   async init() {
     this.currentWeekStart = App.getMontag(new Date());
     const params = new URLSearchParams(window.location.search);
@@ -123,10 +133,11 @@ const TermineModule = {
                     ${slotTermine.map(t => {
                       const kunde = kundenMap[t.kundeId];
                       const farbe = this.kundenFarben[t.kundeId] || '#E91E7B';
+                      const unterschriftBadge = TermineModule.istLetzterImMonat(t, datumStr) ? ' <span style="background:#ea580c;color:#fff;font-size:0.6rem;padding:1px 3px;border-radius:3px;white-space:nowrap;">\u270D\uFE0F Unterschrift</span>' : '';
                       return `
                         <div class="calendar-event" style="border-left-color: ${farbe}; background: ${farbe}15;"
                              onclick="event.stopPropagation(); TermineModule.terminBearbeiten(${t.id})">
-                          <div class="event-title" style="color: ${farbe};">${kunde ? kunde.name.split(' ')[0] : 'Termin'}</div>
+                          <div class="event-title" style="color: ${farbe};">${kunde ? kunde.name.split(' ')[0] : 'Termin'}${unterschriftBadge}</div>
                           <div class="event-time">${App.formatZeit(t.startzeit)}-${App.formatZeit(t.endzeit)}</div>
                         </div>
                       `;
@@ -161,7 +172,8 @@ const TermineModule = {
                   <div class="item-subtitle">
                     ${App.wochentagKurz(displayDatum)} ${App.formatDatum(displayDatum)} |
                     ${App.formatZeit(t.startzeit)} - ${App.formatZeit(t.endzeit)}
-                    ${t.wiederkehrend ? ' | 🔄' : ''}
+                    ${t.wiederkehrend ? ' | \uD83D\uDD04' : ''}
+                    ${TermineModule.istLetzterImMonat(t, displayDatum) ? ' <span style="background:#ea580c;color:#fff;font-size:0.65rem;padding:1px 4px;border-radius:3px;">\u270D\uFE0F Unterschrift</span>' : ''}
                   </div>
                 </div>
                 <div class="item-action">›</div>

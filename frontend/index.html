@@ -194,6 +194,9 @@
                 if (stats.rechnungenUeberfaellig > 0) {
                     warnungen.push('<a href="pages/rechnung.html" style="color:#dc2626; text-decoration:underline;">\u26A0\uFE0F ' + stats.rechnungenUeberfaellig + ' Rechnungen seit &gt;30 Tagen offen</a>');
                 }
+                if (stats.unterschriftErinnerungen > 0) {
+                    warnungen.push('<a href="pages/leistung.html" style="color:#ea580c; text-decoration:underline;">\u270D\uFE0F Heute letzter Besuch im Monat bei ' + stats.unterschriftErinnerungen + ' Kunden \u2014 Leistungsnachweis unterschreiben!</a>');
+                }
                 if (warnungen.length > 0) {
                     document.getElementById('warnungen').style.display = 'block';
                     document.getElementById('warnungenInhalt').innerHTML = warnungen.map(w => '<div style="padding:4px 0;">' + w + '</div>').join('');
@@ -252,17 +255,29 @@
                 wochenTermine.sort((a, b) => (a.datum + (a.startzeit || '')).localeCompare(b.datum + (b.startzeit || '')));
 
                 const termineContainer = document.getElementById('heuteTermine');
+                // Hilfsfunktion: letzter Besuch im Monat?
+                function istLetzterImMonat(termin) {
+                    if (!termin.wiederkehrend) return false;
+                    const muster = termin.wiederholungsMuster || {};
+                    const intervall = muster.intervall || 1;
+                    const datum = new Date(termin.datum + 'T00:00:00');
+                    const naechster = new Date(datum);
+                    naechster.setDate(naechster.getDate() + 7 * intervall);
+                    return naechster.getMonth() !== datum.getMonth();
+                }
+
                 if (wochenTermine.length === 0) {
                     termineContainer.innerHTML = '<div class="card text-center text-muted text-sm">Keine Termine diese Woche</div>';
                 } else {
                     termineContainer.innerHTML = wochenTermine.map(t => {
                         const kunde = kundenMap[t.kundeId];
                         const tagLabel = t.datum === heuteDatum ? 'Heute' : new Date(t.datum + 'T00:00:00').toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'short' });
+                        const unterschriftBadge = istLetzterImMonat(t) ? ' <span style="background:#ea580c;color:#fff;font-size:0.65rem;padding:1px 4px;border-radius:3px;">\u270D\uFE0F Unterschrift</span>' : '';
                         return `
                             <div class="list-item">
                                 <div class="item-avatar">${kunde ? App.initialen(kunde.name) : '\uD83D\uDCC5'}</div>
                                 <div class="item-content">
-                                    <div class="item-title">${t.titel || (kunde ? kunde.name : 'Termin')}</div>
+                                    <div class="item-title">${t.titel || (kunde ? kunde.name : 'Termin')}${unterschriftBadge}</div>
                                     <div class="item-subtitle">${tagLabel} | ${App.formatZeit(t.startzeit)} - ${App.formatZeit(t.endzeit) || ''}</div>
                                 </div>
                             </div>
