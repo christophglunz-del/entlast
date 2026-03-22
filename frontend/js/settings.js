@@ -240,6 +240,9 @@ const SettingsModule = {
   }
 };
 
-document.addEventListener('DOMContentLoaded', () => {
+// Warten bis Auth + FIRMA bereit
+if (window._entlastReady) {
   SettingsModule.init();
-});
+} else {
+  document.addEventListener('entlast-ready', () => SettingsModule.init());
+}

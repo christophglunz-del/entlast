@@ -543,7 +543,6 @@ const KundenModule = {
   }
 };
 
-// Initialisierung wenn Seite geladen
-document.addEventListener('DOMContentLoaded', () => {
-  KundenModule.init();
-});
+// Warten bis Auth + FIRMA bereit
+if (window._entlastReady) { KundenModule.init(); }
+else { document.addEventListener('entlast-ready', () => KundenModule.init()); }

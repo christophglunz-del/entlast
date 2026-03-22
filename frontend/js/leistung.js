@@ -432,6 +432,5 @@ const LeistungModule = {
   }
 };
 
-document.addEventListener('DOMContentLoaded', () => {
-  LeistungModule.init();
-});
+if (window._entlastReady) { LeistungModule.init(); }
+else { document.addEventListener('entlast-ready', () => LeistungModule.init()); }

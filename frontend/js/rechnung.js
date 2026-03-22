@@ -1826,6 +1826,5 @@ const RechnungModule = {
   }
 };
 
-document.addEventListener('DOMContentLoaded', () => {
-  RechnungModule.init();
-});
+if (window._entlastReady) { RechnungModule.init(); }
+else { document.addEventListener('entlast-ready', () => RechnungModule.init()); }

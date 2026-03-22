@@ -34,6 +34,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         console.log(`entlast.de geladen: ${firma.name} (User: ${user.username})`);
+
+        // Signal fuer Module dass Auth + FIRMA bereit sind
+        window._entlastReady = true;
+        document.dispatchEvent(new Event('entlast-ready'));
     } catch (e) {
         console.warn('Auth fehlgeschlagen, Weiterleitung zum Login:', e.message);
         // Endlos-Redirect verhindern: nur weiterleiten wenn nicht schon auf Login-Seite
