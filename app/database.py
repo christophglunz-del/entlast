@@ -52,6 +52,20 @@ def init_auth_db():
                 created_at TEXT NOT NULL DEFAULT (datetime('now'))
             );
 
+            CREATE TABLE IF NOT EXISTS sessions (
+                session_id TEXT PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                username TEXT NOT NULL,
+                mandant_id INTEGER NOT NULL,
+                db_datei TEXT NOT NULL,
+                name TEXT NOT NULL,
+                rolle TEXT NOT NULL,
+                created_at REAL NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES auth_benutzer(id)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_sessions_created ON sessions(created_at);
+
             CREATE TABLE IF NOT EXISTS auth_benutzer (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 username TEXT NOT NULL UNIQUE,

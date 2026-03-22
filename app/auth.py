@@ -1,6 +1,6 @@
 """Authentication: Login, Logout, Session-Management, Brute-Force-Schutz.
 
-Sessions werden in-memory gespeichert (reicht fuer 4 Mandanten).
+Sessions werden in der auth.db gespeichert (ueberlebt Restarts).
 """
 
 import os
@@ -28,22 +28,55 @@ MAX_LOGIN_ATTEMPTS = 5
 LOCKOUT_MINUTES = 15
 COOKIE_SECURE = os.environ.get("ENTLAST_ENV", "production") == "production"
 
-# In-Memory Session Store: {session_id: {user_id, username, mandant_id, db_datei, name, rolle, created_at}}
-_sessions: dict[str, dict] = {}
-
 # Brute-Force-Tracker: {ip: {attempts: int, locked_until: float}}
 _login_attempts: dict[str, dict] = {}
 
 
 def _cleanup_sessions():
-    """Entfernt abgelaufene Sessions."""
-    now = time.time()
-    expired = [
-        sid for sid, data in _sessions.items()
-        if now - data["created_at"] > SESSION_TIMEOUT_HOURS * 3600
-    ]
-    for sid in expired:
-        del _sessions[sid]
+    """Entfernt abgelaufene Sessions aus der DB."""
+    cutoff = time.time() - SESSION_TIMEOUT_HOURS * 3600
+    conn = get_auth_db()
+    try:
+        conn.execute("DELETE FROM sessions WHERE created_at < ?", (cutoff,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _get_session(session_id: str) -> dict | None:
+    """Liest eine Session aus der DB."""
+    conn = get_auth_db()
+    try:
+        return conn.execute(
+            "SELECT * FROM sessions WHERE session_id = ?", (session_id,)
+        ).fetchone()
+    finally:
+        conn.close()
+
+
+def _create_session(session_id: str, data: dict):
+    """Speichert eine neue Session in der DB."""
+    conn = get_auth_db()
+    try:
+        conn.execute(
+            """INSERT INTO sessions (session_id, user_id, username, mandant_id, db_datei, name, rolle, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (session_id, data["user_id"], data["username"], data["mandant_id"],
+             data["db_datei"], data["name"], data["rolle"], data["created_at"]),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _delete_session(session_id: str):
+    """Loescht eine Session aus der DB."""
+    conn = get_auth_db()
+    try:
+        conn.execute("DELETE FROM sessions WHERE session_id = ?", (session_id,))
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def _check_brute_force(ip: str):
@@ -84,7 +117,7 @@ def get_current_user(request: Request) -> dict:
         raise HTTPException(status_code=401, detail="Nicht angemeldet")
 
     _cleanup_sessions()
-    session = _sessions.get(session_id)
+    session = _get_session(session_id)
     if not session:
         raise HTTPException(status_code=401, detail="Session abgelaufen")
 
@@ -131,7 +164,7 @@ async def login(data: LoginRequest, request: Request, response: Response):
 
     # Session erstellen
     session_id = str(uuid.uuid4())
-    _sessions[session_id] = {
+    _create_session(session_id, {
         "user_id": user["id"],
         "username": user["username"],
         "mandant_id": user["mandant_id"],
@@ -139,7 +172,7 @@ async def login(data: LoginRequest, request: Request, response: Response):
         "name": user["name"],
         "rolle": user["rolle"],
         "created_at": time.time(),
-    }
+    })
 
     # Cookie setzen
     response.set_cookie(
@@ -172,9 +205,11 @@ async def login(data: LoginRequest, request: Request, response: Response):
 async def logout(request: Request, response: Response):
     """Logout: Session invalidieren."""
     session_id = request.cookies.get("session_id")
-    if session_id and session_id in _sessions:
-        logger.info(f"Logout: {_sessions[session_id]['username']}")
-        del _sessions[session_id]
+    if session_id:
+        session = _get_session(session_id)
+        if session:
+            logger.info(f"Logout: {session['username']}")
+            _delete_session(session_id)
 
     response.delete_cookie("session_id")
     return {"message": "Abgemeldet"}
