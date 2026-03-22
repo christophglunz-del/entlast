@@ -21,7 +21,6 @@ const SettingsModule = {
 
     // Konfigurationsstatus der sensiblen Keys pruefen (Werte werden NIE geladen)
     const lexofficeKeyOk = await DB.settingKonfiguriert('lexoffice_api_key');
-    const lexofficeProxyOk = await DB.settingKonfiguriert('lexoffice_proxy_url');
     const sipgateTokenIdOk = await DB.settingKonfiguriert('sipgate_token_id');
     const sipgateTokenOk = await DB.settingKonfiguriert('sipgate_token');
     const letterxpressUserOk = await DB.settingKonfiguriert('letterxpress_user');
@@ -97,24 +96,6 @@ const SettingsModule = {
             </div>
           </div>
           <div class="form-hint">Für automatische Rechnungserstellung</div>
-        </div>
-
-        <div class="form-group">
-          <label>Lexoffice Proxy-URL (optional)</label>
-          <div class="api-key-status" id="statusLexofficeProxy">
-            ${lexofficeProxyOk
-              ? '<span style="color: var(--success);">&#10003; konfiguriert</span>'
-              : '<span style="color: var(--text-muted);">&#10007; nicht gesetzt</span>'}
-            <button class="btn btn-sm btn-outline" onclick="SettingsModule.keyAendern('settLexofficeProxy', 'Lexoffice Proxy-URL', 'https://susi-proxy.cg-d2f.workers.dev')">Ändern</button>
-          </div>
-          <div id="editLexofficeProxy" style="display:none;" class="mt-1">
-            <input type="url" id="settLexofficeProxy" class="form-control" placeholder="https://susi-proxy.cg-d2f.workers.dev">
-            <div class="btn-group mt-1">
-              <button class="btn btn-sm btn-primary" onclick="SettingsModule.keySpeichern('lexoffice_proxy_url', 'settLexofficeProxy', 'statusLexofficeProxy', 'editLexofficeProxy')">Speichern</button>
-              <button class="btn btn-sm btn-outline" onclick="SettingsModule.keyAbbrechen('editLexofficeProxy')">Abbrechen</button>
-            </div>
-          </div>
-          <div class="form-hint">CORS-Proxy (Cloudflare Worker) — leer lassen für direkten Zugriff</div>
         </div>
 
         <div class="form-group">

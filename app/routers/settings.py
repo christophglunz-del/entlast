@@ -13,7 +13,6 @@ SENSITIVE_KEYS = {
     "sipgate_token",
     "letterxpress_user",
     "letterxpress_key",
-    "lexoffice_proxy_url",
 }
 
 
