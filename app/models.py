@@ -45,6 +45,9 @@ class FirmaResponse(BaseModel):
     farbe_primary_dark: str | None = "#C2185B"
     untertitel: str | None = None
     kleinunternehmer: bool = True
+    stundensatz: float | None = 32.5
+    km_satz: float | None = 0.30
+    start_adresse: str | None = None
 
 
 class FirmaUpdate(BaseModel):
@@ -64,6 +67,9 @@ class FirmaUpdate(BaseModel):
     farbe_primary_dark: str | None = None
     untertitel: str | None = None
     kleinunternehmer: bool | None = None
+    stundensatz: float | None = None
+    km_satz: float | None = None
+    start_adresse: str | None = None
 
 
 # --- Kunden ---

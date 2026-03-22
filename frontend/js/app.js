@@ -338,10 +338,119 @@ const App = {
     } catch (e) {
       // ignorieren
     }
+  },
+
+  // "Mehr"-Overlay-Menu initialisieren
+  initMoreMenu() {
+    const moreBtn = document.getElementById('navMoreBtn');
+    if (!moreBtn) return;
+
+    // Pfad-Prefix: Root oder pages/?
+    const inPages = window.location.pathname.includes('/pages/');
+    const prefix = inPages ? '' : 'pages/';
+    const homeLink = inPages ? '../index.html' : 'index.html';
+
+    // Overlay-HTML erzeugen
+    const overlay = document.createElement('div');
+    overlay.id = 'moreMenuOverlay';
+    overlay.innerHTML = `
+      <div class="more-menu-backdrop" id="moreMenuBackdrop"></div>
+      <div class="more-menu-panel" id="moreMenuPanel">
+        <a href="${prefix}termine.html" class="more-menu-item"><span class="more-menu-icon">\uD83D\uDCC5</span> Termine</a>
+        <a href="${prefix}fahrten.html" class="more-menu-item"><span class="more-menu-icon">\uD83D\uDE97</span> Fahrten</a>
+        <a href="${prefix}entlastung.html" class="more-menu-item"><span class="more-menu-icon">\u23F3</span> \u00A745b Budget</a>
+        <a href="${prefix}abtretung.html" class="more-menu-item"><span class="more-menu-icon">\uD83D\uDCDD</span> Abtretung</a>
+        <a href="${prefix}firma.html" class="more-menu-item"><span class="more-menu-icon">\uD83C\uDFE2</span> Firmendaten</a>
+        <a href="${prefix}settings.html" class="more-menu-item"><span class="more-menu-icon">\u2699\uFE0F</span> Einstellungen</a>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    // CSS injizieren
+    if (!document.getElementById('moreMenuStyles')) {
+      const style = document.createElement('style');
+      style.id = 'moreMenuStyles';
+      style.textContent = `
+        .more-menu-backdrop {
+          display: none;
+          position: fixed;
+          inset: 0;
+          background: rgba(0,0,0,0.4);
+          z-index: 998;
+        }
+        .more-menu-backdrop.active {
+          display: block;
+        }
+        .more-menu-panel {
+          display: none;
+          position: fixed;
+          bottom: 64px;
+          left: 12px;
+          right: 12px;
+          background: #fff;
+          border-radius: 16px;
+          box-shadow: 0 -4px 24px rgba(0,0,0,0.18);
+          z-index: 999;
+          padding: 8px 0;
+          max-width: 400px;
+          margin: 0 auto;
+        }
+        .more-menu-panel.active {
+          display: block;
+        }
+        .more-menu-item {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 14px 20px;
+          text-decoration: none;
+          color: #1a2b32;
+          font-size: 1rem;
+          font-weight: 500;
+          transition: background 0.15s;
+        }
+        .more-menu-item:hover, .more-menu-item:active {
+          background: #f0f4f8;
+        }
+        .more-menu-icon {
+          font-size: 1.25rem;
+          width: 28px;
+          text-align: center;
+        }
+      `;
+      document.head.appendChild(style);
+    }
+
+    // Toggle-Logik
+    const panel = document.getElementById('moreMenuPanel');
+    const backdrop = document.getElementById('moreMenuBackdrop');
+    let isOpen = false;
+
+    function toggleMenu() {
+      isOpen = !isOpen;
+      panel.classList.toggle('active', isOpen);
+      backdrop.classList.toggle('active', isOpen);
+    }
+
+    function closeMenu() {
+      isOpen = false;
+      panel.classList.remove('active');
+      backdrop.classList.remove('active');
+    }
+
+    moreBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      toggleMenu();
+    });
+
+    backdrop.addEventListener('click', closeMenu);
+
+    // Menu-Items schliessen das Menu automatisch (Navigation passiert via href)
   }
 };
 
 // App beim Laden initialisieren
 document.addEventListener('DOMContentLoaded', () => {
   App.init();
+  App.initMoreMenu();
 });

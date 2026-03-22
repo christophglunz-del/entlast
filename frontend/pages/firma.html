@@ -211,6 +211,20 @@
           <span>Kleinunternehmer (kein MwSt-Ausweis, §19 UStG)</span>
         </label>
       </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Stundensatz (€/Std)</label>
+          <input type="number" id="firmaStundensatz" class="form-control" step="0.50" min="0" placeholder="32.50">
+        </div>
+        <div class="form-group">
+          <label>km-Satz (€/km)</label>
+          <input type="number" id="firmaKmSatz" class="form-control" step="0.01" min="0" placeholder="0.30">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Startadresse (Fahrten)</label>
+        <input type="text" id="firmaStartAdresse" class="form-control" placeholder="z.B. Bahnhofstr. 1, 45525 Hattingen">
+      </div>
     </div>
 
     <!-- Speichern -->
@@ -227,8 +241,8 @@
     <a href="../index.html"><span class="nav-icon">&#127968;</span><span>Start</span></a>
     <a href="kunden.html"><span class="nav-icon">&#128101;</span><span>Kunden</span></a>
     <a href="leistung.html"><span class="nav-icon">&#128203;</span><span>Leistung</span></a>
-    <a href="fahrten.html"><span class="nav-icon">&#128663;</span><span>Fahrten</span></a>
-    <a href="termine.html"><span class="nav-icon">&#128197;</span><span>Termine</span></a>
+    <a href="rechnung.html"><span class="nav-icon">&#128176;</span><span>Rechnungen</span></a>
+    <a href="#" id="navMoreBtn" class="active"><span class="nav-icon">&#9776;</span><span>Mehr</span></a>
   </nav>
 
   <script src="../js/auth.js"></script>
@@ -241,7 +255,9 @@
       firmaPlz: 'plz', firmaOrt: 'ort', firmaTelefon: 'telefon',
       firmaEmail: 'email', firmaSteuernummer: 'steuernummer',
       firmaIban: 'iban', firmaBic: 'bic', firmaBank: 'bank',
-      untertitel: 'untertitel'
+      untertitel: 'untertitel',
+      firmaStundensatz: 'stundensatz', firmaKmSatz: 'km_satz',
+      firmaStartAdresse: 'start_adresse'
     };
 
     // Daten laden

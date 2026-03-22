@@ -88,8 +88,13 @@ const Auth = {
         };
         // Null-Werte aus Server-Antwort filtern (sonst ueberschreiben sie die Defaults)
         const firmaClean = {};
+        // snake_case -> camelCase Mapping fuer Firma-Felder
+        const snakeToCamelMap = { km_satz: 'kmSatz', start_adresse: 'startAdresse' };
         for (const [k, v] of Object.entries(firma)) {
-            if (v !== null && v !== undefined) firmaClean[k] = v;
+            if (v !== null && v !== undefined) {
+                const camelKey = snakeToCamelMap[k] || k;
+                firmaClean[camelKey] = v;
+            }
         }
         window.FIRMA = Object.assign({}, FIRMA_DEFAULTS, firmaClean);
         window.PFLEGEKASSEN = pflegekassen;

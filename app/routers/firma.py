@@ -30,6 +30,9 @@ def _row_to_response(row: dict) -> FirmaResponse:
         farbe_primary_dark=row.get("farbe_primary_dark") or "#C2185B",
         untertitel=row.get("untertitel"),
         kleinunternehmer=bool(row.get("kleinunternehmer", 1)),
+        stundensatz=row.get("stundensatz", 32.5),
+        km_satz=row.get("km_satz", 0.30),
+        start_adresse=row.get("start_adresse"),
     )
 
 
