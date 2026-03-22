@@ -181,31 +181,55 @@ class LeistungResponse(BaseModel):
 # --- Fahrten ---
 
 class FahrtCreate(BaseModel):
-    kunde_id: int
+    model_config = {"populate_by_name": True}
+    kunde_id: int | None = Field(None, alias="kundeId")
     datum: str
+    wochentag: str | None = None
+    start_adresse: str | None = Field(None, alias="startAdresse")
+    ziel_adressen: list[str] | None = Field(None, alias="zielAdressen")
+    gesamt_km: float | None = Field(None, alias="gesamtKm")
+    tracking_km: float | None = Field(None, alias="trackingKm")
+    betrag: float | None = None
+    notiz: str | None = None
+    gps_track: str | None = Field(None, alias="gpsTrack")
+    # Legacy-Felder (altes Schema)
     von_ort: str | None = None
     nach_ort: str | None = None
     km: float | None = None
-    betrag: float | None = None
 
 
 class FahrtUpdate(BaseModel):
-    kunde_id: int | None = None
+    model_config = {"populate_by_name": True}
+    kunde_id: int | None = Field(None, alias="kundeId")
     datum: str | None = None
+    wochentag: str | None = None
+    start_adresse: str | None = Field(None, alias="startAdresse")
+    ziel_adressen: list[str] | None = Field(None, alias="zielAdressen")
+    gesamt_km: float | None = Field(None, alias="gesamtKm")
+    tracking_km: float | None = Field(None, alias="trackingKm")
+    betrag: float | None = None
+    notiz: str | None = None
+    gps_track: str | None = Field(None, alias="gpsTrack")
     von_ort: str | None = None
     nach_ort: str | None = None
     km: float | None = None
-    betrag: float | None = None
 
 
 class FahrtResponse(BaseModel):
     id: int
-    kunde_id: int
+    kunde_id: int | None = None
     datum: str
+    wochentag: str | None = None
+    start_adresse: str | None = None
+    ziel_adressen: list[str] | None = None
+    gesamt_km: float | None = None
+    tracking_km: float | None = None
+    betrag: float | None = None
+    notiz: str | None = None
+    gps_track: str | None = None
     von_ort: str | None = None
     nach_ort: str | None = None
     km: float | None = None
-    betrag: float | None = None
     created_at: str | None = None
 
 

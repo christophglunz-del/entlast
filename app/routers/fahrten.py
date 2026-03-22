@@ -1,5 +1,6 @@
 """Router: Fahrten-CRUD (Kilometeraufzeichnung)."""
 
+import json
 import sqlite3
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -10,32 +11,41 @@ router = APIRouter(prefix="/fahrten", tags=["fahrten"])
 
 
 def _row_to_response(row: dict) -> FahrtResponse:
+    # ziel_adressen ist JSON-String in der DB
+    ziel = row.get("ziel_adressen")
+    if ziel and isinstance(ziel, str):
+        try:
+            ziel = json.loads(ziel)
+        except (json.JSONDecodeError, TypeError):
+            ziel = None
+
     return FahrtResponse(
         id=row["id"],
-        kunde_id=row["kunde_id"],
+        kunde_id=row.get("kunde_id"),
         datum=row["datum"],
+        wochentag=row.get("wochentag"),
+        start_adresse=row.get("start_adresse"),
+        ziel_adressen=ziel,
+        gesamt_km=row.get("gesamt_km"),
+        tracking_km=row.get("tracking_km"),
+        betrag=row.get("betrag"),
+        notiz=row.get("notiz"),
+        gps_track=row.get("gps_track"),
+        # Legacy
         von_ort=row.get("von_ort"),
         nach_ort=row.get("nach_ort"),
         km=row.get("km"),
-        betrag=row.get("betrag"),
         created_at=row.get("created_at"),
     )
 
 
 def _week_to_date_range(woche: str) -> tuple[str, str]:
-    """Wandelt Wochenangabe in Start- und Enddatum um.
-
-    Akzeptiert:
-      - ISO-Woche: '2026-W12'
-      - Montag-Datum: '2026-03-17' (Frontend schickt dieses Format)
-    """
+    """Wandelt Wochenangabe in Start- und Enddatum um."""
     if "-W" in woche:
         year, week_num = woche.split("-W")
         start = datetime.strptime(f"{year}-W{int(week_num):02d}-1", "%Y-W%W-%w")
     else:
-        # Datum -> Montag dieser Woche
         start = datetime.strptime(woche, "%Y-%m-%d")
-        # Auf Montag normalisieren
         start = start - timedelta(days=start.weekday())
     end = start + timedelta(days=6)
     return start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d")
@@ -43,16 +53,15 @@ def _week_to_date_range(woche: str) -> tuple[str, str]:
 
 @router.get("", response_model=list[FahrtResponse])
 async def liste_fahrten(
-    woche: str | None = Query(None, description="ISO-Woche, z.B. 2026-W12"),
+    woche: str | None = Query(None, description="ISO-Woche oder Montag-Datum"),
     user: dict = Depends(get_current_user),
     db: sqlite3.Connection = Depends(get_db),
 ):
-    """Alle Fahrten auflisten, optional gefiltert nach Woche."""
     if woche:
         try:
             start, end = _week_to_date_range(woche)
         except (ValueError, IndexError):
-            raise HTTPException(status_code=400, detail="Ungueltiges Wochenformat. Erwartet: YYYY-Www")
+            raise HTTPException(status_code=400, detail="Ungueltiges Wochenformat")
         rows = db.execute(
             "SELECT * FROM fahrten WHERE datum BETWEEN ? AND ? ORDER BY datum DESC",
             (start, end),
@@ -68,7 +77,6 @@ async def get_fahrt(
     user: dict = Depends(get_current_user),
     db: sqlite3.Connection = Depends(get_db),
 ):
-    """Einzelne Fahrt laden."""
     row = db.execute("SELECT * FROM fahrten WHERE id = ?", (fahrt_id,)).fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="Fahrt nicht gefunden")
@@ -81,16 +89,19 @@ async def create_fahrt(
     user: dict = Depends(get_current_user),
     db: sqlite3.Connection = Depends(get_db),
 ):
-    """Neue Fahrt anlegen."""
-    # Kunde existiert?
-    kunde = db.execute("SELECT id FROM kunden WHERE id = ?", (fahrt.kunde_id,)).fetchone()
-    if not kunde:
-        raise HTTPException(status_code=400, detail="Kunde nicht gefunden")
+    ziel_json = json.dumps(fahrt.ziel_adressen) if fahrt.ziel_adressen else None
+    # gesamt_km hat Vorrang vor legacy km
+    km_val = fahrt.gesamt_km if fahrt.gesamt_km is not None else fahrt.km
 
     cursor = db.execute(
-        """INSERT INTO fahrten (kunde_id, datum, von_ort, nach_ort, km, betrag)
-           VALUES (?, ?, ?, ?, ?, ?)""",
-        (fahrt.kunde_id, fahrt.datum, fahrt.von_ort, fahrt.nach_ort, fahrt.km, fahrt.betrag),
+        """INSERT INTO fahrten
+           (kunde_id, datum, wochentag, start_adresse, ziel_adressen,
+            gesamt_km, tracking_km, betrag, notiz, gps_track,
+            von_ort, nach_ort, km)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (fahrt.kunde_id, fahrt.datum, fahrt.wochentag, fahrt.start_adresse, ziel_json,
+         fahrt.gesamt_km, fahrt.tracking_km, fahrt.betrag, fahrt.notiz, fahrt.gps_track,
+         fahrt.von_ort, fahrt.nach_ort, km_val),
     )
     db.commit()
     row = db.execute("SELECT * FROM fahrten WHERE id = ?", (cursor.lastrowid,)).fetchone()
@@ -104,12 +115,13 @@ async def update_fahrt(
     user: dict = Depends(get_current_user),
     db: sqlite3.Connection = Depends(get_db),
 ):
-    """Fahrt aktualisieren (Partial Update)."""
     existing = db.execute("SELECT id FROM fahrten WHERE id = ?", (fahrt_id,)).fetchone()
     if not existing:
         raise HTTPException(status_code=404, detail="Fahrt nicht gefunden")
 
     data = fahrt.model_dump(exclude_unset=True)
+    if "ziel_adressen" in data and data["ziel_adressen"] is not None:
+        data["ziel_adressen"] = json.dumps(data["ziel_adressen"])
     if not data:
         row = db.execute("SELECT * FROM fahrten WHERE id = ?", (fahrt_id,)).fetchone()
         return _row_to_response(row)
@@ -120,7 +132,6 @@ async def update_fahrt(
 
     db.execute(f"UPDATE fahrten SET {set_clause} WHERE id = ?", values)
     db.commit()
-
     row = db.execute("SELECT * FROM fahrten WHERE id = ?", (fahrt_id,)).fetchone()
     return _row_to_response(row)
 
@@ -131,11 +142,9 @@ async def delete_fahrt(
     user: dict = Depends(get_current_user),
     db: sqlite3.Connection = Depends(get_db),
 ):
-    """Fahrt loeschen."""
     existing = db.execute("SELECT id FROM fahrten WHERE id = ?", (fahrt_id,)).fetchone()
     if not existing:
         raise HTTPException(status_code=404, detail="Fahrt nicht gefunden")
-
     db.execute("DELETE FROM fahrten WHERE id = ?", (fahrt_id,))
     db.commit()
     return {"ok": True}
