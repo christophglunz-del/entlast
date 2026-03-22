@@ -52,9 +52,8 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
             user_id = None
             session_id = request.cookies.get("session_id")
             if session_id:
-                # Session-Store wird in auth.py verwaltet
-                from app.auth import _sessions
-                session = _sessions.get(session_id)
+                from app.auth import _get_session
+                session = _get_session(session_id)
                 if session:
                     user_id = session.get("user_id")
 
@@ -75,8 +74,8 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
             # In Mandanten-DB loggen (wenn Session vorhanden)
             if session_id and user_id:
                 try:
-                    from app.auth import _sessions
-                    session = _sessions.get(session_id)
+                    from app.auth import _get_session
+                    session = _get_session(session_id)
                     if session:
                         from app.database import get_mandant_db, write_audit_log
                         db_datei = session.get("db_datei")
