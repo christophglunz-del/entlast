@@ -326,8 +326,11 @@ const LeistungModule = {
     container.innerHTML = `
       <div class="card">
         <h3 class="card-title mb-2">
-          ${this.escapeHtml(kunde.name)} — ${App.monatsName(monat)} ${jahr}
+          ${this.escapeHtml([kunde.name, kunde.vorname].filter(Boolean).join(', '))} — ${App.monatsName(monat)} ${jahr}
         </h3>
+        <div class="text-sm text-muted" style="margin-bottom:8px;">
+          ${kunde.versichertennummer ? 'VersNr: ' + this.escapeHtml(kunde.versichertennummer) + ' | ' : ''}${kunde.pflegekasse ? this.escapeHtml(kunde.pflegekasse) : ''}${kunde.pflegegrad ? ' | PG ' + kunde.pflegegrad : ''}
+        </div>
 
         <div style="overflow-x: auto;">
           <table class="table" style="width:100%; border-collapse:collapse; font-size:0.9rem;">

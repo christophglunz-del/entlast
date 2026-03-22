@@ -131,7 +131,7 @@ const PDFHelper = {
     doc.setFont('helvetica', 'bold');
     doc.text('Name des Versicherten:', 15, y);
     doc.setFont('helvetica', 'normal');
-    doc.text(kunde.name || '', 70, y);
+    doc.text([kunde.name, kunde.vorname].filter(Boolean).join(', ') || '', 70, y);
     y += 7;
 
     doc.setFont('helvetica', 'bold');
@@ -155,7 +155,8 @@ const PDFHelper = {
     doc.setFont('helvetica', 'bold');
     doc.text('Leistungserbringer:', 15, y);
     doc.setFont('helvetica', 'normal');
-    doc.text("Susi's Alltagshilfe - Kreisstr. 12 - 45525 Hattingen", 70, y);
+    const F = FIRMA || {};
+    doc.text([F.name, F.strasse, [F.plz, F.ort].filter(Boolean).join(' ')].filter(Boolean).join(' - ') || 'entlast.de', 70, y);
     y += 7;
 
     doc.setFont('helvetica', 'bold');
@@ -850,7 +851,7 @@ const PDFHelper = {
     y += 6;
     doc.setFontSize(7);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Kilometerpreis: ${((FIRMA||{}).kmSatz||0.30).toFixed(2).replace('.', ',')} €/km | Fahrzeug: privater PKW | Kleinunternehmer gem. § 19 Abs. 1 UStG`, 10, y);
+    doc.text(`Kilometerpreis: ${((FIRMA||{}).kmSatz||0.30).toFixed(2).replace('.', ',')} \u20AC/km | Fahrzeug: privater PKW`, 10, y);
 
     // Wochenweise Aufschlüsselung
     y += 10;
