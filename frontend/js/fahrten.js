@@ -194,6 +194,14 @@ const FahrtenModule = {
     this.trackingActive = true;
     this.trackingStartTime = new Date();
 
+    // Pulse-Animation CSS
+    if (!document.getElementById('trackPulseStyle')) {
+      const s = document.createElement('style');
+      s.id = 'trackPulseStyle';
+      s.textContent = '@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(1.3)}}';
+      document.head.appendChild(s);
+    }
+
     const container = document.getElementById('fahrtenContent');
     container.innerHTML = `
       <div class="card" style="background: var(--danger); color: white; text-align: center;">
@@ -209,8 +217,10 @@ const FahrtenModule = {
             <div class="summary-label" style="color: rgba(255,255,255,0.8);">Dauer</div>
           </div>
           <div class="summary-item" style="background: rgba(255,255,255,0.2); color: white;">
-            <div class="summary-value" id="trackPunkte" style="color: white;">0</div>
-            <div class="summary-label" style="color: rgba(255,255,255,0.8);">Punkte</div>
+            <div class="summary-value" id="trackStatus" style="color: white; font-size: 1.2rem;">
+              <span style="display:inline-block;width:10px;height:10px;background:#4ade80;border-radius:50%;animation:pulse 1.5s infinite;"></span>
+            </div>
+            <div class="summary-label" style="color: rgba(255,255,255,0.8);">Aktiv</div>
           </div>
         </div>
         <button class="btn btn-lg" style="background: white; color: var(--danger); width: 100%;"
@@ -278,9 +288,7 @@ const FahrtenModule = {
     // Anzeige aktualisieren
     const km = this.trackKmBerechnen();
     const kmEl = document.getElementById('trackKm');
-    const pktEl = document.getElementById('trackPunkte');
     if (kmEl) kmEl.textContent = km.toFixed(1).replace('.', ',');
-    if (pktEl) pktEl.textContent = this.gpsTrack.length;
   },
 
   trackingDauerUpdate() {
@@ -313,7 +321,7 @@ const FahrtenModule = {
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   },
 
-  trackingStoppen() {
+  async trackingStoppen() {
     // GPS stoppen
     if (this.gpsWatchId) {
       navigator.geolocation.clearWatch(this.gpsWatchId);
@@ -326,6 +334,21 @@ const FahrtenModule = {
     this.trackingActive = false;
 
     const km = this.trackKmBerechnen();
+
+    // Reverse Geocoding für Start und Ende
+    let startAdresse = '';
+    let endAdresse = '';
+    if (this.gpsTrack.length >= 2) {
+      const first = this.gpsTrack[0];
+      const last = this.gpsTrack[this.gpsTrack.length - 1];
+      [startAdresse, endAdresse] = await Promise.all([
+        this.reverseGeocode(first.lat, first.lng),
+        this.reverseGeocode(last.lat, last.lng),
+      ]);
+    }
+    this._trackStartAdresse = startAdresse;
+    this._trackEndAdresse = endAdresse;
+
     this.trackingSpeichernFormular(km);
   },
 
@@ -347,6 +370,18 @@ const FahrtenModule = {
             <div class="summary-label">Punkte</div>
           </div>
         </div>
+
+        ${this._trackStartAdresse ? `
+        <div class="form-group">
+          <label>Start</label>
+          <input type="text" id="trackStart" class="form-control" value="${this._trackStartAdresse}">
+        </div>` : ''}
+
+        ${this._trackEndAdresse ? `
+        <div class="form-group">
+          <label>Ziel</label>
+          <input type="text" id="trackEnde" class="form-control" value="${this._trackEndAdresse}">
+        </div>` : ''}
 
         <div class="form-group">
           <label for="trackDatum">Datum</label>
@@ -397,6 +432,7 @@ const FahrtenModule = {
     const datum = document.getElementById('trackDatum').value || App.heute();
     const km = parseFloat(document.getElementById('trackKmInput')?.value) || gpsKm;
     const notiz = document.getElementById('trackNotiz')?.value.trim() || '';
+    const trackStart = document.getElementById('trackStart')?.value.trim() || '';
 
     const zielAdressen = [];
     document.querySelectorAll('.ziel-adresse').forEach(input => {
@@ -406,8 +442,8 @@ const FahrtenModule = {
     const fahrt = {
       datum,
       wochentag: App.wochentagName(datum),
-      startAdresse: ((FIRMA||{}).startAdresse||''),
-      zielAdressen,
+      startAdresse: trackStart || ((FIRMA||{}).startAdresse||''),
+      zielAdressen: zielAdressen.length > 0 ? zielAdressen : (document.getElementById('trackEnde')?.value.trim() ? [document.getElementById('trackEnde').value.trim()] : []),
       gesamtKm: km,
       trackingKm: gpsKm,
       betrag: km * ((FIRMA||{}).kmSatz||0.30),
@@ -506,6 +542,21 @@ const FahrtenModule = {
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap', maxZoom: 19
       }).addTo(this.map);
+
+      // Autocomplete für Start- und Ziel-Felder
+      this.setupAutocomplete(document.getElementById('fahrtStart'));
+      document.querySelectorAll('.ziel-adresse').forEach(el => this.setupAutocomplete(el));
+
+      // GPS-Standort als Start (falls Startadresse leer)
+      const startInput = document.getElementById('fahrtStart');
+      if (startInput && !startInput.value && navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(async (pos) => {
+          const addr = await this.reverseGeocode(pos.coords.latitude, pos.coords.longitude);
+          if (addr && startInput && !startInput.value) {
+            startInput.value = addr;
+          }
+        }, () => {}, { timeout: 5000 });
+      }
     }, 100);
   },
 
@@ -761,7 +812,7 @@ const FahrtenModule = {
   // ===== AUSWERTUNGS-DROPDOWNS =====
 
   kwOptionsRendern() {
-    const aktuelleKW = this.getKW();
+    const aktuelleKW = this.getKW(new Date());
     let html = '';
     for (let kw = 1; kw <= 52; kw++) {
       html += `<option value="${kw}" ${kw === aktuelleKW ? 'selected' : ''}>KW ${kw}</option>`;
@@ -770,10 +821,11 @@ const FahrtenModule = {
   },
 
   monatsOptionsRendern(aktuellerMonat) {
-    const namen = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
-    return namen.map((name, i) =>
-      `<option value="${i + 1}" ${(i + 1) === aktuellerMonat ? 'selected' : ''}>${name}</option>`
-    ).join('');
+    let html = '';
+    for (let m = 1; m <= 12; m++) {
+      html += `<option value="${m}" ${m === aktuellerMonat ? 'selected' : ''}>${m}</option>`;
+    }
+    return html;
   },
 
   jahresOptionsRendern(aktuellesJahr) {
@@ -998,8 +1050,59 @@ const FahrtenModule = {
     }
   },
 
-  getKW() {
-    const d = new Date(this.currentWeekStart);
+  // Reverse Geocoding: Koordinaten → Adresse
+  async reverseGeocode(lat, lng) {
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`);
+      const data = await res.json();
+      const a = data.address || {};
+      const strasse = (a.road || '') + (a.house_number ? ' ' + a.house_number : '');
+      const ort = a.city || a.town || a.village || '';
+      return strasse ? `${strasse}, ${a.postcode || ''} ${ort}`.trim() : (data.display_name || '').split(',').slice(0, 3).join(',');
+    } catch (e) {
+      console.warn('Reverse Geocoding Fehler:', e);
+      return '';
+    }
+  },
+
+  // Adress-Autocomplete: Eingabe → Vorschläge
+  _autocompleteTimer: null,
+  setupAutocomplete(input) {
+    if (!input || input._autocompleteInit) return;
+    input._autocompleteInit = true;
+    const list = document.createElement('div');
+    list.className = 'address-suggestions';
+    list.style.cssText = 'position:absolute;left:0;right:0;top:100%;background:#fff;border:1px solid #ddd;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.1);z-index:100;max-height:200px;overflow-y:auto;display:none;';
+    input.parentElement.style.position = 'relative';
+    input.parentElement.appendChild(list);
+
+    input.addEventListener('input', () => {
+      clearTimeout(this._autocompleteTimer);
+      const q = input.value.trim();
+      if (q.length < 3) { list.style.display = 'none'; return; }
+      this._autocompleteTimer = setTimeout(async () => {
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&countrycodes=de&limit=5`);
+          const results = await res.json();
+          if (results.length === 0) { list.style.display = 'none'; return; }
+          list.innerHTML = results.map(r =>
+            `<div style="padding:10px 12px;cursor:pointer;border-bottom:1px solid #f0f0f0;font-size:0.9rem;" class="ac-item">${r.display_name.split(',').slice(0, 3).join(',')}</div>`
+          ).join('');
+          list.style.display = 'block';
+          list.querySelectorAll('.ac-item').forEach((item, i) => {
+            item.addEventListener('click', () => {
+              input.value = results[i].display_name.split(',').slice(0, 3).join(',').trim();
+              list.style.display = 'none';
+            });
+          });
+        } catch (e) { list.style.display = 'none'; }
+      }, 500);
+    });
+    input.addEventListener('blur', () => setTimeout(() => list.style.display = 'none', 200));
+  },
+
+  getKW(datum) {
+    const d = new Date(datum || new Date());
     d.setHours(0, 0, 0, 0);
     d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
     const week1 = new Date(d.getFullYear(), 0, 4);
