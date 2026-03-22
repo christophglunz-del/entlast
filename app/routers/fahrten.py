@@ -23,11 +23,20 @@ def _row_to_response(row: dict) -> FahrtResponse:
 
 
 def _week_to_date_range(woche: str) -> tuple[str, str]:
-    """Wandelt ISO-Woche (z.B. '2026-W12') in Start- und Enddatum um."""
-    # Format: YYYY-Www
-    year, week_num = woche.split("-W")
-    # Montag der Woche
-    start = datetime.strptime(f"{year}-W{int(week_num):02d}-1", "%Y-W%W-%w")
+    """Wandelt Wochenangabe in Start- und Enddatum um.
+
+    Akzeptiert:
+      - ISO-Woche: '2026-W12'
+      - Montag-Datum: '2026-03-17' (Frontend schickt dieses Format)
+    """
+    if "-W" in woche:
+        year, week_num = woche.split("-W")
+        start = datetime.strptime(f"{year}-W{int(week_num):02d}-1", "%Y-W%W-%w")
+    else:
+        # Datum -> Montag dieser Woche
+        start = datetime.strptime(woche, "%Y-%m-%d")
+        # Auf Montag normalisieren
+        start = start - timedelta(days=start.weekday())
     end = start + timedelta(days=6)
     return start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d")
 

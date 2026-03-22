@@ -30,17 +30,17 @@ const SettingsModule = {
           <span class="card-icon pink">🏠</span>
         </div>
         <div class="text-sm">
-          <p><strong>${FIRMA.name}</strong></p>
-          <p>${FIRMA.inhaber}</p>
-          <p>${FIRMA.strasse}, ${FIRMA.plz} ${FIRMA.ort}</p>
-          <p>Tel: ${FIRMA.telefon}</p>
-          <p>E-Mail: ${FIRMA.email}</p>
-          <p>StNr: ${FIRMA.steuernummer}</p>
-          <p>IK: ${FIRMA.ikNummer}</p>
-          <p>IBAN: ${FIRMA.iban} (${FIRMA.bank})</p>
-          <p>Stundensatz: ${App.formatBetrag(FIRMA.stundensatz)}</p>
-          <p>km-Satz: ${FIRMA.kmSatz.toFixed(2).replace('.', ',')} €/km</p>
-          <p class="text-muted mt-1">Kleinunternehmer gem. § 19 Abs. 1 UStG</p>
+          <p><strong>${FIRMA.name || 'Nicht konfiguriert'}</strong></p>
+          <p>${FIRMA.inhaber || '-'}</p>
+          <p>${FIRMA.strasse || '-'}, ${FIRMA.plz || ''} ${FIRMA.ort || ''}</p>
+          <p>Tel: ${FIRMA.telefon || '-'}</p>
+          <p>E-Mail: ${FIRMA.email || '-'}</p>
+          <p>StNr: ${FIRMA.steuernummer || '-'}</p>
+          <p>IK: ${FIRMA.ikNummer || '-'}</p>
+          <p>IBAN: ${FIRMA.iban || '-'} (${FIRMA.bank || '-'})</p>
+          <p>Stundensatz: ${App.formatBetrag(FIRMA.stundensatz || 0)}</p>
+          <p>km-Satz: ${(FIRMA.kmSatz || 0).toFixed(2).replace('.', ',')} €/km</p>
+          ${FIRMA.kleinunternehmer ? '<p class="text-muted mt-1">Kleinunternehmer gem. § 19 Abs. 1 UStG</p>' : ''}
         </div>
       </div>
 

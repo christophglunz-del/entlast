@@ -8,6 +8,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
         const { user, firma, pflegekassen } = await Auth.init();
 
+        // FIRMA-Defaults sicherstellen (verhindert null-Crashes)
+        const FIRMA_DEFAULTS = {
+            name: '', inhaber: '', strasse: '', plz: '', ort: '',
+            telefon: '', email: '', steuernummer: '', ikNummer: '',
+            iban: '', bic: '', bank: '', stundensatz: 32.5, kmSatz: 0.30,
+            startAdresse: '', kleinunternehmer: true
+        };
+        for (const [key, val] of Object.entries(FIRMA_DEFAULTS)) {
+            if (window.FIRMA[key] === null || window.FIRMA[key] === undefined) {
+                window.FIRMA[key] = val;
+            }
+        }
+
         // Begruessung anpassen (falls auf Dashboard)
         const grussEl = document.getElementById('grussFormel');
         if (grussEl && user) {
