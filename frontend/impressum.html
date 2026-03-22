@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Impressum — entlast.de</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --teal: #2A7B8E;
+            --teal-light: #3BA5A8;
+            --teal-dark: #1a5a6a;
+            --text: #1a2e35;
+            --text-muted: #5a7a84;
+        }
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            color: var(--text);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+        }
+        a { color: var(--teal); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        .nav {
+            position: sticky; top: 0; z-index: 100;
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(0,0,0,0.06);
+            padding: 12px 24px;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .nav-brand {
+            display: flex; align-items: center; gap: 10px;
+            font-weight: 700; font-size: 1.15rem; color: var(--text);
+        }
+        .nav-icon {
+            width: 36px; height: 36px;
+            background: linear-gradient(135deg, var(--teal), var(--teal-light));
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .nav-icon svg { width: 20px; height: 20px; stroke: white; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+        .nav-cta {
+            padding: 8px 20px; background: var(--teal); color: white;
+            border-radius: 8px; font-weight: 600; font-size: 0.9rem; transition: background 0.2s;
+        }
+        .nav-cta:hover { background: var(--teal-dark); color: white; text-decoration: none; }
+
+        .content {
+            max-width: 720px; margin: 0 auto;
+            padding: 60px 24px 80px;
+        }
+        .content h1 {
+            font-size: 2rem; font-weight: 800; margin-bottom: 32px;
+            letter-spacing: -0.5px;
+        }
+        .content h2 {
+            font-size: 1.2rem; font-weight: 700; margin-top: 32px; margin-bottom: 12px;
+        }
+        .content p { margin-bottom: 12px; color: var(--text-muted); }
+        .content p strong { color: var(--text); }
+
+        .footer {
+            background: #1a2e35; color: rgba(255,255,255,0.6);
+            padding: 32px 24px; font-size: 0.85rem; text-align: center;
+        }
+        .footer a { color: rgba(255,255,255,0.6); }
+        .footer a:hover { color: white; }
+    </style>
+</head>
+<body>
+
+<nav class="nav">
+    <a href="/" class="nav-brand" style="text-decoration:none;color:var(--text);">
+        <div class="nav-icon">
+            <svg viewBox="0 0 24 24"><path d="M3 10.5L12 3l9 7.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V10.5z"/><path d="M12 11.5c-.8-1.5-2.5-2-3.5-1s-1 2.5.5 4l3 2.5 3-2.5c1.5-1.5 1.5-3 .5-4s-2.7-.5-3.5 1z"/></svg>
+        </div>
+        entlast.de
+    </a>
+    <a href="/login.html" class="nav-cta">Anmelden</a>
+</nav>
+
+<div class="content">
+    <h1>Impressum</h1>
+
+    <h2>Angaben gem&auml;&szlig; &sect;5 DDG</h2>
+    <p>
+        <strong>Christoph Glunz</strong><br>
+        c/o IP-Management #6941<br>
+        Ludwig-Erhard-Stra&szlig;e 18<br>
+        20459 Hamburg
+    </p>
+
+    <h2>Kontakt</h2>
+    <p>
+        E-Mail: <a href="mailto:lokalreport@sags-per-mail.de">lokalreport@sags-per-mail.de</a><br>
+        Telefon: <a href="tel:+4915792468910">01579-2468910</a><br>
+        Web: <a href="https://christophglunz.org" target="_blank" rel="noopener">christophglunz.org</a>
+    </p>
+
+    <h2>Haftung f&uuml;r Inhalte</h2>
+    <p>Als Diensteanbieter bin ich gem&auml;&szlig; &sect;7 Abs.1 DDG f&uuml;r eigene Inhalte auf diesen Seiten nach den allgemeinen Gesetzen verantwortlich. Nach &sect;&sect;8 bis 10 DDG bin ich als Diensteanbieter jedoch nicht verpflichtet, &uuml;bermittelte oder gespeicherte fremde Informationen zu &uuml;berwachen oder nach Umst&auml;nden zu forschen, die auf eine rechtswidrige T&auml;tigkeit hinweisen.</p>
+    <p>Verpflichtungen zur Entfernung oder Sperrung der Nutzung von Informationen nach den allgemeinen Gesetzen bleiben hiervon unber&uuml;hrt. Eine diesbez&uuml;gliche Haftung ist jedoch erst ab dem Zeitpunkt der Kenntnis einer konkreten Rechtsverletzung m&ouml;glich. Bei Bekanntwerden von entsprechenden Rechtsverletzungen werde ich diese Inhalte umgehend entfernen.</p>
+
+    <h2>Haftung f&uuml;r Links</h2>
+    <p>Dieses Angebot enth&auml;lt Links zu externen Websites Dritter, auf deren Inhalte ich keinen Einfluss habe. Deshalb kann ich f&uuml;r diese fremden Inhalte auch keine Gew&auml;hr &uuml;bernehmen. F&uuml;r die Inhalte der verlinkten Seiten ist stets der jeweilige Anbieter oder Betreiber der Seiten verantwortlich. Bei Bekanntwerden von Rechtsverletzungen werde ich derartige Links umgehend entfernen.</p>
+
+    <h2>Urheberrecht</h2>
+    <p>Die durch den Seitenbetreiber erstellten Inhalte und Werke auf diesen Seiten unterliegen dem deutschen Urheberrecht. Die Vervielf&auml;ltigung, Bearbeitung, Verbreitung und jede Art der Verwertung au&szlig;erhalb der Grenzen des Urheberrechtes bed&uuml;rfen der schriftlichen Zustimmung des jeweiligen Autors bzw. Erstellers.</p>
+</div>
+
+<footer class="footer">
+    <a href="/impressum.html">Impressum</a> &middot; <a href="/datenschutz.html">Datenschutz</a> &middot; <a href="/">Startseite</a>
+    <br>&copy; 2026 entlast.de
+</footer>
+
+</body>
+</html>
