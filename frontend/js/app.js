@@ -223,7 +223,7 @@ const App = {
 
   // Betrag berechnen
   betragBerechnen(stunden) {
-    return Math.round(stunden * FIRMA.stundensatz * 100) / 100;
+    return Math.round(stunden * ((FIRMA || {}).stundensatz || 32.5) * 100) / 100;
   },
 
   // Sync-Zeitstempel relativ formatieren
