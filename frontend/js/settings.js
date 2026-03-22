@@ -19,13 +19,13 @@ const SettingsModule = {
     if (!window.FIRMA) window.FIRMA = {};
     const F = Object.assign({}, window.FIRMA);
 
-    // Gespeicherte Einstellungen laden
-    const lexofficeKey = await DB.settingLesen('lexoffice_api_key') || '';
-    const lexofficeProxy = await DB.settingLesen('lexoffice_proxy_url') || '';
-    const sipgateTokenId = await DB.settingLesen('sipgate_token_id') || '';
-    const sipgateToken = await DB.settingLesen('sipgate_token') || '';
-    const letterxpressUser = await DB.settingLesen('letterxpress_user') || '';
-    const letterxpressKey = await DB.settingLesen('letterxpress_key') || '';
+    // Konfigurationsstatus der sensiblen Keys pruefen (Werte werden NIE geladen)
+    const lexofficeKeyOk = await DB.settingKonfiguriert('lexoffice_api_key');
+    const lexofficeProxyOk = await DB.settingKonfiguriert('lexoffice_proxy_url');
+    const sipgateTokenIdOk = await DB.settingKonfiguriert('sipgate_token_id');
+    const sipgateTokenOk = await DB.settingKonfiguriert('sipgate_token');
+    const letterxpressUserOk = await DB.settingKonfiguriert('letterxpress_user');
+    const letterxpressKeyOk = await DB.settingKonfiguriert('letterxpress_key');
 
     // Statistiken
     const stats = await DB.statistiken();
@@ -82,42 +82,108 @@ const SettingsModule = {
         </div>
 
         <div class="form-group">
-          <label for="settLexoffice">Lexoffice API-Key</label>
-          <input type="password" id="settLexoffice" class="form-control"
-                 value="${lexofficeKey}" placeholder="API-Schlüssel eingeben">
+          <label>Lexoffice API-Key</label>
+          <div class="api-key-status" id="statusLexoffice">
+            ${lexofficeKeyOk
+              ? '<span style="color: var(--success);">&#10003; konfiguriert</span>'
+              : '<span style="color: var(--text-muted);">&#10007; nicht gesetzt</span>'}
+            <button class="btn btn-sm btn-outline" onclick="SettingsModule.keyAendern('settLexoffice', 'Lexoffice API-Key', 'API-Schlüssel eingeben')">Ändern</button>
+          </div>
+          <div id="editLexoffice" style="display:none;" class="mt-1">
+            <input type="password" id="settLexoffice" class="form-control" placeholder="API-Schlüssel eingeben">
+            <div class="btn-group mt-1">
+              <button class="btn btn-sm btn-primary" onclick="SettingsModule.keySpeichern('lexoffice_api_key', 'settLexoffice', 'statusLexoffice', 'editLexoffice')">Speichern</button>
+              <button class="btn btn-sm btn-outline" onclick="SettingsModule.keyAbbrechen('editLexoffice')">Abbrechen</button>
+            </div>
+          </div>
           <div class="form-hint">Für automatische Rechnungserstellung</div>
         </div>
 
         <div class="form-group">
-          <label for="settLexofficeProxy">Lexoffice Proxy-URL (optional)</label>
-          <input type="url" id="settLexofficeProxy" class="form-control"
-                 value="${lexofficeProxy}" placeholder="https://susi-proxy.cg-d2f.workers.dev">
+          <label>Lexoffice Proxy-URL (optional)</label>
+          <div class="api-key-status" id="statusLexofficeProxy">
+            ${lexofficeProxyOk
+              ? '<span style="color: var(--success);">&#10003; konfiguriert</span>'
+              : '<span style="color: var(--text-muted);">&#10007; nicht gesetzt</span>'}
+            <button class="btn btn-sm btn-outline" onclick="SettingsModule.keyAendern('settLexofficeProxy', 'Lexoffice Proxy-URL', 'https://susi-proxy.cg-d2f.workers.dev')">Ändern</button>
+          </div>
+          <div id="editLexofficeProxy" style="display:none;" class="mt-1">
+            <input type="url" id="settLexofficeProxy" class="form-control" placeholder="https://susi-proxy.cg-d2f.workers.dev">
+            <div class="btn-group mt-1">
+              <button class="btn btn-sm btn-primary" onclick="SettingsModule.keySpeichern('lexoffice_proxy_url', 'settLexofficeProxy', 'statusLexofficeProxy', 'editLexofficeProxy')">Speichern</button>
+              <button class="btn btn-sm btn-outline" onclick="SettingsModule.keyAbbrechen('editLexofficeProxy')">Abbrechen</button>
+            </div>
+          </div>
           <div class="form-hint">CORS-Proxy (Cloudflare Worker) — leer lassen für direkten Zugriff</div>
         </div>
 
         <div class="form-group">
-          <label>Sipgate (Faxversand)</label>
-          <div class="form-row">
-            <input type="text" id="settSipgateTokenId" class="form-control"
-                   value="${sipgateTokenId}" placeholder="Token-ID">
-            <input type="password" id="settSipgateToken" class="form-control"
-                   value="${sipgateToken}" placeholder="Token">
+          <label>Sipgate Token-ID</label>
+          <div class="api-key-status" id="statusSipgateTokenId">
+            ${sipgateTokenIdOk
+              ? '<span style="color: var(--success);">&#10003; konfiguriert</span>'
+              : '<span style="color: var(--text-muted);">&#10007; nicht gesetzt</span>'}
+            <button class="btn btn-sm btn-outline" onclick="SettingsModule.keyAendern('settSipgateTokenId', 'Sipgate Token-ID', 'Token-ID')">Ändern</button>
+          </div>
+          <div id="editSipgateTokenId" style="display:none;" class="mt-1">
+            <input type="text" id="settSipgateTokenId" class="form-control" placeholder="Token-ID">
+            <div class="btn-group mt-1">
+              <button class="btn btn-sm btn-primary" onclick="SettingsModule.keySpeichern('sipgate_token_id', 'settSipgateTokenId', 'statusSipgateTokenId', 'editSipgateTokenId')">Speichern</button>
+              <button class="btn btn-sm btn-outline" onclick="SettingsModule.keyAbbrechen('editSipgateTokenId')">Abbrechen</button>
+            </div>
           </div>
         </div>
 
         <div class="form-group">
-          <label>LetterXpress (Briefversand)</label>
-          <div class="form-row">
-            <input type="text" id="settLetterxpressUser" class="form-control"
-                   value="${letterxpressUser}" placeholder="Benutzername">
-            <input type="password" id="settLetterxpressKey" class="form-control"
-                   value="${letterxpressKey}" placeholder="API-Key">
+          <label>Sipgate Token</label>
+          <div class="api-key-status" id="statusSipgateToken">
+            ${sipgateTokenOk
+              ? '<span style="color: var(--success);">&#10003; konfiguriert</span>'
+              : '<span style="color: var(--text-muted);">&#10007; nicht gesetzt</span>'}
+            <button class="btn btn-sm btn-outline" onclick="SettingsModule.keyAendern('settSipgateToken', 'Sipgate Token', 'Token')">Ändern</button>
+          </div>
+          <div id="editSipgateToken" style="display:none;" class="mt-1">
+            <input type="password" id="settSipgateToken" class="form-control" placeholder="Token">
+            <div class="btn-group mt-1">
+              <button class="btn btn-sm btn-primary" onclick="SettingsModule.keySpeichern('sipgate_token', 'settSipgateToken', 'statusSipgateToken', 'editSipgateToken')">Speichern</button>
+              <button class="btn btn-sm btn-outline" onclick="SettingsModule.keyAbbrechen('editSipgateToken')">Abbrechen</button>
+            </div>
           </div>
         </div>
 
-        <button class="btn btn-primary btn-block" onclick="SettingsModule.apiKeysSpeichern()">
-          API-Einstellungen speichern
-        </button>
+        <div class="form-group">
+          <label>LetterXpress Benutzername</label>
+          <div class="api-key-status" id="statusLetterxpressUser">
+            ${letterxpressUserOk
+              ? '<span style="color: var(--success);">&#10003; konfiguriert</span>'
+              : '<span style="color: var(--text-muted);">&#10007; nicht gesetzt</span>'}
+            <button class="btn btn-sm btn-outline" onclick="SettingsModule.keyAendern('settLetterxpressUser', 'LetterXpress Benutzername', 'Benutzername')">Ändern</button>
+          </div>
+          <div id="editLetterxpressUser" style="display:none;" class="mt-1">
+            <input type="text" id="settLetterxpressUser" class="form-control" placeholder="Benutzername">
+            <div class="btn-group mt-1">
+              <button class="btn btn-sm btn-primary" onclick="SettingsModule.keySpeichern('letterxpress_user', 'settLetterxpressUser', 'statusLetterxpressUser', 'editLetterxpressUser')">Speichern</button>
+              <button class="btn btn-sm btn-outline" onclick="SettingsModule.keyAbbrechen('editLetterxpressUser')">Abbrechen</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>LetterXpress API-Key</label>
+          <div class="api-key-status" id="statusLetterxpressKey">
+            ${letterxpressKeyOk
+              ? '<span style="color: var(--success);">&#10003; konfiguriert</span>'
+              : '<span style="color: var(--text-muted);">&#10007; nicht gesetzt</span>'}
+            <button class="btn btn-sm btn-outline" onclick="SettingsModule.keyAendern('settLetterxpressKey', 'LetterXpress API-Key', 'API-Key')">Ändern</button>
+          </div>
+          <div id="editLetterxpressKey" style="display:none;" class="mt-1">
+            <input type="password" id="settLetterxpressKey" class="form-control" placeholder="API-Key">
+            <div class="btn-group mt-1">
+              <button class="btn btn-sm btn-primary" onclick="SettingsModule.keySpeichern('letterxpress_key', 'settLetterxpressKey', 'statusLetterxpressKey', 'editLetterxpressKey')">Speichern</button>
+              <button class="btn btn-sm btn-outline" onclick="SettingsModule.keyAbbrechen('editLetterxpressKey')">Abbrechen</button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Google Calendar -->
@@ -176,15 +242,43 @@ const SettingsModule = {
     }
   },
 
-  async apiKeysSpeichern() {
+  keyAendern(inputId, label, placeholder) {
+    const editDiv = document.getElementById('edit' + inputId.replace('sett', ''));
+    if (editDiv) editDiv.style.display = 'block';
+  },
+
+  keyAbbrechen(editDivId) {
+    const editDiv = document.getElementById(editDivId);
+    if (editDiv) {
+      editDiv.style.display = 'none';
+      const input = editDiv.querySelector('input');
+      if (input) input.value = '';
+    }
+  },
+
+  async keySpeichern(settingKey, inputId, statusId, editDivId) {
     try {
-      await DB.settingSpeichern('lexoffice_api_key', document.getElementById('settLexoffice').value);
-      await DB.settingSpeichern('lexoffice_proxy_url', document.getElementById('settLexofficeProxy').value.trim());
-      await DB.settingSpeichern('sipgate_token_id', document.getElementById('settSipgateTokenId').value);
-      await DB.settingSpeichern('sipgate_token', document.getElementById('settSipgateToken').value);
-      await DB.settingSpeichern('letterxpress_user', document.getElementById('settLetterxpressUser').value);
-      await DB.settingSpeichern('letterxpress_key', document.getElementById('settLetterxpressKey').value);
-      App.toast('Einstellungen gespeichert', 'success');
+      const input = document.getElementById(inputId);
+      const value = input ? input.value.trim() : '';
+      await DB.settingSpeichern(settingKey, value);
+      // Status aktualisieren
+      const statusDiv = document.getElementById(statusId);
+      if (statusDiv) {
+        const configured = !!value;
+        const statusSpan = statusDiv.querySelector('span');
+        if (statusSpan) {
+          if (configured) {
+            statusSpan.style.color = 'var(--success)';
+            statusSpan.innerHTML = '&#10003; konfiguriert';
+          } else {
+            statusSpan.style.color = 'var(--text-muted)';
+            statusSpan.innerHTML = '&#10007; nicht gesetzt';
+          }
+        }
+      }
+      // Edit-Bereich ausblenden
+      this.keyAbbrechen(editDivId);
+      App.toast('Einstellung gespeichert', 'success');
     } catch (err) {
       console.error('Fehler:', err);
       App.toast('Fehler beim Speichern', 'error');

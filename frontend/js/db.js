@@ -290,6 +290,15 @@ const DB = {
         }
     },
 
+    async settingKonfiguriert(key) {
+        try {
+            const entry = await apiFetch(`/settings/${key}`);
+            return entry ? !!entry.configured : false;
+        } catch (e) {
+            return false;
+        }
+    },
+
     async settingSpeichern(key, value) {
         return apiFetch(`/settings/${key}`, {
             method: 'PUT',
