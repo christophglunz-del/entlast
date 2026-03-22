@@ -434,6 +434,10 @@ const FahrtenModule = {
     const kunden = await DB.alleKunden();
     const container = document.getElementById('fahrtenContent');
 
+    // Kassen rausfiltern
+    const kassenKw = ['aok','barmer','dak','techniker','knappschaft','bkk','novitas','energie','lbv','landesamt','krankenkasse','ersatzkasse','pflegekasse'];
+    const echteKunden = kunden.filter(k => !kassenKw.some(kw => (k.name||'').toLowerCase().includes(kw)) && k.kundentyp !== 'inaktiv');
+
     container.innerHTML = `
       <div class="card">
         <h3 class="card-title mb-2">Neue Fahrt - ${App.wochentagName(datum)}, ${App.formatDatum(datum)}</h3>
@@ -441,14 +445,14 @@ const FahrtenModule = {
         <div class="form-group">
           <label>Start</label>
           <input type="text" id="fahrtStart" class="form-control"
-                 value="${((FIRMA||{}).startAdresse||'')}" readonly>
+                 value="${((FIRMA||{}).startAdresse||'')}" placeholder="Startadresse eingeben">
         </div>
 
         <div class="form-group">
-          <label>Ziele</label>
+          <label>Ziel</label>
           <div id="zieleListe">
             <div class="ziel-entry mb-1">
-              ${this.zielEingabeRendern(kunden)}
+              ${this.zielEingabeRendern(echteKunden)}
             </div>
           </div>
           <button type="button" class="btn btn-sm btn-secondary mt-1" onclick="FahrtenModule.zielHinzufuegen()">
@@ -458,26 +462,26 @@ const FahrtenModule = {
 
         <div class="form-group">
           <label for="fahrtNotiz">Notiz</label>
-          <input type="text" id="fahrtNotiz" class="form-control" placeholder="z.B. Einkauf für Kunden">
+          <input type="text" id="fahrtNotiz" class="form-control" placeholder="z.B. Einkauf, Arztbesuch">
         </div>
 
         <div class="form-row">
           <div class="form-group">
             <label for="fahrtKm">Kilometer</label>
             <input type="number" id="fahrtKm" class="form-control" step="0.1" min="0"
-                   placeholder="0.0" onchange="FahrtenModule.kmAktualisieren()">
+                   placeholder="0.0" oninput="FahrtenModule.kmAktualisieren()">
           </div>
           <div class="form-group">
             <label>Betrag</label>
             <div id="fahrtBetrag" class="form-control" style="background: var(--gray-100); display: flex; align-items: center;">
-              0,00 €
+              0,00 &euro;
             </div>
           </div>
         </div>
 
         <div class="btn-group mb-2">
           <button type="button" class="btn btn-sm btn-outline" onclick="FahrtenModule.routeBerechnen()">
-            🗺️ Route berechnen
+            &#x1F5FA;&#xFE0F; Route berechnen &amp; km ermitteln
           </button>
         </div>
 
@@ -505,38 +509,28 @@ const FahrtenModule = {
     }, 100);
   },
 
-  // Ziel-Eingabe: Kunde ODER freie Adresse
+  // Ziel-Eingabe: Kunde wählen oder Freitext
   zielEingabeRendern(kunden) {
-    const kundenOptions = kunden.map(k =>
-      `<option value="${k.id}" data-adresse="${KundenModule.escapeHtml((k.strasse || '') + ', ' + (k.plz || '') + ' ' + (k.ort || ''))}">${KundenModule.escapeHtml(k.name)}</option>`
-    ).join('');
+    const kundenOptions = kunden.map(k => {
+      const adresse = [k.strasse, k.plz, k.ort].filter(Boolean).join(', ');
+      return `<option value="${k.id}" data-adresse="${KundenModule.escapeHtml(adresse)}" data-name="${KundenModule.escapeHtml(k.name)}">${KundenModule.escapeHtml(k.name)}${adresse ? ' (' + KundenModule.escapeHtml(k.ort || '') + ')' : ''}</option>`;
+    }).join('');
 
     return `
-      <div class="form-row" style="grid-template-columns: auto 1fr; gap: 8px;">
-        <select class="form-control ziel-kunde" onchange="FahrtenModule.kundeGewaehlt(this)" style="min-width: 120px;">
-          <option value="">Kunde...</option>
-          <option value="_frei">✏️ Freie Eingabe</option>
-          ${kundenOptions}
-        </select>
-        <input type="text" class="form-control ziel-adresse" placeholder="Adresse / Ziel">
-      </div>
+      <select class="form-control ziel-kunde" onchange="FahrtenModule.kundeGewaehlt(this)" style="margin-bottom: 4px;">
+        <option value="">-- Kunde wählen --</option>
+        ${kundenOptions}
+      </select>
+      <input type="text" class="form-control ziel-adresse" placeholder="Adresse (wird automatisch ausgefüllt oder frei eingeben)">
     `;
   },
 
   kundeGewaehlt(selectEl) {
     const option = selectEl.selectedOptions[0];
-    const adresseInput = selectEl.closest('.ziel-entry').querySelector('.ziel-adresse');
-    if (option.value === '_frei') {
-      adresseInput.readOnly = false;
-      adresseInput.value = '';
-      adresseInput.placeholder = 'Ziel frei eingeben...';
-      adresseInput.focus();
-    } else if (option && option.dataset.adresse) {
+    const entry = selectEl.closest('.ziel-entry');
+    const adresseInput = entry.querySelector('.ziel-adresse');
+    if (option.value && option.dataset.adresse) {
       adresseInput.value = option.dataset.adresse;
-      adresseInput.readOnly = false;
-    } else {
-      adresseInput.value = '';
-      adresseInput.readOnly = false;
     }
   },
 
@@ -563,11 +557,12 @@ const FahrtenModule = {
   },
 
   async routeBerechnen() {
-    const adressen = [((FIRMA||{}).startAdresse||'')];
+    const startAddr = document.getElementById('fahrtStart')?.value.trim() || ((FIRMA||{}).startAdresse||'');
+    const adressen = [startAddr];
     document.querySelectorAll('.ziel-adresse').forEach(input => {
       if (input.value.trim()) adressen.push(input.value.trim());
     });
-    adressen.push(((FIRMA||{}).startAdresse||''));
+    adressen.push(startAddr); // Rückfahrt
 
     if (adressen.length < 3) {
       App.toast('Bitte mindestens ein Ziel eingeben', 'info');
@@ -636,7 +631,7 @@ const FahrtenModule = {
     const fahrt = {
       datum,
       wochentag: App.wochentagName(datum),
-      startAdresse: ((FIRMA||{}).startAdresse||''),
+      startAdresse: document.getElementById('fahrtStart')?.value.trim() || ((FIRMA||{}).startAdresse||''),
       zielAdressen,
       gesamtKm: parseFloat(document.getElementById('fahrtKm')?.value) || 0,
       betrag: (parseFloat(document.getElementById('fahrtKm')?.value) || 0) * ((FIRMA||{}).kmSatz||0.30),
