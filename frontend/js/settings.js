@@ -4,7 +4,13 @@
 
 const SettingsModule = {
   async init() {
-    await this.anzeigen();
+    try {
+      await this.anzeigen();
+    } catch (e) {
+      console.error('Settings init Fehler:', e);
+      const c = document.getElementById('settingsContent');
+      if (c) c.innerHTML = '<div class="card"><p>Einstellungen konnten nicht geladen werden: ' + e.message + '</p></div>';
+    }
   },
 
   async anzeigen() {
