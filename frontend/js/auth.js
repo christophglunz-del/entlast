@@ -54,7 +54,7 @@ const Auth = {
         const data = await this.me();
 
         const user = data.user;
-        const firma = data.firma;
+        const firma = data.firma || {};
 
         // Pflegekassen laden
         let pflegekassen = [];
