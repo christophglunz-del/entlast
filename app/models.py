@@ -134,10 +134,11 @@ class KundeResponse(BaseModel):
 # --- Leistungen ---
 
 class LeistungCreate(BaseModel):
+    model_config = {"populate_by_name": True}
     kunde_id: int
     datum: str
-    von: str | None = None
-    bis: str | None = None
+    von: str | None = Field(None, alias="startzeit")
+    bis: str | None = Field(None, alias="endzeit")
     dauer_std: float | None = None
     leistungsarten: str | None = None  # JSON-String
     betrag: float | None = None
@@ -147,10 +148,11 @@ class LeistungCreate(BaseModel):
 
 
 class LeistungUpdate(BaseModel):
+    model_config = {"populate_by_name": True}
     kunde_id: int | None = None
     datum: str | None = None
-    von: str | None = None
-    bis: str | None = None
+    von: str | None = Field(None, alias="startzeit")
+    bis: str | None = Field(None, alias="endzeit")
     dauer_std: float | None = None
     leistungsarten: str | None = None
     betrag: float | None = None
@@ -165,6 +167,8 @@ class LeistungResponse(BaseModel):
     datum: str
     von: str | None = None
     bis: str | None = None
+    startzeit: str | None = None  # Alias fuer Frontend-Kompatibilitaet
+    endzeit: str | None = None    # Alias fuer Frontend-Kompatibilitaet
     dauer_std: float | None = None
     leistungsarten: str | None = None
     betrag: float | None = None

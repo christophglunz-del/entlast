@@ -15,6 +15,8 @@ def _row_to_response(row: dict) -> LeistungResponse:
         datum=row["datum"],
         von=row.get("von"),
         bis=row.get("bis"),
+        startzeit=row.get("von"),
+        endzeit=row.get("bis"),
         dauer_std=row.get("dauer_std"),
         leistungsarten=row.get("leistungsarten"),
         betrag=row.get("betrag"),
