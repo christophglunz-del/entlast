@@ -222,53 +222,14 @@ const LeistungModule = {
         </div>
 
         <div class="card">
-          <h3 class="card-title mb-2">Art der Leistung</h3>
-
-          <!-- Hauptleistungen in einer Zeile -->
-          <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px;">
-            <label class="chip-check">
-              <input type="checkbox" id="leistungBetreuung" ${leistung && leistung.betreuung ? 'checked' : ''}>
-              <span>Betreuung</span>
-            </label>
-            <label class="chip-check">
-              <input type="checkbox" id="leistungAlltagsbegleitung" ${leistung && leistung.alltagsbegleitung ? 'checked' : ''}>
-              <span>Alltagsbegl.</span>
-            </label>
-            <label class="chip-check">
-              <input type="checkbox" id="leistungPflegebegleitung" ${leistung && leistung.pflegebegleitung ? 'checked' : ''}>
-              <span>Pflegebegl.</span>
-            </label>
-            <label class="chip-check">
-              <input type="checkbox" id="leistungHauswirtschaft" ${leistung && leistung.hauswirtschaft ? 'checked' : ''}>
-              <span>Hauswirtschaft</span>
-            </label>
-          </div>
-
-          <!-- Objekt-Leistungen -->
-          <div class="form-hint mb-1">Leistungen an Objekten (Reinigung):</div>
-          <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px;">
-            <label class="chip-check">
-              <input type="checkbox" id="leistungObjektInnen" ${leistung && leistung.objektInnen ? 'checked' : ''}>
-              <span>Innen</span>
-            </label>
-            <label class="chip-check">
-              <input type="checkbox" id="leistungObjektAussen" ${leistung && leistung.objektAussen ? 'checked' : ''}>
-              <span>Außen</span>
-            </label>
-          </div>
-
-          <!-- Freitext -->
           <div class="form-group">
-            <label for="leistungFreitext">Weitere Leistung (Freitext)</label>
+            <label for="leistungFreitext">Leistung</label>
             <input type="text" id="leistungFreitext" class="form-control"
                    value="${leistung && leistung.freitext ? this.escapeHtml(leistung.freitext) : ''}"
-                   placeholder="z.B. Gartenarbeit, Begleitung zum Arzt...">
+                   placeholder="z.B. Betreuung, Hauswirtschaft, Gartenarbeit...">
           </div>
-        </div>
-
-        <div class="card">
-          <h3 class="card-title mb-2">Anmerkungen</h3>
           <div class="form-group">
+            <label for="leistungNotizen">Anmerkungen</label>
             <textarea id="leistungNotizen" class="form-control" rows="2"
                       placeholder="Optionale Anmerkungen...">${leistung ? (leistung.notizen || '') : ''}</textarea>
           </div>
@@ -608,12 +569,6 @@ const LeistungModule = {
       datum: document.getElementById('leistungDatum').value,
       startzeit: document.getElementById('leistungStart').value,
       endzeit: document.getElementById('leistungEnde').value,
-      betreuung: document.getElementById('leistungBetreuung').checked,
-      alltagsbegleitung: document.getElementById('leistungAlltagsbegleitung').checked,
-      pflegebegleitung: document.getElementById('leistungPflegebegleitung').checked,
-      hauswirtschaft: document.getElementById('leistungHauswirtschaft').checked,
-      objektInnen: document.getElementById('leistungObjektInnen').checked,
-      objektAussen: document.getElementById('leistungObjektAussen').checked,
       freitext: document.getElementById('leistungFreitext').value.trim(),
       notizen: document.getElementById('leistungNotizen').value.trim()
     };
