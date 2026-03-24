@@ -381,39 +381,80 @@ const LeistungModule = {
         ${!alleUnterschrieben ? '<p class="text-xs text-muted" style="margin-top:6px;">Eintr\u00e4ge antippen zum Bearbeiten oder L\u00f6schen</p>' : '<p class="text-xs text-muted" style="margin-top:6px;">\uD83D\uDD12 Unterschrieben \u2014 Eintr\u00e4ge k\u00f6nnen nicht mehr ge\u00e4ndert werden</p>'}
       </div>
 
-      <!-- Unterschriften -->
-      <div class="card">
-        <h3 class="card-title mb-2">Unterschriften</h3>
+      <div class="btn-group mt-2">
+        <button class="btn btn-primary btn-block" onclick="LeistungModule.unterschriftenAnzeigen(${kundeId}, ${monat}, ${jahr})">
+          ${alleUnterschrieben ? '\u2713 Unterschriften + PDF' : '\u270D Unterschriften'}
+        </button>
+        <button class="btn btn-secondary" onclick="LeistungModule.zurueckZurListe()">
+          \u2190 Zur\u00fcck
+        </button>
+      </div>
+    `;
+  },
 
+  // Separate Unterschriften-Ansicht
+  async unterschriftenAnzeigen(kundeId, monat, jahr) {
+    this._ansicht = 'unterschriften';
+    this._letzteMonatsUebersicht = { kundeId, monat, jahr };
+    const container = document.getElementById('leistungContent');
+    if (!container) return;
+
+    const kunde = await DB.kundeById(kundeId);
+    const alleLeistungen = await DB.leistungenFuerMonat(monat, jahr);
+    const leistungen = alleLeistungen.filter(l => l.kundeId === kundeId);
+
+    const ersteMitBetreuer = leistungen.find(l => l.unterschriftBetreuer);
+    const ersteMitVersicherter = leistungen.find(l => l.unterschriftVersicherter);
+    const hatBetreuerSig = !!ersteMitBetreuer;
+    const hatVersicherterSig = !!ersteMitVersicherter;
+    const alleUnterschrieben = hatBetreuerSig && hatVersicherterSig;
+
+    container.innerHTML = `
+      <div class="card">
+        <h3 class="card-title mb-2">
+          Unterschriften \u2014 ${this.escapeHtml([kunde.name, kunde.vorname].filter(Boolean).join(', '))}
+        </h3>
+        <p class="text-sm text-muted">${App.monatsName(monat)} ${jahr} | ${leistungen.length} Eintr\u00e4ge</p>
+      </div>
+
+      <div class="card">
         ${alleUnterschrieben ? `
           <div style="display:flex;gap:16px;flex-wrap:wrap;">
             <div style="flex:1;min-width:140px;">
-              <div class="text-sm text-muted mb-1">Betreuer/in</div>
-              <img src="${ersteMitBetreuer.unterschriftBetreuer}" style="max-width:100%;height:70px;border:1px solid #ddd;border-radius:8px;background:#fff;">
+              <div class="text-sm text-muted mb-1"><strong>Betreuer/in</strong></div>
+              <img src="${ersteMitBetreuer.unterschriftBetreuer}" style="max-width:100%;height:80px;border:1px solid #ddd;border-radius:8px;background:#fff;">
             </div>
             <div style="flex:1;min-width:140px;">
-              <div class="text-sm text-muted mb-1">Versicherte/r</div>
-              <img src="${ersteMitVersicherter.unterschriftVersicherter}" style="max-width:100%;height:70px;border:1px solid #ddd;border-radius:8px;background:#fff;">
+              <div class="text-sm text-muted mb-1"><strong>Versicherte/r</strong></div>
+              <img src="${ersteMitVersicherter.unterschriftVersicherter}" style="max-width:100%;height:80px;border:1px solid #ddd;border-radius:8px;background:#fff;">
             </div>
           </div>
-          <p class="text-xs text-muted mt-2">Unterschriften sind gespeichert. Bei \u00c4nderungen bitte neu unterschreiben lassen.</p>
+          <p class="text-xs text-muted mt-2">\uD83D\uDD12 Unterschriften gespeichert</p>
         ` : `
           <div class="form-group">
             <label><strong>Unterschrift Betreuer/in</strong></label>
-            <div class="signature-wrapper">
-              <canvas id="sigBetreuerCanvas"></canvas>
-              <div class="sig-placeholder">Hier unterschreiben</div>
-            </div>
-            <div id="sigBetreuerActions" class="signature-actions"></div>
+            ${hatBetreuerSig ? `
+              <img src="${ersteMitBetreuer.unterschriftBetreuer}" style="max-width:100%;height:80px;border:1px solid #ddd;border-radius:8px;background:#fff;">
+            ` : `
+              <div class="signature-wrapper">
+                <canvas id="sigBetreuerCanvas"></canvas>
+                <div class="sig-placeholder">Hier unterschreiben</div>
+              </div>
+              <div id="sigBetreuerActions" class="signature-actions"></div>
+            `}
           </div>
 
           <div class="form-group mt-2">
             <label><strong>Unterschrift Versicherte/r</strong></label>
-            <div class="signature-wrapper">
-              <canvas id="sigVersicherterCanvas"></canvas>
-              <div class="sig-placeholder">Hier unterschreiben</div>
-            </div>
-            <div id="sigVersicherterActions" class="signature-actions"></div>
+            ${hatVersicherterSig ? `
+              <img src="${ersteMitVersicherter.unterschriftVersicherter}" style="max-width:100%;height:80px;border:1px solid #ddd;border-radius:8px;background:#fff;">
+            ` : `
+              <div class="signature-wrapper">
+                <canvas id="sigVersicherterCanvas"></canvas>
+                <div class="sig-placeholder">Hier unterschreiben</div>
+              </div>
+              <div id="sigVersicherterActions" class="signature-actions"></div>
+            `}
           </div>
         `}
       </div>
@@ -434,17 +475,17 @@ const LeistungModule = {
             \u270D Neu unterschreiben
           </button>
         ` : ''}
-        <button class="btn btn-secondary" onclick="LeistungModule.zurueckZurListe()">
-          \u2190 Zur\u00fcck
+        <button class="btn btn-secondary" onclick="LeistungModule.monatsUebersichtAnzeigen(${kundeId}, ${monat}, ${jahr})">
+          \u2190 Zur\u00fcck zur \u00dcbersicht
         </button>
       </div>
     `;
 
-    // Signature Pads initialisieren (nur wenn noch nicht unterschrieben)
+    // Signature Pads initialisieren
     if (!alleUnterschrieben) {
       setTimeout(() => {
-        this.sigPadBetreuer = initSignaturePad('sigBetreuerCanvas', 'sigBetreuerActions');
-        this.sigPadVersicherter = initSignaturePad('sigVersicherterCanvas', 'sigVersicherterActions');
+        if (!hatBetreuerSig) this.sigPadBetreuer = initSignaturePad('sigBetreuerCanvas', 'sigBetreuerActions');
+        if (!hatVersicherterSig) this.sigPadVersicherter = initSignaturePad('sigVersicherterCanvas', 'sigVersicherterActions');
       }, 100);
     }
   },
@@ -609,15 +650,15 @@ const LeistungModule = {
 
   // Kontextabhängiger Zurück-Button (Header)
   zurueck() {
-    if (this._ansicht === 'formular' && this._letzteMonatsUebersicht) {
-      // Vom Formular zurück zur Monatsübersicht
+    if (this._ansicht === 'unterschriften' && this._letzteMonatsUebersicht) {
+      const { kundeId, monat, jahr } = this._letzteMonatsUebersicht;
+      this.monatsUebersichtAnzeigen(kundeId, monat, jahr);
+    } else if (this._ansicht === 'formular' && this._letzteMonatsUebersicht) {
       const { kundeId, monat, jahr } = this._letzteMonatsUebersicht;
       this.monatsUebersichtAnzeigen(kundeId, monat, jahr);
     } else if (this._ansicht === 'monatsuebersicht') {
-      // Von der Monatsübersicht zurück zur Liste
       this.zurueckZurListe();
     } else {
-      // Von der Liste zurück zum Dashboard
       window.location.href = '../index.html';
     }
   },
