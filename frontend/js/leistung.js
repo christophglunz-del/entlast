@@ -95,8 +95,8 @@ const LeistungModule = {
             </div>
             <div class="item-action">
               ${alleUnterschrieben
-                ? '<span class="badge badge-success">✓ Unterschrieben</span>'
-                : '<span class="badge badge-warning">⏳ Offen</span>'
+                ? '<span class="badge badge-success">\u2713 Unterschrieben</span>'
+                : '<span class="badge badge-warning">\u270D Unterschrift fehlt</span>'
               }
             </div>
           </div>
