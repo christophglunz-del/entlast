@@ -180,16 +180,26 @@ const KundenModule = {
         <div class="card">
           <h3 class="card-title mb-2">${kunde ? 'Kunde bearbeiten' : 'Neuer Kunde'}</h3>
 
-          <div class="form-group">
-            <label for="kundeName">Name *</label>
-            <input type="text" id="kundeName" class="form-control" required
-                   value="${kunde ? this.escapeHtml(kunde.name) : ''}"
-                   placeholder="Vor- und Nachname">
+          ${kunde && kunde.id ? `<div class="text-xs text-muted" style="margin-bottom:8px;">ID: ${kunde.id}</div>` : ''}
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="kundeVorname">Vorname</label>
+              <input type="text" id="kundeVorname" class="form-control"
+                     value="${kunde ? this.escapeHtml(kunde.vorname || '') : ''}"
+                     placeholder="Vorname">
+            </div>
+            <div class="form-group">
+              <label for="kundeName">Nachname *</label>
+              <input type="text" id="kundeName" class="form-control" required
+                     value="${kunde ? this.escapeHtml(kunde.name) : ''}"
+                     placeholder="Nachname">
+            </div>
           </div>
 
           <div class="form-row">
             <div class="form-group">
-              <label for="kundeStrasse">Straße</label>
+              <label for="kundeStrasse">Stra\u00dfe</label>
               <input type="text" id="kundeStrasse" class="form-control"
                      value="${kunde ? this.escapeHtml(kunde.strasse || '') : ''}"
                      placeholder="Straße und Hausnr.">
@@ -319,6 +329,7 @@ const KundenModule = {
   async speichern() {
     const daten = {
       name: document.getElementById('kundeName').value.trim(),
+      vorname: document.getElementById('kundeVorname').value.trim() || null,
       strasse: document.getElementById('kundeStrasse').value.trim(),
       plz: document.getElementById('kundePlz').value.trim(),
       ort: document.getElementById('kundeOrt').value.trim(),
@@ -327,7 +338,7 @@ const KundenModule = {
       versichertennummer: document.getElementById('kundeVersNr').value.trim(),
       pflegekasse: document.getElementById('kundePflegekasse').value,
       faxKasse: document.getElementById('kundeFaxKasse').value.trim(),
-      pflegegrad: document.getElementById('kundePflegegrad').value,
+      pflegegrad: document.getElementById('kundePflegegrad').value ? parseInt(document.getElementById('kundePflegegrad').value) : null,
       pflegegradSeit: document.getElementById('kundePflegegradSeit').value || null,
       geburtstag: document.getElementById('kundeGeburtstag').value || null,
       besonderheiten: document.getElementById('kundeBesonderheiten').value.trim(),
