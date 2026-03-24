@@ -21,6 +21,7 @@ const LeistungModule = {
   },
 
   async listeAnzeigen() {
+    this._ansicht = 'liste';
     const container = document.getElementById('leistungListe');
     if (!container) return;
 
@@ -150,6 +151,7 @@ const LeistungModule = {
   },
 
   formAnzeigen(leistung = null, kunden = []) {
+    this._ansicht = 'formular';
     const container = document.getElementById('leistungContent');
     if (!container) return;
 
@@ -259,8 +261,8 @@ const LeistungModule = {
           <button type="submit" class="btn btn-primary btn-block">
             Speichern
           </button>
-          <button type="button" class="btn btn-secondary" onclick="LeistungModule.zurueckZurListe()">
-            Abbrechen
+          <button type="button" class="btn btn-secondary" onclick="LeistungModule.zurueck()">
+            Zur\u00fcck
           </button>
           ${leistung ? `
             <button type="button" class="btn btn-danger btn-sm" onclick="LeistungModule.loeschen(${leistung.id})">
@@ -278,6 +280,8 @@ const LeistungModule = {
 
   // Monatsübersicht für einen Kunden anzeigen
   async monatsUebersichtAnzeigen(kundeId, monat, jahr) {
+    this._ansicht = 'monatsuebersicht';
+    this._letzteMonatsUebersicht = { kundeId, monat, jahr };
     const container = document.getElementById('leistungContent');
     if (!container) return;
 
@@ -564,6 +568,21 @@ const LeistungModule = {
       this.zurueckZurListe();
     } catch (err) {
       App.toast('Fehler', 'error');
+    }
+  },
+
+  // Kontextabhängiger Zurück-Button (Header)
+  zurueck() {
+    if (this._ansicht === 'formular' && this._letzteMonatsUebersicht) {
+      // Vom Formular zurück zur Monatsübersicht
+      const { kundeId, monat, jahr } = this._letzteMonatsUebersicht;
+      this.monatsUebersichtAnzeigen(kundeId, monat, jahr);
+    } else if (this._ansicht === 'monatsuebersicht') {
+      // Von der Monatsübersicht zurück zur Liste
+      this.zurueckZurListe();
+    } else {
+      // Von der Liste zurück zum Dashboard
+      window.location.href = '../index.html';
     }
   },
 
