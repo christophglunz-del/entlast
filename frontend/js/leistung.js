@@ -5,7 +5,6 @@
 
 const LeistungModule = {
   signaturePad: null,
-  sigPadBetreuer: null,
   sigPadVersicherter: null,
 
   async init() {
@@ -79,7 +78,7 @@ const LeistungModule = {
           gesamtBetrag += App.betragBerechnen(std);
         }
         const alleUnterschrieben = kundeEintraege.every(
-          l => l.unterschriftBetreuer && l.unterschriftVersicherter
+          l => l.unterschriftVersicherter
         );
 
         html += `
@@ -304,11 +303,8 @@ const LeistungModule = {
     let tabelleHtml = '';
 
     // Prüfe ob bereits unterschrieben
-    const ersteMitBetreuer = leistungen.find(l => l.unterschriftBetreuer);
-    const ersteMitVersicherter = leistungen.find(l => l.unterschriftVersicherter);
-    const hatBetreuerSig = !!ersteMitBetreuer;
-    const hatVersicherterSig = !!ersteMitVersicherter;
-    const alleUnterschrieben = hatBetreuerSig && hatVersicherterSig;
+    const ersteMitUnterschrift = leistungen.find(l => l.unterschriftVersicherter);
+    const alleUnterschrieben = !!ersteMitUnterschrift;
 
     for (let i = 0; i < leistungen.length; i++) {
       const l = leistungen[i];
@@ -403,11 +399,8 @@ const LeistungModule = {
     const alleLeistungen = await DB.leistungenFuerMonat(monat, jahr);
     const leistungen = alleLeistungen.filter(l => l.kundeId === kundeId);
 
-    const ersteMitBetreuer = leistungen.find(l => l.unterschriftBetreuer);
-    const ersteMitVersicherter = leistungen.find(l => l.unterschriftVersicherter);
-    const hatBetreuerSig = !!ersteMitBetreuer;
-    const hatVersicherterSig = !!ersteMitVersicherter;
-    const alleUnterschrieben = hatBetreuerSig && hatVersicherterSig;
+    const ersteMitUnterschrift = leistungen.find(l => l.unterschriftVersicherter);
+    const alleUnterschrieben = !!ersteMitUnterschrift;
 
     container.innerHTML = `
       <div class="card">
@@ -419,42 +412,19 @@ const LeistungModule = {
 
       <div class="card">
         ${alleUnterschrieben ? `
-          <div style="display:flex;gap:16px;flex-wrap:wrap;">
-            <div style="flex:1;min-width:140px;">
-              <div class="text-sm text-muted mb-1"><strong>Betreuer/in</strong></div>
-              <img src="${ersteMitBetreuer.unterschriftBetreuer}" style="max-width:100%;height:80px;border:1px solid #ddd;border-radius:8px;background:#fff;">
-            </div>
-            <div style="flex:1;min-width:140px;">
-              <div class="text-sm text-muted mb-1"><strong>Versicherte/r</strong></div>
-              <img src="${ersteMitVersicherter.unterschriftVersicherter}" style="max-width:100%;height:80px;border:1px solid #ddd;border-radius:8px;background:#fff;">
-            </div>
+          <div>
+            <div class="text-sm text-muted mb-1"><strong>Unterschrift Versicherte/r (oder Bevollm\u00e4chtigte/r)</strong></div>
+            <img src="${ersteMitUnterschrift.unterschriftVersicherter}" style="max-width:100%;height:100px;border:1px solid #ddd;border-radius:8px;background:#fff;">
           </div>
-          <p class="text-xs text-muted mt-2">\uD83D\uDD12 Unterschriften gespeichert</p>
+          <p class="text-xs text-muted mt-2">\uD83D\uDD12 Unterschrift gespeichert</p>
         ` : `
           <div class="form-group">
-            <label><strong>Unterschrift Betreuer/in</strong></label>
-            ${hatBetreuerSig ? `
-              <img src="${ersteMitBetreuer.unterschriftBetreuer}" style="max-width:100%;height:80px;border:1px solid #ddd;border-radius:8px;background:#fff;">
-            ` : `
-              <div class="signature-wrapper">
-                <canvas id="sigBetreuerCanvas"></canvas>
-                <div class="sig-placeholder">Hier unterschreiben</div>
-              </div>
-              <div id="sigBetreuerActions" class="signature-actions"></div>
-            `}
-          </div>
-
-          <div class="form-group mt-2">
-            <label><strong>Unterschrift Versicherte/r</strong></label>
-            ${hatVersicherterSig ? `
-              <img src="${ersteMitVersicherter.unterschriftVersicherter}" style="max-width:100%;height:80px;border:1px solid #ddd;border-radius:8px;background:#fff;">
-            ` : `
-              <div class="signature-wrapper">
-                <canvas id="sigVersicherterCanvas"></canvas>
-                <div class="sig-placeholder">Hier unterschreiben</div>
-              </div>
-              <div id="sigVersicherterActions" class="signature-actions"></div>
-            `}
+            <label><strong>Unterschrift Versicherte/r (oder Bevollm\u00e4chtigte/r)</strong></label>
+            <div class="signature-wrapper">
+              <canvas id="sigVersicherterCanvas"></canvas>
+              <div class="sig-placeholder">Hier unterschreiben</div>
+            </div>
+            <div id="sigVersicherterActions" class="signature-actions"></div>
           </div>
         `}
       </div>
@@ -462,7 +432,7 @@ const LeistungModule = {
       <div class="btn-group mt-2">
         ${!alleUnterschrieben ? `
           <button class="btn btn-primary btn-block" onclick="LeistungModule.unterschriftenSpeichern(${kundeId}, ${monat}, ${jahr})">
-            Unterschriften speichern
+            Unterschrift speichern
           </button>
         ` : ''}
         <button class="btn btn-success btn-block ${!alleUnterschrieben ? 'btn-disabled' : ''}"
@@ -481,22 +451,20 @@ const LeistungModule = {
       </div>
     `;
 
-    // Signature Pads initialisieren
+    // Signature Pad initialisieren
     if (!alleUnterschrieben) {
       setTimeout(() => {
-        if (!hatBetreuerSig) this.sigPadBetreuer = initSignaturePad('sigBetreuerCanvas', 'sigBetreuerActions');
-        if (!hatVersicherterSig) this.sigPadVersicherter = initSignaturePad('sigVersicherterCanvas', 'sigVersicherterActions');
+        this.sigPadVersicherter = initSignaturePad('sigVersicherterCanvas', 'sigVersicherterActions');
       }, 100);
     }
   },
 
-  // Unterschriften für alle Leistungen eines Kunden im Monat speichern
+  // Unterschrift für alle Leistungen eines Kunden im Monat speichern
   async unterschriftenSpeichern(kundeId, monat, jahr) {
-    const sigBetreuer = this.sigPadBetreuer ? this.sigPadBetreuer.toDataURL() : null;
     const sigVersicherter = this.sigPadVersicherter ? this.sigPadVersicherter.toDataURL() : null;
 
-    if (!sigBetreuer && !sigVersicherter) {
-      App.toast('Bitte mindestens eine Unterschrift setzen', 'error');
+    if (!sigVersicherter) {
+      App.toast('Bitte unterschreiben', 'error');
       return;
     }
 
@@ -504,37 +472,32 @@ const LeistungModule = {
       const alleLeistungen = await DB.leistungenFuerMonat(monat, jahr);
       const leistungen = alleLeistungen.filter(l => l.kundeId === kundeId);
 
-      const update = {};
-      if (sigBetreuer) update.unterschriftBetreuer = sigBetreuer;
-      if (sigVersicherter) update.unterschriftVersicherter = sigVersicherter;
-
       for (const l of leistungen) {
-        await DB.leistungAktualisieren(l.id, update);
+        await DB.leistungAktualisieren(l.id, { unterschriftVersicherter: sigVersicherter });
       }
 
-      App.toast('Unterschriften gespeichert', 'success');
-      // Ansicht neu laden
-      await this.monatsUebersichtAnzeigen(kundeId, monat, jahr);
+      App.toast('Unterschrift gespeichert', 'success');
+      await this.unterschriftenAnzeigen(kundeId, monat, jahr);
     } catch (err) {
       console.error('Fehler:', err);
       App.toast('Fehler beim Speichern', 'error');
     }
   },
 
-  // Neu unterschreiben: Alte Unterschriften löschen, Canvas zeigen
+  // Neu unterschreiben: Alte Unterschrift löschen, Canvas zeigen
   async neuUnterschreiben(kundeId, monat, jahr) {
-    if (!await App.confirm('Neuen Leistungsnachweis unterschreiben? Die alten Unterschriften werden entfernt.')) return;
+    if (!await App.confirm('Neu unterschreiben? Die alte Unterschrift wird entfernt.')) return;
 
     try {
       const alleLeistungen = await DB.leistungenFuerMonat(monat, jahr);
       const leistungen = alleLeistungen.filter(l => l.kundeId === kundeId);
 
       for (const l of leistungen) {
-        await DB.leistungAktualisieren(l.id, { unterschriftBetreuer: null, unterschriftVersicherter: null });
+        await DB.leistungAktualisieren(l.id, { unterschriftVersicherter: null });
       }
 
       App.toast('Bitte neu unterschreiben', 'info');
-      await this.monatsUebersichtAnzeigen(kundeId, monat, jahr);
+      await this.unterschriftenAnzeigen(kundeId, monat, jahr);
     } catch (err) {
       console.error('Fehler:', err);
       App.toast('Fehler', 'error');
@@ -669,9 +632,6 @@ const LeistungModule = {
       this.signaturePad = null;
     }
     if (this.sigPadBetreuer) {
-      this.sigPadBetreuer.destroy?.();
-      this.sigPadBetreuer = null;
-    }
     if (this.sigPadVersicherter) {
       this.sigPadVersicherter.destroy?.();
       this.sigPadVersicherter = null;
