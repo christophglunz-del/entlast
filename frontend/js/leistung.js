@@ -305,13 +305,14 @@ const LeistungModule = {
       gesamtBetrag += betrag;
       const arten = this.leistungsArtenKurz(l);
       tabelleHtml += `
-        <tr onclick="LeistungModule.detailAnzeigen(${l.id})" style="cursor:pointer;">
+        <tr onclick="LeistungModule.detailAnzeigen(${l.id})" style="cursor:pointer;" class="hover-row">
           <td>${App.formatDatum(l.datum)}</td>
           <td>${App.formatZeit(l.startzeit)}</td>
           <td>${App.formatZeit(l.endzeit)}</td>
           <td>${std.toFixed(2).replace('.', ',')}</td>
           <td>${App.formatBetrag(betrag)}</td>
           <td>${arten}</td>
+          <td style="color:var(--primary);font-size:0.8rem;">&#x270E;</td>
         </tr>
       `;
     }
@@ -355,6 +356,7 @@ const LeistungModule = {
             </tbody>
           </table>
         </div>
+        <p class="text-xs text-muted" style="margin-top:6px;">Eintr\u00e4ge antippen zum Bearbeiten oder L\u00f6schen</p>
       </div>
 
       <div class="card">
