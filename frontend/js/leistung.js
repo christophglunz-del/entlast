@@ -19,8 +19,14 @@ const LeistungModule = {
     }
   },
 
+  _fabAktualisieren() {
+    const fab = document.getElementById('leistungFab');
+    if (fab) fab.style.display = this._ansicht === 'liste' ? '' : 'none';
+  },
+
   async listeAnzeigen() {
     this._ansicht = 'liste';
+    this._fabAktualisieren();
     const container = document.getElementById('leistungListe');
     if (!container) return;
 
@@ -150,7 +156,7 @@ const LeistungModule = {
   },
 
   formAnzeigen(leistung = null, kunden = []) {
-    this._ansicht = 'formular';
+    this._ansicht = 'formular'; this._fabAktualisieren();
     const container = document.getElementById('leistungContent');
     if (!container) return;
 
@@ -296,7 +302,7 @@ const LeistungModule = {
 
   // Monatsübersicht für einen Kunden anzeigen
   async monatsUebersichtAnzeigen(kundeId, monat, jahr) {
-    this._ansicht = 'monatsuebersicht';
+    this._ansicht = 'monatsuebersicht'; this._fabAktualisieren();
     this._letzteMonatsUebersicht = { kundeId, monat, jahr };
     const container = document.getElementById('leistungContent');
     if (!container) return;
@@ -407,7 +413,7 @@ const LeistungModule = {
 
   // Separate Unterschriften-Ansicht
   async unterschriftenAnzeigen(kundeId, monat, jahr) {
-    this._ansicht = 'unterschriften';
+    this._ansicht = 'unterschriften'; this._fabAktualisieren();
     this._letzteMonatsUebersicht = { kundeId, monat, jahr };
     const container = document.getElementById('leistungContent');
     if (!container) return;
