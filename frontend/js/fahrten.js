@@ -194,6 +194,27 @@ const FahrtenModule = {
     this.trackingActive = true;
     this.trackingStartTime = new Date();
 
+    // Sicherheitsabfrage bei Zurück-Button / Seite verlassen
+    this._beforeUnloadHandler = (e) => {
+      if (this.trackingActive) {
+        e.preventDefault();
+        e.returnValue = 'Aufzeichnung läuft! Wirklich beenden?';
+        return e.returnValue;
+      }
+    };
+    window.addEventListener('beforeunload', this._beforeUnloadHandler);
+
+    // Auch Browser-History-Back abfangen
+    history.pushState({ tracking: true }, '');
+    this._popstateHandler = (e) => {
+      if (this.trackingActive) {
+        // Zurück gedrückt → Dialog zeigen statt navigieren
+        history.pushState({ tracking: true }, '');
+        this._zeigeTrackingWarnung();
+      }
+    };
+    window.addEventListener('popstate', this._popstateHandler);
+
     // Pulse-Animation CSS
     if (!document.getElementById('trackPulseStyle')) {
       const s = document.createElement('style');
@@ -321,7 +342,55 @@ const FahrtenModule = {
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   },
 
+  // Warnung wenn Zurück-Button während Aufzeichnung
+  _zeigeTrackingWarnung() {
+    // Overlay mit Warnung
+    const existing = document.getElementById('trackingWarnOverlay');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'trackingWarnOverlay';
+    overlay.innerHTML = `
+      <div style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;">
+        <div style="background:#fff;border-radius:16px;padding:24px;max-width:340px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+          <h3 style="margin:0 0 12px;color:#dc2626;">Aufzeichnung l\u00e4uft!</h3>
+          <p style="margin:0 0 16px;color:#555;line-height:1.5;">
+            Wenn du zur\u00fcck gehst, geht die aktuelle Aufzeichnung verloren.
+          </p>
+          <p style="margin:0 0 20px;color:#555;font-size:0.9rem;line-height:1.5;">
+            <strong>Tipp:</strong> Dr\u00fccke den <strong>Home-Button</strong> oder wechsle \u00fcber die <strong>Task-\u00dcbersicht</strong> zu einer anderen App \u2014 die Aufzeichnung l\u00e4uft im Hintergrund weiter.
+          </p>
+          <div style="display:flex;gap:10px;">
+            <button onclick="document.getElementById('trackingWarnOverlay').remove()"
+              style="flex:1;padding:12px;border:1px solid #ddd;border-radius:10px;background:#fff;font-size:1rem;cursor:pointer;">
+              Weiter aufzeichnen
+            </button>
+            <button onclick="document.getElementById('trackingWarnOverlay').remove();FahrtenModule.trackingStoppen()"
+              style="flex:1;padding:12px;border:none;border-radius:10px;background:#dc2626;color:#fff;font-size:1rem;cursor:pointer;">
+              Beenden
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+  },
+
+  // Event-Listener entfernen nach Tracking-Ende
+  _trackingListenerEntfernen() {
+    if (this._beforeUnloadHandler) {
+      window.removeEventListener('beforeunload', this._beforeUnloadHandler);
+      this._beforeUnloadHandler = null;
+    }
+    if (this._popstateHandler) {
+      window.removeEventListener('popstate', this._popstateHandler);
+      this._popstateHandler = null;
+    }
+  },
+
   async trackingStoppen() {
+    this._trackingListenerEntfernen();
+
     // GPS stoppen
     if (this.gpsWatchId) {
       navigator.geolocation.clearWatch(this.gpsWatchId);
