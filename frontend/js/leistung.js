@@ -219,6 +219,7 @@ const LeistungModule = {
               <span>Betrag: <strong id="leistungBetrag">0,00 €</strong></span>
             </div>
           </div>
+          <button type="submit" class="btn btn-primary btn-block mt-1">Speichern</button>
         </div>
 
         <div class="card">
