@@ -631,7 +631,6 @@ const LeistungModule = {
       this.signaturePad.destroy?.();
       this.signaturePad = null;
     }
-    if (this.sigPadBetreuer) {
     if (this.sigPadVersicherter) {
       this.sigPadVersicherter.destroy?.();
       this.sigPadVersicherter = null;
