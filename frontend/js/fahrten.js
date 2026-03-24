@@ -242,7 +242,7 @@ const FahrtenModule = {
       </div>
 
       <div class="map-container" style="height: 300px; margin-bottom: 8px;">
-        <div id="trackMap"></div>
+        <div id="trackMap" style="height: 100%; width: 100%;"></div>
       </div>
 
       <button class="btn btn-lg" style="background: var(--danger); color: white; width: 100%; border-radius: 12px;"
@@ -587,7 +587,7 @@ const FahrtenModule = {
         </div>
 
         <div class="map-container" style="height: 250px;">
-          <div id="routeMap"></div>
+          <div id="routeMap" style="height: 100%; width: 100%;"></div>
         </div>
       </div>
 
