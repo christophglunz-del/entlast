@@ -223,7 +223,7 @@ const LeistungModule = {
 
         <div class="card">
           <div class="form-group">
-            <label for="leistungFreitext">Leistung</label>
+            <label for="leistungFreitext">Leistung (optional)</label>
             <input type="text" id="leistungFreitext" class="form-control"
                    value="${leistung && leistung.freitext ? this.escapeHtml(leistung.freitext) : ''}"
                    placeholder="z.B. Betreuung, Hauswirtschaft, Gartenarbeit...">
