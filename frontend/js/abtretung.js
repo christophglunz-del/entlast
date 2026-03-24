@@ -46,10 +46,10 @@ const AbtretungModule = {
             return `
               <div class="list-item" onclick="AbtretungModule.detailAnzeigen(${a.id})">
                 <div class="item-avatar" style="background: var(--success-bg); color: var(--success);">
-                  ${kunde ? App.initialen(kunde.name) : '?'}
+                  ${kunde ? App.initialen(kunde.name, kunde.vorname) : '?'}
                 </div>
                 <div class="item-content">
-                  <div class="item-title">${kunde ? KundenModule.escapeHtml(kunde.name) : 'Unbekannt'}</div>
+                  <div class="item-title">${kunde ? KundenModule.escapeHtml(App.kundenName(kunde)) : 'Unbekannt'}</div>
                   <div class="item-subtitle">
                     ${App.formatDatum(a.datum)} | ${a.ort || 'Hattingen'}
                     ${a.unterschrift ? ' | ✓ Unterschrieben' : ''}
@@ -70,12 +70,12 @@ const AbtretungModule = {
       ${kundenOhne.length === 0
         ? '<div class="card text-center text-muted">Alle Kunden haben eine Abtretungserklärung</div>'
         : kundenOhne.map(k => `
-            <div class="list-item abtretung-kunde-item" data-name="${KundenModule.escapeHtml(k.name.toLowerCase())}" onclick="AbtretungModule.neueAbtretung(${k.id})">
+            <div class="list-item abtretung-kunde-item" data-name="${KundenModule.escapeHtml(App.kundenName(k).toLowerCase())}" onclick="AbtretungModule.neueAbtretung(${k.id})">
               <div class="item-avatar" style="background: var(--warning-bg); color: var(--warning);">
-                ${App.initialen(k.name)}
+                ${App.initialen(k.name, k.vorname)}
               </div>
               <div class="item-content">
-                <div class="item-title">${KundenModule.escapeHtml(k.name)}</div>
+                <div class="item-title">${KundenModule.escapeHtml(App.kundenName(k))}</div>
                 <div class="item-subtitle">${k.pflegekasse ? KundenModule.escapeHtml(k.pflegekasse) : 'Keine Kasse hinterlegt'}</div>
               </div>
               <button class="btn btn-sm btn-primary" onclick="event.stopPropagation(); AbtretungModule.neueAbtretung(${k.id})">
@@ -162,7 +162,7 @@ const AbtretungModule = {
         </div>
 
         <table style="width:100%;font-size:0.9rem;border-collapse:collapse;">
-          <tr><td style="padding:6px 8px;color:var(--gray-600);width:40%;">Kunde</td><td style="padding:6px 8px;font-weight:600;">${kunde ? KundenModule.escapeHtml(kunde.name) : 'Unbekannt'}</td></tr>
+          <tr><td style="padding:6px 8px;color:var(--gray-600);width:40%;">Kunde</td><td style="padding:6px 8px;font-weight:600;">${kunde ? KundenModule.escapeHtml(App.kundenName(kunde)) : 'Unbekannt'}</td></tr>
           <tr><td style="padding:6px 8px;color:var(--gray-600);">Versichertennummer</td><td style="padding:6px 8px;">${kunde && kunde.versichertennummer ? KundenModule.escapeHtml(kunde.versichertennummer) : '-'}</td></tr>
           <tr><td style="padding:6px 8px;color:var(--gray-600);">Pflegekasse</td><td style="padding:6px 8px;">${KundenModule.escapeHtml(abtretung.pflegekasse || (kunde && kunde.pflegekasse ? kunde.pflegekasse : '') || '-')}</td></tr>
           <tr><td style="padding:6px 8px;color:var(--gray-600);">Ort</td><td style="padding:6px 8px;">${KundenModule.escapeHtml(abtretung.ort || '-')}</td></tr>
@@ -230,7 +230,7 @@ const AbtretungModule = {
         <div class="form-row">
           <div class="form-group">
             <label>Versicherte/r</label>
-            <input type="text" class="form-control" value="${KundenModule.escapeHtml(kunde.name || '')}" readonly>
+            <input type="text" class="form-control" value="${KundenModule.escapeHtml(App.kundenName(kunde))}" readonly>
           </div>
           <div class="form-group">
             <label>Versichertennummer</label>
@@ -272,7 +272,7 @@ const AbtretungModule = {
 
         <p><strong>1) Pflegebedürftige/versicherte Person</strong></p>
         <p style="margin: 8px 0; padding: 10px; background: var(--gray-50); border-radius: 8px;">
-          Name, Vorname: <strong>${KundenModule.escapeHtml(kunde.name || '____________')}</strong><br>
+          Name, Vorname: <strong>${KundenModule.escapeHtml(App.kundenName(kunde))}</strong><br>
           Anschrift: ${KundenModule.escapeHtml([kunde.strasse, kunde.plz, kunde.ort].filter(Boolean).join(', ') || '____________')}<br>
           Versichertennummer: ${KundenModule.escapeHtml(kunde.versichertennummer || '____________')}
         </p>
@@ -287,7 +287,7 @@ const AbtretungModule = {
         <hr style="border: none; border-top: 1px solid var(--gray-200); margin: 12px 0;">
 
         <p><strong>A) VOLLMACHT</strong></p>
-        <p>Hiermit bevollmächtige ich, ${KundenModule.escapeHtml(kunde.name || '____________')}, die unter Ziffer 2 genannte Person, mich gegenüber meiner Pflegekasse in Angelegenheiten der Pflegeversicherung nach dem SGB XI zu vertreten, insbesondere für:</p>
+        <p>Hiermit bevollmächtige ich, ${KundenModule.escapeHtml(App.kundenName(kunde))}, die unter Ziffer 2 genannte Person, mich gegenüber meiner Pflegekasse in Angelegenheiten der Pflegeversicherung nach dem SGB XI zu vertreten, insbesondere für:</p>
         <ul style="margin: 4px 0; padding-left: 20px; font-size: 0.9em;">
           <li>Verhinderungspflege nach §&nbsp;39 SGB XI</li>
           <li>Entlastungsbetrag nach §&nbsp;45b SGB XI</li>

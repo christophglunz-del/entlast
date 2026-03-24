@@ -131,7 +131,7 @@ const PDFHelper = {
     doc.setFont('helvetica', 'bold');
     doc.text('Name des Versicherten:', 15, y);
     doc.setFont('helvetica', 'normal');
-    doc.text([kunde.name, kunde.vorname].filter(Boolean).join(', ') || '', 70, y);
+    doc.text(App.kundenName(kunde), 70, y);
     y += 7;
 
     doc.setFont('helvetica', 'bold');
@@ -414,7 +414,7 @@ const PDFHelper = {
     doc.text('1) Pflegebedürftige/versicherte Person (Vollmachtgeberin / abtretende Person)', 15, y);
     y += LH + 1;
     doc.setFont('helvetica', 'normal');
-    doc.text(`Name, Vorname: ${kunde.name || '____________'}`, 15, y); y += LH;
+    doc.text(`Name, Vorname: ${App.kundenName(kunde)}`, 15, y); y += LH;
     const adresse = [kunde.strasse, kunde.plz, kunde.ort].filter(Boolean).join(', ') || '____________';
     doc.text(`Anschrift: ${adresse}`, 15, y); y += LH;
     doc.text(`Versichertennummer: ${kunde.versichertennummer || '____________'}`, 15, y);
@@ -458,7 +458,7 @@ const PDFHelper = {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
 
-    const vollmachtText = `Hiermit bevollmächtige ich, ${kunde.name || '____________'}, die unter Ziffer 2 genannte Person ` +
+    const vollmachtText = `Hiermit bevollmächtige ich, ${App.kundenName(kunde)}, die unter Ziffer 2 genannte Person ` +
       `(${((FIRMA||{}).name||'')} / ${((FIRMA||{}).inhaber||'')}), mich gegenüber meiner Pflegekasse in Angelegenheiten der ` +
       'Pflegeversicherung nach dem SGB XI zu vertreten, soweit dies für die Beantragung, Abrechnung und Klärung ' +
       'von Leistungen erforderlich ist, insbesondere für:';
@@ -571,7 +571,7 @@ const PDFHelper = {
     y += 5;
 
     doc.setFontSize(9);
-    doc.text(`Name in Druckbuchstaben: ${kunde.name || '____________'}`, 15, y);
+    doc.text(`Name in Druckbuchstaben: ${App.kundenName(kunde)}`, 15, y);
 
     this.addFooter(doc, false);
     return doc;
@@ -608,7 +608,7 @@ const PDFHelper = {
     y += 6;
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Versicherte/r: ${kunde.name}`, 15, y);
+    doc.text(`Versicherte/r: ${App.kundenName(kunde)}`, 15, y);
     y += 5;
     doc.text(`Versichertennummer: ${kunde.versichertennummer || ''}`, 15, y);
     y += 5;

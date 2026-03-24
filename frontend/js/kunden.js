@@ -126,9 +126,9 @@ const KundenModule = {
 
       return `
       <div class="list-item" onclick="KundenModule.detailAnzeigen(${kunde.id})" style="${itemStyle}">
-        <div class="item-avatar">${App.initialen(kunde.name)}</div>
+        <div class="item-avatar">${App.initialen(kunde.name, kunde.vorname)}</div>
         <div class="item-content">
-          <div class="item-title">${this.escapeHtml(kunde.name)}${badge}</div>
+          <div class="item-title">${this.escapeHtml(App.kundenName(kunde))}${badge}</div>
           <div class="item-subtitle">
             ${kunde.pflegekasse || ''} ${kunde.pflegegrad ? '| PG ' + kunde.pflegegrad : ''}
             ${kunde.besonderheiten ? '| ' + this.escapeHtml(kunde.besonderheiten) : ''}

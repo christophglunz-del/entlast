@@ -83,9 +83,9 @@ const LeistungModule = {
 
         html += `
           <div class="list-item" onclick="LeistungModule.monatsUebersichtAnzeigen(${kid}, ${mi}, ${ji})">
-            <div class="item-avatar">${App.initialen(k.name)}</div>
+            <div class="item-avatar">${App.initialen(k.name, k.vorname)}</div>
             <div class="item-content">
-              <div class="item-title">${this.escapeHtml(k.name)}</div>
+              <div class="item-title">${this.escapeHtml(App.kundenName(k))}</div>
               <div class="item-subtitle">
                 ${anzahl} ${anzahl === 1 ? 'Eintrag' : 'Einträge'} |
                 ${gesamtStunden.toFixed(1).replace('.', ',')} Std. |
@@ -155,11 +155,23 @@ const LeistungModule = {
     if (!container) return;
 
     const preselect = this._preselectedKundeId ? parseInt(this._preselectedKundeId) : null;
-    const kundenOptions = kunden.map(k => {
+    const echteKunden = App.echteKunden(kunden);
+    this._leistungKunden = echteKunden; // für Suchfilter merken
+    const kundenOptions = echteKunden.map(k => {
       const selected = (leistung && leistung.kundeId === k.id) || (!leistung && preselect === k.id);
-      return `<option value="${k.id}" ${selected ? 'selected' : ''}>${this.escapeHtml(k.name)}</option>`;
+      return `<option value="${k.id}" ${selected ? 'selected' : ''}>${this.escapeHtml(App.kundenName(k))}</option>`;
     }).join('');
     if (preselect) this._preselectedKundeId = null; // einmalig verbrauchen
+
+    // Vorgewählter Kundenname für Suchfeld
+    let preselectedName = '';
+    if (leistung) {
+      const vk = echteKunden.find(k => k.id === leistung.kundeId);
+      if (vk) preselectedName = App.kundenName(vk);
+    } else if (preselect) {
+      const vk = echteKunden.find(k => k.id === preselect);
+      if (vk) preselectedName = App.kundenName(vk);
+    }
 
     container.innerHTML = `
       <form id="leistungForm" onsubmit="event.preventDefault(); LeistungModule.speichern(${leistung ? leistung.id : 'null'});">
@@ -167,8 +179,14 @@ const LeistungModule = {
           <h3 class="card-title mb-2">${leistung ? 'Eintrag bearbeiten' : 'Neuer Leistungseintrag'}</h3>
 
           <div class="form-group">
-            <label for="leistungKunde">Kunde *</label>
-            <select id="leistungKunde" class="form-control" required>
+            <label for="leistungKundeSearch">Kunde *</label>
+            <input type="text" id="leistungKundeSearch" class="form-control" placeholder="Kunde suchen..."
+                   value="${this.escapeHtml(preselectedName)}"
+                   oninput="LeistungModule.kundenFiltern(this.value)"
+                   onfocus="LeistungModule.kundenFiltern(this.value)"
+                   autocomplete="off">
+            <div id="leistungKundeResults" style="max-height:200px;overflow-y:auto;border:1px solid var(--gray-200);border-radius:8px;display:none;background:#fff;margin-top:2px;"></div>
+            <select id="leistungKunde" class="form-control" required style="display:none;">
               <option value="">-- Kunde wählen --</option>
               ${kundenOptions}
             </select>
@@ -344,7 +362,7 @@ const LeistungModule = {
     container.innerHTML = `
       <div class="card">
         <h3 class="card-title mb-2">
-          ${this.escapeHtml([kunde.name, kunde.vorname].filter(Boolean).join(', '))} \u2014 ${App.monatsName(monat)} ${jahr}
+          ${this.escapeHtml(App.kundenName(kunde))} \u2014 ${App.monatsName(monat)} ${jahr}
         </h3>
         <div class="text-sm text-muted" style="margin-bottom:8px;">
           ${kunde.versichertennummer ? 'VersNr: ' + this.escapeHtml(kunde.versichertennummer) + ' | ' : ''}${kunde.pflegekasse ? this.escapeHtml(kunde.pflegekasse) : ''}${kunde.pflegegrad ? ' | PG ' + kunde.pflegegrad : ''}
@@ -405,7 +423,7 @@ const LeistungModule = {
     container.innerHTML = `
       <div class="card">
         <h3 class="card-title mb-2">
-          Unterschrift \u2014 ${this.escapeHtml([kunde.name, kunde.vorname].filter(Boolean).join(', '))}
+          Unterschrift \u2014 ${this.escapeHtml(App.kundenName(kunde))}
         </h3>
         <p class="text-sm text-muted">${App.monatsName(monat)} ${jahr} | ${leistungen.length} Eintr\u00e4ge</p>
       </div>
@@ -640,6 +658,53 @@ const LeistungModule = {
       container.innerHTML = '<div id="leistungListe"></div>';
       this.init();
     }
+  },
+
+  kundenFiltern(suchtext) {
+    const results = document.getElementById('leistungKundeResults');
+    if (!results) return;
+    const kunden = this._leistungKunden || [];
+    const begriff = (suchtext || '').toLowerCase().trim();
+
+    const gefiltert = begriff
+      ? kunden.filter(k => App.kundenName(k).toLowerCase().includes(begriff))
+      : kunden;
+
+    if (gefiltert.length === 0) {
+      results.innerHTML = '<div style="padding:8px;color:var(--gray-500);font-size:0.9rem;">Keine Kunden gefunden</div>';
+    } else {
+      results.innerHTML = gefiltert.map(k =>
+        `<div style="padding:8px 12px;cursor:pointer;font-size:0.9rem;border-bottom:1px solid var(--gray-100);"
+              onmousedown="LeistungModule.kundeAuswaehlen(${k.id})"
+              onmouseover="this.style.background='var(--primary-bg)'"
+              onmouseout="this.style.background=''">${this.escapeHtml(App.kundenName(k))}</div>`
+      ).join('');
+    }
+    results.style.display = 'block';
+
+    // Click-outside schliessen
+    if (!this._kundenClickHandler) {
+      this._kundenClickHandler = (e) => {
+        if (!e.target.closest('#leistungKundeSearch') && !e.target.closest('#leistungKundeResults')) {
+          results.style.display = 'none';
+        }
+      };
+      document.addEventListener('click', this._kundenClickHandler);
+    }
+  },
+
+  kundeAuswaehlen(kundeId) {
+    const kunden = this._leistungKunden || [];
+    const kunde = kunden.find(k => k.id === kundeId);
+    if (!kunde) return;
+
+    const searchInput = document.getElementById('leistungKundeSearch');
+    const select = document.getElementById('leistungKunde');
+    const results = document.getElementById('leistungKundeResults');
+
+    if (searchInput) searchInput.value = App.kundenName(kunde);
+    if (select) select.value = kundeId;
+    if (results) results.style.display = 'none';
   },
 
   escapeHtml(text) {

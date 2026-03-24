@@ -74,7 +74,7 @@ const TermineModule = {
             _geburtstag: true,
             _displayDatum: tagStr,
             kundeId: k.id,
-            titel: `🎂 ${k.name} wird ${alter}`,
+            titel: `🎂 ${App.kundenName(k)} wird ${alter}`,
             startzeit: '00:00',
             endzeit: '',
             wiederkehrend: false
@@ -137,7 +137,7 @@ const TermineModule = {
                       return `
                         <div class="calendar-event" style="border-left-color: ${farbe}; background: ${farbe}15;"
                              onclick="event.stopPropagation(); TermineModule.terminBearbeiten(${t.id})">
-                          <div class="event-title" style="color: ${farbe};">${kunde ? kunde.name.split(' ')[0] : 'Termin'}${unterschriftBadge}</div>
+                          <div class="event-title" style="color: ${farbe};">${kunde ? (kunde.vorname || kunde.name.split(' ')[0]) : 'Termin'}${unterschriftBadge}</div>
                           <div class="event-time">${App.formatZeit(t.startzeit)}-${App.formatZeit(t.endzeit)}</div>
                         </div>
                       `;
@@ -165,10 +165,10 @@ const TermineModule = {
             return `
               <div class="list-item" onclick="TermineModule.terminBearbeiten(${t.id})">
                 <div class="item-avatar" style="background: ${farbe}20; color: ${farbe};">
-                  ${kunde ? App.initialen(kunde.name) : '?'}
+                  ${kunde ? App.initialen(kunde.name, kunde.vorname) : '?'}
                 </div>
                 <div class="item-content">
-                  <div class="item-title">${t.titel || (kunde ? kunde.name : 'Termin')}</div>
+                  <div class="item-title">${t.titel || (kunde ? App.kundenName(kunde) : 'Termin')}</div>
                   <div class="item-subtitle">
                     ${App.wochentagKurz(displayDatum)} ${App.formatDatum(displayDatum)} |
                     ${App.formatZeit(t.startzeit)} - ${App.formatZeit(t.endzeit)}
@@ -239,9 +239,10 @@ const TermineModule = {
     if (!container) return;
 
     const preselect = this._preselectedKundeId ? parseInt(this._preselectedKundeId) : null;
-    const kundenOptions = kunden.map(k => {
+    const echteKunden = App.echteKunden(kunden);
+    const kundenOptions = echteKunden.map(k => {
       const selected = (termin && termin.kundeId === k.id) || (!termin && preselect === k.id);
-      return `<option value="${k.id}" ${selected ? 'selected' : ''}>${KundenModule.escapeHtml(k.name)}</option>`;
+      return `<option value="${k.id}" ${selected ? 'selected' : ''}>${KundenModule.escapeHtml(App.kundenName(k))}</option>`;
     }).join('');
     if (preselect) this._preselectedKundeId = null;
 

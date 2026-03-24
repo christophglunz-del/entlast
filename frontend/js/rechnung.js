@@ -29,7 +29,7 @@ const RechnungModule = {
           <label for="rechnungKunde">Kunde (betreute Person)</label>
           <select id="rechnungKunde" class="form-control" onchange="RechnungModule.kundeGewaehlt()">
             <option value="">-- Kunde wählen --</option>
-            ${kunden.filter(k => (k.kundentyp || 'pflege') !== 'inaktiv').map(k => `<option value="${k.id}">${KundenModule.escapeHtml(k.name)}${k.kundentyp === 'dienstleistung' ? ' (DL)' : ''}</option>`).join('')}
+            ${App.echteKunden(kunden).map(k => `<option value="${k.id}">${KundenModule.escapeHtml(App.kundenName(k))}${k.kundentyp === 'dienstleistung' ? ' (DL)' : ''}</option>`).join('')}
           </select>
         </div>
 
@@ -117,7 +117,7 @@ const RechnungModule = {
         <div class="card">
           <div class="card-header">
             <div>
-              <div class="card-title">${kunde ? KundenModule.escapeHtml(kunde.name) : 'Unbekannt'}</div>
+              <div class="card-title">${kunde ? KundenModule.escapeHtml(App.kundenName(kunde)) : 'Unbekannt'}</div>
               <div class="text-sm text-muted">
                 ${App.monatsName(r.monat)} ${r.jahr}
                 ${r.rechnungsnummer ? ' | Nr. ' + r.rechnungsnummer : ''}
@@ -284,7 +284,7 @@ const RechnungModule = {
     });
 
     // Empfänger-Info für Vorschau
-    const empfName = variante === 'privat' ? kunde.name : (kunde.pflegekasse || 'Pflegekasse');
+    const empfName = variante === 'privat' ? App.kundenName(kunde) : (kunde.pflegekasse || 'Pflegekasse');
 
     // Vorschau im Detail-Overlay anzeigen
     const overlay = document.getElementById('rechnungDetailOverlay');
@@ -297,7 +297,7 @@ const RechnungModule = {
 
         <table style="width:100%;font-size:0.9rem;border-collapse:collapse;">
           <tr><td style="padding:4px 8px;color:var(--gray-600);">Empfänger</td><td style="padding:4px 8px;font-weight:600;">${empfName}</td></tr>
-          ${variante !== 'privat' ? `<tr><td style="padding:4px 8px;color:var(--gray-600);">Versicherte/r</td><td style="padding:4px 8px;">${kunde.name}</td></tr>` : ''}
+          ${variante !== 'privat' ? `<tr><td style="padding:4px 8px;color:var(--gray-600);">Versicherte/r</td><td style="padding:4px 8px;">${App.kundenName(kunde)}</td></tr>` : ''}
           <tr><td style="padding:4px 8px;color:var(--gray-600);">Variante</td><td style="padding:4px 8px;">${variante === 'kasse' ? 'Kassenrechnung (§45b)' : variante === 'lbv' ? 'LBV-Splitting' : 'Privatrechnung'}</td></tr>
           <tr><td style="padding:4px 8px;color:var(--gray-600);">Zeitraum</td><td style="padding:4px 8px;">${App.monatsName(monat)} ${jahr}</td></tr>
           <tr><td style="padding:4px 8px;color:var(--gray-600);">Leistungen</td><td style="padding:4px 8px;">${kundeLeistungen.length} Einträge, ${gesamtStunden.toFixed(1)} Stunden</td></tr>
@@ -639,7 +639,7 @@ const RechnungModule = {
       if (!fileId) { App.toast('PDF nicht verfügbar', 'error'); return; }
 
       const pdfBlob = await LexofficeAPI.getInvoicePdf(fileId);
-      this.pdfVorschau(pdfBlob, `${kunde ? kunde.name : 'Rechnung'} — ${rechnung.rechnungsnummer || ''}`);
+      this.pdfVorschau(pdfBlob, `${kunde ? App.kundenName(kunde) : 'Rechnung'} — ${rechnung.rechnungsnummer || ''}`);
     } catch (err) {
       App.toast('PDF-Fehler: ' + err.message, 'error');
     }

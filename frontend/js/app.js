@@ -151,14 +151,30 @@ const App = {
     }).format(betrag || 0);
   },
 
-  // Initialen aus Name
-  initialen(name) {
-    if (!name) return '?';
-    const parts = name.trim().split(/\s+/);
+  // Kundenname formatiert: "Vorname Nachname"
+  kundenName(kunde) {
+    if (!kunde) return 'Unbekannt';
+    return [kunde.vorname, kunde.name].filter(Boolean).join(' ') || kunde.name || 'Unbekannt';
+  },
+
+  // Echte Kunden filtern (keine Kassen, keine Inaktiven)
+  echteKunden(kunden) {
+    const kassenKw = ['aok','barmer','dak','techniker','knappschaft','bkk','novitas','energie','lbv','landesamt','krankenkasse','ersatzkasse','pflegekasse'];
+    return kunden.filter(k => !kassenKw.some(kw => (k.name||'').toLowerCase().includes(kw)) && k.kundentyp !== 'inaktiv');
+  },
+
+  // Initialen aus Name (nutzt vorname + name)
+  initialen(name, vorname) {
+    if (!name && !vorname) return '?';
+    if (vorname && name) {
+      return (vorname[0] + name[0]).toUpperCase();
+    }
+    const fullName = name || vorname || '';
+    const parts = fullName.trim().split(/\s+/);
     if (parts.length >= 2) {
       return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
     }
-    return name.substring(0, 2).toUpperCase();
+    return fullName.substring(0, 2).toUpperCase();
   },
 
   // Modal öffnen

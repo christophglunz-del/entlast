@@ -633,7 +633,7 @@ const FahrtenModule = {
   zielEingabeRendern(kunden) {
     const kundenOptions = kunden.map(k => {
       const adresse = [k.strasse, k.plz, k.ort].filter(Boolean).join(', ');
-      return `<option value="${k.id}" data-adresse="${KundenModule.escapeHtml(adresse)}" data-name="${KundenModule.escapeHtml(k.name)}">${KundenModule.escapeHtml(k.name)}${adresse ? ' (' + KundenModule.escapeHtml(k.ort || '') + ')' : ''}</option>`;
+      return `<option value="${k.id}" data-adresse="${KundenModule.escapeHtml(adresse)}" data-name="${KundenModule.escapeHtml(App.kundenName(k))}">${KundenModule.escapeHtml(App.kundenName(k))}${adresse ? ' (' + KundenModule.escapeHtml(k.ort || '') + ')' : ''}</option>`;
     }).join('');
 
     return `
@@ -789,7 +789,7 @@ const FahrtenModule = {
                 <div class="form-row" style="grid-template-columns: auto 1fr; gap: 8px;">
                   <select class="form-control ziel-kunde" onchange="FahrtenModule.kundeGewaehlt(this)" style="min-width: 120px;">
                     <option value="_frei" selected>✏️ Freie Eingabe</option>
-                    ${kunden.map(k => `<option value="${k.id}" data-adresse="${KundenModule.escapeHtml((k.strasse || '') + ', ' + (k.plz || '') + ' ' + (k.ort || ''))}">${KundenModule.escapeHtml(k.name)}</option>`).join('')}
+                    ${kunden.map(k => `<option value="${k.id}" data-adresse="${KundenModule.escapeHtml((k.strasse || '') + ', ' + (k.plz || '') + ' ' + (k.ort || ''))}">${KundenModule.escapeHtml(App.kundenName(k))}</option>`).join('')}
                   </select>
                   <input type="text" class="form-control ziel-adresse" value="${KundenModule.escapeHtml(addr)}">
                 </div>

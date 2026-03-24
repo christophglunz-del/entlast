@@ -246,7 +246,7 @@
                     kunden.forEach(k => {
                         if (k.geburtstag && k.geburtstag.substring(5) === tagMD) {
                             const alter = d.getFullYear() - parseInt(k.geburtstag.split('-')[0]);
-                            wochenTermine.push({ datum: tagStr, titel: '\uD83C\uDF82 ' + k.name + ' wird ' + alter, startzeit: '', endzeit: '', kundeId: k.id });
+                            wochenTermine.push({ datum: tagStr, titel: '\uD83C\uDF82 ' + App.kundenName(k) + ' wird ' + alter, startzeit: '', endzeit: '', kundeId: k.id });
                         }
                     });
                 }
@@ -275,9 +275,9 @@
                         const unterschriftBadge = istLetzterImMonat(t) ? ' <span style="background:#ea580c;color:#fff;font-size:0.65rem;padding:1px 4px;border-radius:3px;">\u270D\uFE0F Unterschrift</span>' : '';
                         return `
                             <div class="list-item">
-                                <div class="item-avatar">${kunde ? App.initialen(kunde.name) : '\uD83D\uDCC5'}</div>
+                                <div class="item-avatar">${kunde ? App.initialen(kunde.name, kunde.vorname) : '\uD83D\uDCC5'}</div>
                                 <div class="item-content">
-                                    <div class="item-title">${t.titel || (kunde ? kunde.name : 'Termin')}${unterschriftBadge}</div>
+                                    <div class="item-title">${t.titel || (kunde ? App.kundenName(kunde) : 'Termin')}${unterschriftBadge}</div>
                                     <div class="item-subtitle">${tagLabel} | ${App.formatZeit(t.startzeit)} - ${App.formatZeit(t.endzeit) || ''}</div>
                                 </div>
                             </div>
@@ -305,9 +305,9 @@
                         const stunden = App.stundenBerechnen(l.startzeit, l.endzeit);
                         return `
                             <div class="list-item" onclick="window.location.href='pages/leistung.html'">
-                                <div class="item-avatar">${kunde ? App.initialen(kunde.name) : '?'}</div>
+                                <div class="item-avatar">${kunde ? App.initialen(kunde.name, kunde.vorname) : '?'}</div>
                                 <div class="item-content">
-                                    <div class="item-title">${kunde ? kunde.name : 'Unbekannt'}</div>
+                                    <div class="item-title">${kunde ? App.kundenName(kunde) : 'Unbekannt'}</div>
                                     <div class="item-subtitle">${App.formatDatum(l.datum)} | ${stunden.toFixed(1)} Std. | ${App.formatBetrag(App.betragBerechnen(stunden))}</div>
                                 </div>
                             </div>
