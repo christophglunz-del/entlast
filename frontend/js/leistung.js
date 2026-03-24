@@ -379,7 +379,7 @@ const LeistungModule = {
 
       <div class="btn-group mt-2">
         <button class="btn btn-primary btn-block" onclick="LeistungModule.unterschriftenAnzeigen(${kundeId}, ${monat}, ${jahr})">
-          ${alleUnterschrieben ? '\u2713 Unterschriften + PDF' : '\u270D Unterschriften'}
+          ${alleUnterschrieben ? '\u2713 Unterschrift + PDF' : '\u270D Unterschrift'}
         </button>
         <button class="btn btn-secondary" onclick="LeistungModule.zurueckZurListe()">
           \u2190 Zur\u00fcck
@@ -405,7 +405,7 @@ const LeistungModule = {
     container.innerHTML = `
       <div class="card">
         <h3 class="card-title mb-2">
-          Unterschriften \u2014 ${this.escapeHtml([kunde.name, kunde.vorname].filter(Boolean).join(', '))}
+          Unterschrift \u2014 ${this.escapeHtml([kunde.name, kunde.vorname].filter(Boolean).join(', '))}
         </h3>
         <p class="text-sm text-muted">${App.monatsName(monat)} ${jahr} | ${leistungen.length} Eintr\u00e4ge</p>
       </div>
