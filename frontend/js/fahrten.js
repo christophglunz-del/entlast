@@ -635,7 +635,7 @@ const FahrtenModule = {
     }).join('');
 
     return `
-      <input type="text" class="form-control ziel-suche" placeholder="Ziel suchen..." oninput="FahrtenModule.zielFiltern(this)" onfocus="FahrtenModule.zielFiltern(this)" style="margin-bottom: 4px;">
+      <input type="text" class="form-control ziel-suche" placeholder="Ziel \u00fcber Kunden suchen..." oninput="FahrtenModule.zielFiltern(this)" onfocus="FahrtenModule.zielFiltern(this)" style="margin-bottom: 4px;">
       <select class="form-control ziel-kunde" onchange="FahrtenModule.kundeGewaehlt(this)" size="1" style="margin-bottom: 4px;">
         <option value="">-- Ziel w\u00e4hlen --</option>
         ${kundenOptions}

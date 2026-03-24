@@ -157,10 +157,16 @@ const App = {
     return [kunde.vorname, kunde.name].filter(Boolean).join(' ') || kunde.name || 'Unbekannt';
   },
 
-  // Echte Kunden filtern (keine Kassen, keine Inaktiven)
+  // Echte Versicherte filtern (keine Kassen, keine Firmen/Lieferanten, keine Inaktiven)
   echteKunden(kunden) {
     const kassenKw = ['aok','barmer','dak','techniker','knappschaft','bkk','novitas','energie','lbv','landesamt','krankenkasse','ersatzkasse','pflegekasse'];
-    return kunden.filter(k => !kassenKw.some(kw => (k.name||'').toLowerCase().includes(kw)) && k.kundentyp !== 'inaktiv');
+    return kunden.filter(k => {
+      if (k.kundentyp === 'inaktiv') return false;
+      if (kassenKw.some(kw => (k.name||'').toLowerCase().includes(kw))) return false;
+      // Nur Personen mit Vornamen (Firmen/Lieferanten haben keinen)
+      if (!k.vorname) return false;
+      return true;
+    });
   },
 
   // Initialen aus Name (nutzt vorname + name)
