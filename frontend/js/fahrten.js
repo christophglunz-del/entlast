@@ -545,7 +545,7 @@ const FahrtenModule = {
         <div class="form-group">
           <label>Start</label>
           <input type="text" id="fahrtStart" class="form-control"
-                 value="${((FIRMA||{}).startAdresse||'')}" placeholder="Startadresse eingeben">
+                 value="${this._trackEndAdresse || ((FIRMA||{}).startAdresse||'')}" placeholder="Startadresse eingeben">
         </div>
 
         <div class="form-group">
@@ -624,29 +624,63 @@ const FahrtenModule = {
     }, 100);
   },
 
-  // Ziel-Eingabe: Kunde wählen oder Freitext
+  // Ziel-Eingabe: Suche + Dropdown + Freitext
+  _zielKundenCache: null,
+
   zielEingabeRendern(kunden) {
+    this._zielKundenCache = kunden;
     const kundenOptions = kunden.map(k => {
       const adresse = [k.strasse, k.plz, k.ort].filter(Boolean).join(', ');
-      return `<option value="${k.id}" data-adresse="${KundenModule.escapeHtml(adresse)}" data-name="${KundenModule.escapeHtml(App.kundenName(k))}">${KundenModule.escapeHtml(App.kundenName(k))}${adresse ? ' (' + KundenModule.escapeHtml(k.ort || '') + ')' : ''}</option>`;
+      return `<option value="${k.id}" data-adresse="${KundenModule.escapeHtml(adresse)}">${KundenModule.escapeHtml(App.kundenName(k))}${adresse ? ' (' + KundenModule.escapeHtml(k.ort || '') + ')' : ''}</option>`;
     }).join('');
 
     return `
-      <select class="form-control ziel-kunde" onchange="FahrtenModule.kundeGewaehlt(this)" style="margin-bottom: 4px;">
-        <option value="">-- Kunde wählen --</option>
+      <input type="text" class="form-control ziel-suche" placeholder="Ziel suchen..." oninput="FahrtenModule.zielFiltern(this)" onfocus="FahrtenModule.zielFiltern(this)" style="margin-bottom: 4px;">
+      <select class="form-control ziel-kunde" onchange="FahrtenModule.kundeGewaehlt(this)" size="1" style="margin-bottom: 4px;">
+        <option value="">-- Ziel w\u00e4hlen --</option>
         ${kundenOptions}
       </select>
-      <input type="text" class="form-control ziel-adresse" placeholder="Adresse (wird automatisch ausgefüllt oder frei eingeben)">
+      <input type="text" class="form-control ziel-adresse" placeholder="Adresse (wird automatisch ausgef\u00fcllt oder frei eingeben)">
     `;
+  },
+
+  zielFiltern(inputEl) {
+    const query = (inputEl.value || '').toLowerCase().trim();
+    const entry = inputEl.closest('.ziel-entry');
+    const selectEl = entry.querySelector('.ziel-kunde');
+    if (!selectEl || !this._zielKundenCache) return;
+
+    const kunden = this._zielKundenCache;
+    let html = '<option value="">-- Ziel w\u00e4hlen --</option>';
+    for (const k of kunden) {
+      const name = App.kundenName(k).toLowerCase();
+      const adresse = [k.strasse, k.plz, k.ort].filter(Boolean).join(', ');
+      const fullText = (name + ' ' + adresse).toLowerCase();
+      if (!query || fullText.includes(query)) {
+        html += `<option value="${k.id}" data-adresse="${KundenModule.escapeHtml(adresse)}">${KundenModule.escapeHtml(App.kundenName(k))}${adresse ? ' (' + KundenModule.escapeHtml(k.ort || '') + ')' : ''}</option>`;
+      }
+    }
+    selectEl.innerHTML = html;
+    // Bei Ergebnissen Dropdown aufklappen
+    if (query && kunden.length > 0) {
+      selectEl.size = Math.min(5, selectEl.options.length);
+    } else {
+      selectEl.size = 1;
+    }
   },
 
   kundeGewaehlt(selectEl) {
     const option = selectEl.selectedOptions[0];
     const entry = selectEl.closest('.ziel-entry');
     const adresseInput = entry.querySelector('.ziel-adresse');
+    const sucheInput = entry.querySelector('.ziel-suche');
     if (option.value && option.dataset.adresse) {
       adresseInput.value = option.dataset.adresse;
     }
+    if (option.value && sucheInput) {
+      sucheInput.value = option.textContent;
+    }
+    selectEl.size = 1;
   },
 
   async zielHinzufuegen() {
