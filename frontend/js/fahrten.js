@@ -88,11 +88,6 @@ const FahrtenModule = {
         </div>
       </div>
 
-      <!-- Karte -->
-      <div class="map-container">
-        <div id="map"></div>
-      </div>
-
       <!-- Tageseinträge -->
       <div id="tagesListe">
         ${tage.map(t => this.tagRendern(t)).join('')}
@@ -125,7 +120,7 @@ const FahrtenModule = {
       </div>
     `;
 
-    setTimeout(() => this.karteInitialisieren(fahrten), 100);
+    // Karte nur bei Tracking/manueller Fahrt, nicht in Wochenübersicht
   },
 
   tagRendern(tagData) {
@@ -244,15 +239,16 @@ const FahrtenModule = {
             <div class="summary-label" style="color: rgba(255,255,255,0.8);">Aktiv</div>
           </div>
         </div>
-        <button class="btn btn-lg" style="background: white; color: var(--danger); width: 100%;"
-                onclick="FahrtenModule.trackingStoppen()">
-          ⏹ Aufzeichnung beenden
-        </button>
       </div>
 
-      <div class="map-container" style="height: 350px;">
+      <div class="map-container" style="height: 300px; margin-bottom: 8px;">
         <div id="trackMap"></div>
       </div>
+
+      <button class="btn btn-lg" style="background: var(--danger); color: white; width: 100%; border-radius: 12px;"
+              onclick="FahrtenModule.trackingStoppen()">
+        \u23F9 Aufzeichnung beenden
+      </button>
     `;
 
     // Karte initialisieren
