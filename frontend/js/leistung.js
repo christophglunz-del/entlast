@@ -293,6 +293,43 @@ const LeistungModule = {
     if (leistung) {
       setTimeout(() => this.zeitAktualisieren(), 50);
     }
+
+    // GPS-Kunden-Vorschlag: nur bei neuer Leistung ohne Vorauswahl
+    if (!leistung && !preselect && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(async (pos) => {
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&zoom=18&addressdetails=1`,
+            { headers: { 'Accept-Language': 'de' } }
+          );
+          const data = await res.json();
+          const strasse = (data.address?.road || '').toLowerCase();
+          const plz = data.address?.postcode || '';
+
+          // Kunden matchen: erst Strasse, dann PLZ
+          let match = null;
+          if (strasse) {
+            match = echteKunden.find(k =>
+              k.strasse && k.strasse.toLowerCase().includes(strasse)
+            );
+          }
+          if (!match && plz) {
+            match = echteKunden.find(k => k.plz && k.plz === plz);
+          }
+
+          if (match) {
+            // Nur vorschlagen wenn User noch keinen Kunden manuell gewaehlt hat
+            const select = document.getElementById('leistungKunde');
+            if (select && !select.value) {
+              LeistungModule.kundeAuswaehlen(match.id);
+              App.toast('\uD83D\uDCCD ' + App.kundenName(match) + ' vorgeschlagen (Standort)', 'info', 3000);
+            }
+          }
+        } catch (e) {
+          console.warn('GPS-Vorschlag:', e);
+        }
+      }, () => {}, { timeout: 5000, enableHighAccuracy: false });
+    }
   },
 
   // Monatsübersicht für einen Kunden anzeigen
