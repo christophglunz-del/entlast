@@ -221,8 +221,7 @@ const FahrtenModule = {
     const container = document.getElementById('fahrtenContent');
     container.innerHTML = `
       <div class="card" style="background: var(--danger); color: white; text-align: center;">
-        <div style="font-size: 48px; margin-bottom: 8px;">📍</div>
-        <h3 id="trackingStatus">Aufzeichnung läuft...</h3>
+        <h3 id="trackingStatus">Aufzeichnung l\u00e4uft...</h3>
         <div class="route-summary" style="margin: 16px 0;">
           <div class="summary-item" style="background: rgba(255,255,255,0.2); color: white;">
             <div class="summary-value" id="trackKm" style="color: white;">0,0</div>
