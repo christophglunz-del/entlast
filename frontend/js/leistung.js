@@ -302,24 +302,6 @@ const LeistungModule = {
     let gesamtStunden = 0;
     let gesamtBetrag = 0;
     let tabelleHtml = '';
-    for (const l of leistungen) {
-      const std = App.stundenBerechnen(l.startzeit, l.endzeit);
-      const betrag = App.betragBerechnen(std);
-      gesamtStunden += std;
-      gesamtBetrag += betrag;
-      const arten = this.leistungsArtenKurz(l);
-      tabelleHtml += `
-        <tr onclick="LeistungModule.detailAnzeigen(${l.id})" style="cursor:pointer;" class="hover-row">
-          <td>${App.formatDatum(l.datum)}</td>
-          <td>${App.formatZeit(l.startzeit)}</td>
-          <td>${App.formatZeit(l.endzeit)}</td>
-          <td>${std.toFixed(2).replace('.', ',')}</td>
-          <td>${App.formatBetrag(betrag)}</td>
-          <td>${arten}</td>
-          <td style="color:var(--primary);font-size:0.8rem;">&#x270E;</td>
-        </tr>
-      `;
-    }
 
     // Prüfe ob bereits unterschrieben
     const ersteMitBetreuer = leistungen.find(l => l.unterschriftBetreuer);
@@ -328,10 +310,45 @@ const LeistungModule = {
     const hatVersicherterSig = !!ersteMitVersicherter;
     const alleUnterschrieben = hatBetreuerSig && hatVersicherterSig;
 
+    for (let i = 0; i < leistungen.length; i++) {
+      const l = leistungen[i];
+      const std = App.stundenBerechnen(l.startzeit, l.endzeit);
+      const betrag = App.betragBerechnen(std);
+      gesamtStunden += std;
+      gesamtBetrag += betrag;
+      const arten = this.leistungsArtenKurz(l);
+      const bgColor = i % 2 === 0 ? '#f8f9fa' : '#ffffff';
+      // Wenn unterschrieben: nicht mehr bearbeitbar
+      if (alleUnterschrieben) {
+        tabelleHtml += `
+          <tr style="background:${bgColor};">
+            <td style="padding:10px 8px;">${App.formatDatum(l.datum)}</td>
+            <td style="padding:10px 8px;">${App.formatZeit(l.startzeit)}</td>
+            <td style="padding:10px 8px;">${App.formatZeit(l.endzeit)}</td>
+            <td style="padding:10px 8px;">${std.toFixed(2).replace('.', ',')}</td>
+            <td style="padding:10px 8px;">${App.formatBetrag(betrag)}</td>
+            <td style="padding:10px 8px;">${arten}</td>
+          </tr>
+        `;
+      } else {
+        tabelleHtml += `
+          <tr onclick="LeistungModule.detailAnzeigen(${l.id})" style="cursor:pointer;background:${bgColor};">
+            <td style="padding:10px 8px;">${App.formatDatum(l.datum)}</td>
+            <td style="padding:10px 8px;">${App.formatZeit(l.startzeit)}</td>
+            <td style="padding:10px 8px;">${App.formatZeit(l.endzeit)}</td>
+            <td style="padding:10px 8px;">${std.toFixed(2).replace('.', ',')}</td>
+            <td style="padding:10px 8px;">${App.formatBetrag(betrag)}</td>
+            <td style="padding:10px 8px;">${arten}</td>
+            <td style="padding:10px 4px;color:var(--primary);font-size:1rem;">\u270E</td>
+          </tr>
+        `;
+      }
+    }
+
     container.innerHTML = `
       <div class="card">
         <h3 class="card-title mb-2">
-          ${this.escapeHtml([kunde.name, kunde.vorname].filter(Boolean).join(', '))} — ${App.monatsName(monat)} ${jahr}
+          ${this.escapeHtml([kunde.name, kunde.vorname].filter(Boolean).join(', '))} \u2014 ${App.monatsName(monat)} ${jahr}
         </h3>
         <div class="text-sm text-muted" style="margin-bottom:8px;">
           ${kunde.versichertennummer ? 'VersNr: ' + this.escapeHtml(kunde.versichertennummer) + ' | ' : ''}${kunde.pflegekasse ? this.escapeHtml(kunde.pflegekasse) : ''}${kunde.pflegegrad ? ' | PG ' + kunde.pflegegrad : ''}
@@ -340,69 +357,65 @@ const LeistungModule = {
         <div style="overflow-x: auto;">
           <table class="table" style="width:100%; border-collapse:collapse; font-size:0.9rem;">
             <thead>
-              <tr style="background: var(--primary-color); color: #fff;">
-                <th style="padding:6px 8px;">Datum</th>
-                <th style="padding:6px 8px;">Von</th>
-                <th style="padding:6px 8px;">Bis</th>
-                <th style="padding:6px 8px;">Std.</th>
-                <th style="padding:6px 8px;">Betrag</th>
-                <th style="padding:6px 8px;">Leistungsart</th>
+              <tr style="background: var(--primary); color: #fff;">
+                <th style="padding:8px;">Datum</th>
+                <th style="padding:8px;">Von</th>
+                <th style="padding:8px;">Bis</th>
+                <th style="padding:8px;">Std.</th>
+                <th style="padding:8px;">Betrag</th>
+                <th style="padding:8px;">Leistung</th>
+                ${!alleUnterschrieben ? '<th></th>' : ''}
               </tr>
             </thead>
             <tbody>
               ${tabelleHtml}
-              <tr style="font-weight:bold; border-top:2px solid var(--primary-color);">
-                <td colspan="3" style="padding:6px 8px;">Gesamt</td>
-                <td style="padding:6px 8px;">${gesamtStunden.toFixed(2).replace('.', ',')}</td>
-                <td style="padding:6px 8px;">${App.formatBetrag(gesamtBetrag)}</td>
-                <td></td>
+              <tr style="font-weight:bold; border-top:2px solid var(--primary);">
+                <td colspan="3" style="padding:10px 8px;">Gesamt</td>
+                <td style="padding:10px 8px;">${gesamtStunden.toFixed(2).replace('.', ',')}</td>
+                <td style="padding:10px 8px;">${App.formatBetrag(gesamtBetrag)}</td>
+                <td colspan="${alleUnterschrieben ? 1 : 2}"></td>
               </tr>
             </tbody>
           </table>
         </div>
-        <p class="text-xs text-muted" style="margin-top:6px;">Eintr\u00e4ge antippen zum Bearbeiten oder L\u00f6schen</p>
+        ${!alleUnterschrieben ? '<p class="text-xs text-muted" style="margin-top:6px;">Eintr\u00e4ge antippen zum Bearbeiten oder L\u00f6schen</p>' : '<p class="text-xs text-muted" style="margin-top:6px;">\uD83D\uDD12 Unterschrieben \u2014 Eintr\u00e4ge k\u00f6nnen nicht mehr ge\u00e4ndert werden</p>'}
       </div>
 
+      <!-- Unterschriften -->
       <div class="card">
         <h3 class="card-title mb-2">Unterschriften</h3>
 
-        <div class="form-group">
-          <label><strong>Unterschrift Betreuer/in</strong></label>
-          ${hatBetreuerSig ? `
-            <div id="sigBetreuerPreview">
-              <img src="${ersteMitBetreuer.unterschriftBetreuer}" style="max-width:100%; height:80px; border:1px solid #ddd; border-radius:8px; background:#fff;">
-              <br>
-              <button type="button" class="btn btn-sm btn-danger mt-1" onclick="LeistungModule.unterschriftLoeschen('betreuer', ${kundeId}, ${monat}, ${jahr})">
-                Unterschrift löschen
-              </button>
+        ${alleUnterschrieben ? `
+          <div style="display:flex;gap:16px;flex-wrap:wrap;">
+            <div style="flex:1;min-width:140px;">
+              <div class="text-sm text-muted mb-1">Betreuer/in</div>
+              <img src="${ersteMitBetreuer.unterschriftBetreuer}" style="max-width:100%;height:70px;border:1px solid #ddd;border-radius:8px;background:#fff;">
             </div>
-          ` : `
+            <div style="flex:1;min-width:140px;">
+              <div class="text-sm text-muted mb-1">Versicherte/r</div>
+              <img src="${ersteMitVersicherter.unterschriftVersicherter}" style="max-width:100%;height:70px;border:1px solid #ddd;border-radius:8px;background:#fff;">
+            </div>
+          </div>
+          <p class="text-xs text-muted mt-2">Unterschriften sind gespeichert. Bei \u00c4nderungen bitte neu unterschreiben lassen.</p>
+        ` : `
+          <div class="form-group">
+            <label><strong>Unterschrift Betreuer/in</strong></label>
             <div class="signature-wrapper">
               <canvas id="sigBetreuerCanvas"></canvas>
               <div class="sig-placeholder">Hier unterschreiben</div>
             </div>
             <div id="sigBetreuerActions" class="signature-actions"></div>
-          `}
-        </div>
+          </div>
 
-        <div class="form-group mt-2">
-          <label><strong>Unterschrift Versicherte/r</strong></label>
-          ${hatVersicherterSig ? `
-            <div id="sigVersicherterPreview">
-              <img src="${ersteMitVersicherter.unterschriftVersicherter}" style="max-width:100%; height:80px; border:1px solid #ddd; border-radius:8px; background:#fff;">
-              <br>
-              <button type="button" class="btn btn-sm btn-danger mt-1" onclick="LeistungModule.unterschriftLoeschen('versicherter', ${kundeId}, ${monat}, ${jahr})">
-                Unterschrift löschen
-              </button>
-            </div>
-          ` : `
+          <div class="form-group mt-2">
+            <label><strong>Unterschrift Versicherte/r</strong></label>
             <div class="signature-wrapper">
               <canvas id="sigVersicherterCanvas"></canvas>
               <div class="sig-placeholder">Hier unterschreiben</div>
             </div>
             <div id="sigVersicherterActions" class="signature-actions"></div>
-          `}
-        </div>
+          </div>
+        `}
       </div>
 
       <div class="btn-group mt-2">
@@ -414,23 +427,26 @@ const LeistungModule = {
         <button class="btn btn-success btn-block ${!alleUnterschrieben ? 'btn-disabled' : ''}"
                 onclick="LeistungModule.monatsPdfErstellen(${kundeId}, ${monat}, ${jahr})"
                 ${!alleUnterschrieben ? 'disabled' : ''}>
-          📄 PDF erzeugen
+          \uD83D\uDCC4 PDF erzeugen
         </button>
+        ${alleUnterschrieben ? `
+          <button class="btn btn-outline btn-block" onclick="LeistungModule.neuUnterschreiben(${kundeId}, ${monat}, ${jahr})">
+            \u270D Neu unterschreiben
+          </button>
+        ` : ''}
         <button class="btn btn-secondary" onclick="LeistungModule.zurueckZurListe()">
-          ← Zurück
+          \u2190 Zur\u00fcck
         </button>
       </div>
     `;
 
-    // Signature Pads initialisieren (nur für fehlende Unterschriften)
-    setTimeout(() => {
-      if (!hatBetreuerSig) {
+    // Signature Pads initialisieren (nur wenn noch nicht unterschrieben)
+    if (!alleUnterschrieben) {
+      setTimeout(() => {
         this.sigPadBetreuer = initSignaturePad('sigBetreuerCanvas', 'sigBetreuerActions');
-      }
-      if (!hatVersicherterSig) {
         this.sigPadVersicherter = initSignaturePad('sigVersicherterCanvas', 'sigVersicherterActions');
-      }
-    }, 100);
+      }, 100);
+    }
   },
 
   // Unterschriften für alle Leistungen eines Kunden im Monat speichern
@@ -464,7 +480,27 @@ const LeistungModule = {
     }
   },
 
-  // Unterschrift löschen (Betreuer oder Versicherter)
+  // Neu unterschreiben: Alte Unterschriften löschen, Canvas zeigen
+  async neuUnterschreiben(kundeId, monat, jahr) {
+    if (!await App.confirm('Neuen Leistungsnachweis unterschreiben? Die alten Unterschriften werden entfernt.')) return;
+
+    try {
+      const alleLeistungen = await DB.leistungenFuerMonat(monat, jahr);
+      const leistungen = alleLeistungen.filter(l => l.kundeId === kundeId);
+
+      for (const l of leistungen) {
+        await DB.leistungAktualisieren(l.id, { unterschriftBetreuer: null, unterschriftVersicherter: null });
+      }
+
+      App.toast('Bitte neu unterschreiben', 'info');
+      await this.monatsUebersichtAnzeigen(kundeId, monat, jahr);
+    } catch (err) {
+      console.error('Fehler:', err);
+      App.toast('Fehler', 'error');
+    }
+  },
+
+  // Unterschrift löschen (Betreuer oder Versicherter) — nur intern, nicht in UI
   async unterschriftLoeschen(typ, kundeId, monat, jahr) {
     const label = typ === 'betreuer' ? 'Betreuer-Unterschrift' : 'Versicherten-Unterschrift';
     if (!await App.confirm(`${label} wirklich löschen?`)) return;
