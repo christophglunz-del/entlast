@@ -544,7 +544,7 @@ const RechnungModule = {
       const kundenName = kunde.name.replace(/\s+/g, '_');
       const dateiname = `Rechnung_${kundenName}_${rechnungsnummer.replace(/\s+/g, '_')}.pdf`;
 
-      const betreff = `Rechnung ${rechnungsnummer} - ${FIRMA.name}`;
+      const betreff = `Rechnung ${rechnungsnummer} - ${(FIRMA || {}).name || 'Alltagshilfe'}`;
       const emailText = [
         'Sehr geehrte Damen und Herren,',
         '',
@@ -553,8 +553,8 @@ const RechnungModule = {
         'Ich bitte um Überweisung innerhalb von 30 Tagen.',
         '',
         'Mit freundlichen Grüßen',
-        `${FIRMA.inhaber}`,
-        `${FIRMA.name}`
+        `${(FIRMA || {}).inhaber || ''}`,
+        `${(FIRMA || {}).name || 'Alltagshilfe'}`
       ].join('\n');
 
       // PDF als Download anbieten
@@ -1196,8 +1196,11 @@ const RechnungModule = {
 
   async _kundenAnreichern() {
     const alleKunden = await DB.alleKunden();
+    const _delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+
     for (const r of this._alleRechnungen) {
       try {
+        await _delay(500); // Rate-Limit: max 2 requests/sec
         const rechnung = await LexofficeAPI.getInvoice(r.id);
         const positionen = rechnung.lineItems || [];
         const addr = rechnung.address || {};
@@ -1214,6 +1217,7 @@ const RechnungModule = {
           // Artikelnummer = Versichertennummer
           if (!matchKunde.versichertennummer && p.id) {
             try {
+              await _delay(500);
               const artikel = await LexofficeAPI.request('articles/' + p.id);
               if (artikel && artikel.articleNumber) {
                 updates.versichertennummer = artikel.articleNumber;
@@ -1229,6 +1233,7 @@ const RechnungModule = {
           // Faxnummer der Kasse
           if (!matchKunde.faxKasse && addr.contactId) {
             try {
+              await _delay(500);
               const kontakt = await LexofficeAPI.getContact(addr.contactId);
               const fax = kontakt?.phoneNumbers?.fax?.[0];
               if (fax) updates.faxKasse = fax;
@@ -1558,8 +1563,8 @@ const RechnungModule = {
       const { kunde, empfaenger } = await this._ladeRechnungUndKunde(lexofficeId);
       const email = kunde ? kunde.email : '';
 
-      const betreff = `Rechnung - ${FIRMA.name}`;
-      const text = `Sehr geehrte Damen und Herren,\n\nanbei erhalten Sie die Rechnung.\n\nIch bitte um Überweisung innerhalb von 30 Tagen.\n\nMit freundlichen Grüßen\n${FIRMA.inhaber}\n${FIRMA.name}`;
+      const betreff = `Rechnung - ${(FIRMA || {}).name || 'Alltagshilfe'}`;
+      const text = `Sehr geehrte Damen und Herren,\n\nanbei erhalten Sie die Rechnung.\n\nIch bitte um Überweisung innerhalb von 30 Tagen.\n\nMit freundlichen Grüßen\n${(FIRMA || {}).inhaber || ''}\n${(FIRMA || {}).name || 'Alltagshilfe'}`;
 
       const content = document.getElementById('rechnungDetailContent');
       content.innerHTML = `
@@ -1638,8 +1643,8 @@ const RechnungModule = {
       document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(pdfUrl), 10000);
 
-      const betreff = `Rechnung - ${FIRMA.name}`;
-      const text = `Sehr geehrte Damen und Herren,\n\nanbei erhalten Sie die Rechnung.\n\nIch bitte um Überweisung innerhalb von 30 Tagen.\n\nMit freundlichen Grüßen\n${FIRMA.inhaber}\n${FIRMA.name}`;
+      const betreff = `Rechnung - ${(FIRMA || {}).name || 'Alltagshilfe'}`;
+      const text = `Sehr geehrte Damen und Herren,\n\nanbei erhalten Sie die Rechnung.\n\nIch bitte um Überweisung innerhalb von 30 Tagen.\n\nMit freundlichen Grüßen\n${(FIRMA || {}).inhaber || ''}\n${(FIRMA || {}).name || 'Alltagshilfe'}`;
       window.location.href = `mailto:${encodeURIComponent(kunde.email)}?subject=${encodeURIComponent(betreff)}&body=${encodeURIComponent(text)}`;
       App.toast('PDF geladen — bitte an E-Mail anhängen', 'success');
     } catch (err) {

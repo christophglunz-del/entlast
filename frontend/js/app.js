@@ -6,7 +6,7 @@
 const App = {
   isOnline: navigator.onLine,
 
-  version: '1.4.3',
+  version: '1.5.0',
 
   // App initialisieren
   init() {

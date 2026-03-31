@@ -71,8 +71,8 @@ async function apiFetch(endpoint, options = {}) {
 
 // --- Firmendaten (werden dynamisch geladen) ---
 
-let FIRMA = null;
-let PFLEGEKASSEN = [];
+var FIRMA = null;
+var PFLEGEKASSEN = [];
 
 // --- DB-Objekt mit identischer oeffentlicher API ---
 
