@@ -24,6 +24,7 @@ def get_auth_db() -> sqlite3.Connection:
     conn = sqlite3.connect(str(AUTH_DB_PATH), check_same_thread=False)
     conn.row_factory = dict_factory
     conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=5000")
     conn.execute("PRAGMA foreign_keys=ON")
     return conn
 
@@ -34,6 +35,7 @@ def get_mandant_db(db_datei: str) -> sqlite3.Connection:
     conn = sqlite3.connect(str(db_path), check_same_thread=False)
     conn.row_factory = dict_factory
     conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=5000")
     conn.execute("PRAGMA foreign_keys=ON")
     return conn
 
