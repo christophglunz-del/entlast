@@ -13,7 +13,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const FIRMA_DEFAULTS = {
             name: '', inhaber: '', strasse: '', plz: '', ort: '',
             telefon: '', email: '', steuernummer: '', ikNummer: '',
-            iban: '', bic: '', bank: '', stundensatz: 32.5, kmSatz: 0.30,
+            iban: '', bic: '', bank: '', stundensatz: 32.75, kmSatz: 0.30,
             startAdresse: '', kleinunternehmer: true
         };
         for (const [key, val] of Object.entries(FIRMA_DEFAULTS)) {

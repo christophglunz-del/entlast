@@ -8,7 +8,7 @@ if (!window.FIRMA) {
     window.FIRMA = {
         name: '', inhaber: '', strasse: '', plz: '', ort: '',
         telefon: '', email: '', steuernummer: '', ikNummer: '',
-        iban: '', bic: '', bank: '', stundensatz: 32.5, kmSatz: 0.30,
+        iban: '', bic: '', bank: '', stundensatz: 32.75, kmSatz: 0.30,
         startAdresse: '', kleinunternehmer: true, angebotsId: ''
     };
 }
@@ -83,7 +83,7 @@ const Auth = {
         const FIRMA_DEFAULTS = {
             name: '', inhaber: '', strasse: '', plz: '', ort: '',
             telefon: '', email: '', steuernummer: '', ikNummer: '',
-            iban: '', bic: '', bank: '', stundensatz: 32.5, kmSatz: 0.30,
+            iban: '', bic: '', bank: '', stundensatz: 32.75, kmSatz: 0.30,
             startAdresse: '', kleinunternehmer: true, angebotsId: ''
         };
         // Null-Werte aus Server-Antwort filtern (sonst ueberschreiben sie die Defaults)

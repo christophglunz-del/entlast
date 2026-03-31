@@ -106,7 +106,7 @@ def init_mandant_db(db_datei: str):
                 farbe_primary_dark TEXT DEFAULT '#C2185B',
                 untertitel TEXT,
                 kleinunternehmer INTEGER NOT NULL DEFAULT 1,
-                stundensatz REAL DEFAULT 32.5,
+                stundensatz REAL DEFAULT 32.75,
                 km_satz REAL DEFAULT 0.30,
                 start_adresse TEXT
             );
