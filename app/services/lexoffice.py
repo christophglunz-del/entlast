@@ -155,4 +155,7 @@ def _map_contact(c: dict) -> dict | None:
     elif phones.get("private"):
         result["telefon"] = phones["private"][0]
 
+    if phones.get("fax"):
+        result["pflegekasse_fax"] = phones["fax"][0]
+
     return result

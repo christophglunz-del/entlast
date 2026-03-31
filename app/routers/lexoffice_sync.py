@@ -34,14 +34,14 @@ async def sync_kunden(
 
         # Existiert der Kontakt schon?
         existing = db.execute(
-            "SELECT id, name, vorname, strasse, plz, ort, telefon, email FROM kunden WHERE lexoffice_id = ?",
+            "SELECT id, name, vorname, strasse, plz, ort, telefon, email, pflegekasse_fax FROM kunden WHERE lexoffice_id = ?",
             (lex_id,),
         ).fetchone()
 
         if existing:
             # Pruefen ob sich etwas geaendert hat
             changed = False
-            for field in ("name", "vorname", "strasse", "plz", "ort", "telefon", "email"):
+            for field in ("name", "vorname", "strasse", "plz", "ort", "telefon", "email", "pflegekasse_fax"):
                 if c.get(field) and c[field] != (existing.get(field) or ""):
                     changed = True
                     break
@@ -49,10 +49,11 @@ async def sync_kunden(
             if changed:
                 db.execute(
                     """UPDATE kunden SET name=?, vorname=?, strasse=?, plz=?, ort=?, telefon=?, email=?,
+                       pflegekasse_fax=COALESCE(?, pflegekasse_fax),
                        updated_at=datetime('now') WHERE lexoffice_id=?""",
                     (c.get("name", ""), c.get("vorname", ""), c.get("strasse", ""),
                      c.get("plz", ""), c.get("ort", ""), c.get("telefon", ""),
-                     c.get("email", ""), lex_id),
+                     c.get("email", ""), c.get("pflegekasse_fax"), lex_id),
                 )
                 aktualisiert += 1
             else:
@@ -60,11 +61,11 @@ async def sync_kunden(
         else:
             # Neuen Kunden anlegen
             db.execute(
-                """INSERT INTO kunden (name, vorname, strasse, plz, ort, telefon, email, lexoffice_id, kundentyp)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pflege')""",
+                """INSERT INTO kunden (name, vorname, strasse, plz, ort, telefon, email, pflegekasse_fax, lexoffice_id, kundentyp)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pflege')""",
                 (c.get("name", ""), c.get("vorname", ""), c.get("strasse", ""),
                  c.get("plz", ""), c.get("ort", ""), c.get("telefon", ""),
-                 c.get("email", ""), lex_id),
+                 c.get("email", ""), c.get("pflegekasse_fax"), lex_id),
             )
             neu += 1
 
