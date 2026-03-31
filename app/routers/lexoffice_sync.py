@@ -5,12 +5,21 @@ import asyncio
 import logging
 import time
 import httpx
+from datetime import datetime, timedelta
+from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException, Request
 from app.auth import get_current_user, get_db
 
 logger = logging.getLogger("entlast.lexoffice")
 
 router = APIRouter(prefix="/lexoffice", tags=["lexoffice"])
+
+
+class RechnungErstellenRequest(BaseModel):
+    kunde_id: int
+    monat: int
+    jahr: int
+    empfaenger: str = "kasse"  # 'kasse' oder 'direkt'
 
 
 @router.post("/sync-kunden")
@@ -87,6 +96,190 @@ async def sync_kunden(
         "neu": neu,
         "aktualisiert": aktualisiert,
         "unveraendert": unveraendert,
+    }
+
+
+@router.post("/rechnung-erstellen")
+async def rechnung_erstellen(
+    req: RechnungErstellenRequest,
+    user: dict = Depends(get_current_user),
+    db: sqlite3.Connection = Depends(get_db),
+):
+    """Rechnung in Lexoffice erstellen: Leistungen laden, Invoice bauen, finalisieren."""
+    from app.services.lexoffice import _get_api_key, LEXOFFICE_BASE
+
+    api_key = _get_api_key(db)
+    headers = {"Authorization": f"Bearer {api_key}", "Accept": "application/json",
+               "Content-Type": "application/json"}
+
+    # Kunde laden
+    kunde = db.execute("SELECT * FROM kunden WHERE id = ?", (req.kunde_id,)).fetchone()
+    if not kunde:
+        raise HTTPException(404, "Kunde nicht gefunden")
+
+    # Firma laden (für Stundensatz)
+    firma = db.execute("SELECT * FROM firma WHERE id = 1").fetchone()
+    stundensatz = firma["stundensatz"] if firma else 32.75
+
+    # Leistungen für diesen Monat laden
+    monat_str = f"{req.jahr}-{req.monat:02d}"
+    leistungen = db.execute(
+        "SELECT * FROM leistungen WHERE kunde_id = ? AND datum LIKE ?",
+        (req.kunde_id, f"{monat_str}%"),
+    ).fetchall()
+
+    if not leistungen:
+        raise HTTPException(400, f"Keine Leistungen für {monat_str}")
+
+    # Gesamtstunden berechnen
+    gesamt_stunden = 0.0
+    for l in leistungen:
+        start = l.get("startzeit") or l.get("start_zeit") or ""
+        ende = l.get("endzeit") or l.get("end_zeit") or ""
+        if start and ende:
+            sh, sm = map(int, start.split(":"))
+            eh, em = map(int, ende.split(":"))
+            diff = (eh * 60 + em) - (sh * 60 + sm)
+            gesamt_stunden += max(0, diff / 60)
+
+    betrag = round(gesamt_stunden * stundensatz, 2)
+
+    # Variante ermitteln
+    besonderheiten = (kunde.get("besonderheiten") or "").lower()
+    pflegekasse = kunde.get("pflegekasse") or ""
+    if req.empfaenger == "direkt" or not pflegekasse or pflegekasse == "Sonstige":
+        variante = "privat"
+    elif "lbv" in besonderheiten:
+        variante = "lbv"
+    else:
+        variante = "kasse"
+
+    # Leistungszeitraum
+    daten = sorted([l["datum"] for l in leistungen if l.get("datum")])
+    start_datum = daten[0] if daten else f"{monat_str}-01"
+    end_datum = daten[-1] if daten else f"{monat_str}-28"
+
+    # Fälligkeitsdatum (30 Tage)
+    faelligkeit = datetime.now() + timedelta(days=30)
+    faelligkeit_str = faelligkeit.strftime("%d.%m.%Y")
+
+    # Adresse je nach Variante
+    kunde_name = f"{kunde.get('vorname', '')} {kunde.get('name', '')}".strip()
+    if variante == "kasse":
+        address = {"name": pflegekasse, "supplement": "Pflegekasse"}
+    else:
+        address = {
+            "name": kunde_name,
+            "street": kunde.get("strasse") or "",
+            "zip": kunde.get("plz") or "",
+            "city": kunde.get("ort") or "",
+            "countryCode": "DE",
+        }
+
+    if kunde.get("lexoffice_id"):
+        address["contactId"] = kunde["lexoffice_id"]
+
+    # Positionsname
+    if variante == "kasse":
+        pos_name = kunde_name
+        pos_desc = "Betreuung im Alltag nach § 45b SGB XI"
+    else:
+        pos_name = "Alltagshilfe"
+        pos_desc = "Betreuung im Alltag"
+
+    # Remark
+    if variante == "kasse":
+        remark = (
+            "Die Abrechnung erfolgt im Rahmen der Direktabrechnung gemäß der vorliegenden "
+            "Abtretungserklärung. Die Leistungen wurden nach § 45b SGB XI (Entlastungsbetrag) als "
+            "anerkanntes Angebot zur Unterstützung im Alltag gemäß § 45a SGB XI erbracht. "
+            "Die Abtretung der Ansprüche erfolgte nach § 13 SGB V i.\u202fV.\u202fm. § 190 BGB. "
+            "Ich bitte um Überweisung auf die in der Rechnung genannte Bankverbindung."
+        )
+        payment_label = f"Ich bitte um umgehende Zahlung, spätestens jedoch bis zum {faelligkeit_str} (§ 36 Abs. 2 SGB XI)."
+    else:
+        remark = "Vielen Dank für die gute Zusammenarbeit."
+        payment_label = f"Ich bitte um umgehende Zahlung, spätestens jedoch bis zum {faelligkeit_str}."
+
+    lex_rechnung = {
+        "voucherDate": datetime.now().isoformat(),
+        "address": address,
+        "lineItems": [{
+            "type": "custom",
+            "name": pos_name,
+            "description": pos_desc,
+            "quantity": round(gesamt_stunden, 2),
+            "unitName": "Stunde(n)",
+            "unitPrice": {
+                "currency": "EUR",
+                "netAmount": stundensatz,
+                "taxRatePercentage": 0,
+            },
+        }],
+        "totalPrice": {"currency": "EUR"},
+        "taxConditions": {
+            "taxType": "vatfree",
+            "taxTypeNote": "Umsatzsteuer wird nicht berechnet (§ 19 Abs. 1 UStG)",
+        },
+        "title": "Rechnung",
+        "introduction": "Meine Leistungen stelle ich Ihnen wie folgt in Rechnung.",
+        "remark": remark,
+        "shippingConditions": {
+            "shippingType": "service",
+            "shippingDate": f"{start_datum}T00:00:00.000+01:00",
+            "shippingEndDate": f"{end_datum}T00:00:00.000+01:00",
+        },
+        "paymentConditions": {
+            "paymentTermLabel": payment_label,
+            "paymentTermDuration": 30,
+        },
+    }
+
+    async with httpx.AsyncClient(timeout=30) as client:
+        # 1. Rechnung erstellen
+        res = await client.post(
+            f"{LEXOFFICE_BASE}/invoices",
+            json=lex_rechnung,
+            headers=headers,
+        )
+        if res.status_code not in (200, 201):
+            logger.error(f"Lexoffice createInvoice: {res.status_code} {res.text[:500]}")
+            raise HTTPException(502, f"Lexoffice-Fehler beim Erstellen: {res.text[:200]}")
+
+        invoice = res.json()
+        invoice_id = invoice.get("id")
+        if not invoice_id:
+            raise HTTPException(502, "Keine Rechnungs-ID von Lexoffice erhalten")
+
+        await asyncio.sleep(0.5)
+
+        # 2. Rechnung finalisieren (Rechnungsnummer wird vergeben)
+        res2 = await client.get(
+            f"{LEXOFFICE_BASE}/invoices/{invoice_id}/document",
+            headers=headers,
+        )
+        document_file_id = None
+        if res2.status_code == 200:
+            doc = res2.json()
+            document_file_id = doc.get("documentFileId")
+
+    # 3. Lokal in DB speichern
+    db.execute(
+        """INSERT INTO rechnungen (kunde_id, monat, jahr, betrag_brutto, status, lexoffice_id, datum)
+           VALUES (?, ?, ?, ?, 'offen', ?, date('now'))""",
+        (req.kunde_id, req.monat, req.jahr, betrag, invoice_id),
+    )
+    db.commit()
+
+    logger.info(f"Rechnung erstellt: {invoice_id} für Kunde {req.kunde_id} ({variante})")
+
+    return {
+        "message": "Rechnung in Lexoffice erstellt",
+        "lexoffice_id": invoice_id,
+        "document_file_id": document_file_id,
+        "betrag": betrag,
+        "stunden": round(gesamt_stunden, 2),
+        "variante": variante,
     }
 
 

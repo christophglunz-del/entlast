@@ -346,26 +346,19 @@ const RechnungModule = {
     const { kundeId, monat, jahr, betrag, kunde, kundeLeistungen, variante } = this._pendingRechnung;
     this._pendingRechnung = null;
 
+    const empfaenger = document.getElementById('rechnungEmpfaenger')?.value || 'kasse';
     const content = document.getElementById('rechnungDetailContent');
     content.innerHTML = '<div class="card" style="background:white;text-align:center;"><div class="spinner"></div> Rechnung wird in Lexoffice erstellt...</div>';
 
     try {
-      const rechnung = { kundeId, monat, jahr, betrag, status: 'offen', notizen: '' };
-      const lokalId = await DB.rechnungHinzufuegen(rechnung);
-
-      const lexDaten = LexofficeAPI.rechnungZuLexoffice(rechnung, kunde, kundeLeistungen, variante);
-      const ergebnis = await LexofficeAPI.createInvoice(lexDaten);
-      if (!ergebnis.id) throw new Error('Keine Rechnungs-ID von Lexoffice erhalten');
-
-      const dokument = await LexofficeAPI.finalizeInvoice(ergebnis.id);
-
-      await DB.rechnungAktualisieren(lokalId, {
-        lexofficeInvoiceId: ergebnis.id,
-        lexofficeDocumentFileId: dokument ? dokument.documentFileId : null
+      const ergebnis = await apiFetch('/lexoffice/rechnung-erstellen', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kunde_id: kundeId, monat, jahr, empfaenger }),
       });
 
       this.detailSchliessen();
-      App.toast('Rechnung in Lexoffice erstellt!', 'success');
+      App.toast(`Rechnung erstellt: ${ergebnis.betrag.toFixed(2).replace('.', ',')} € (${ergebnis.variante})`, 'success', 5000);
       this.lexofficeSync();
     } catch (err) {
       console.error('Lexoffice Fehler:', err);

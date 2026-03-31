@@ -111,8 +111,10 @@ const LexofficeAPI = {
     },
 
     varianteErmitteln(kunde) {
-        // Fuer Kompatibilitaet: Default zurueckgeben
-        return 'standard';
+        const bes = (kunde.besonderheiten || '').toLowerCase();
+        if (bes.includes('lbv')) return 'lbv';
+        if (!kunde.pflegekasse || kunde.pflegekasse === 'Sonstige') return 'privat';
+        return 'kasse';
     },
 
     async request(endpoint) {
