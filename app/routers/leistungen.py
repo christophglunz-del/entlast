@@ -3,7 +3,7 @@
 import sqlite3
 from fastapi import APIRouter, Depends, HTTPException, Query
 from app.auth import get_current_user, get_db
-from app.models import LeistungCreate, LeistungUpdate, LeistungResponse
+from app.models import LeistungCreate, LeistungUpdate, LeistungResponse, UnterschriftRequest
 
 router = APIRouter(prefix="/leistungen", tags=["leistungen"])
 
@@ -78,6 +78,23 @@ async def create_leistung(
     if not kunde:
         raise HTTPException(status_code=400, detail="Kunde nicht gefunden")
 
+    # dauer_std automatisch berechnen falls nicht gesetzt
+    dauer_std = leistung.dauer_std
+    if dauer_std is None and leistung.von and leistung.bis:
+        try:
+            sh, sm = map(int, leistung.von.split(":"))
+            eh, em = map(int, leistung.bis.split(":"))
+            dauer_std = max(0, (eh * 60 + em - sh * 60 - sm) / 60)
+        except (ValueError, AttributeError):
+            pass
+
+    # betrag automatisch berechnen falls nicht gesetzt
+    betrag = leistung.betrag
+    if betrag is None and dauer_std is not None:
+        firma = db.execute("SELECT stundensatz FROM firma WHERE id = 1").fetchone()
+        stundensatz = firma["stundensatz"] if firma and firma["stundensatz"] else 32.75
+        betrag = round(dauer_std * stundensatz, 2)
+
     cursor = db.execute(
         """INSERT INTO leistungen
            (kunde_id, datum, von, bis, dauer_std, leistungsarten, betrag,
@@ -88,9 +105,9 @@ async def create_leistung(
             leistung.datum,
             leistung.von,
             leistung.bis,
-            leistung.dauer_std,
+            dauer_std,
             leistung.leistungsarten,
-            leistung.betrag,
+            betrag,
             leistung.unterschrift_betreuer,
             leistung.unterschrift_versicherter,
             leistung.notiz,
@@ -148,8 +165,7 @@ async def delete_leistung(
 @router.post("/{leistung_id}/unterschrift", response_model=LeistungResponse)
 async def unterschrift_speichern(
     leistung_id: int,
-    unterschrift_betreuer: str | None = None,
-    unterschrift_versicherter: str | None = None,
+    body: UnterschriftRequest,
     user: dict = Depends(get_current_user),
     db: sqlite3.Connection = Depends(get_db),
 ):
@@ -159,10 +175,10 @@ async def unterschrift_speichern(
         raise HTTPException(status_code=404, detail="Leistung nicht gefunden")
 
     updates = {}
-    if unterschrift_betreuer is not None:
-        updates["unterschrift_betreuer"] = unterschrift_betreuer
-    if unterschrift_versicherter is not None:
-        updates["unterschrift_versicherter"] = unterschrift_versicherter
+    if body.unterschrift_betreuer is not None:
+        updates["unterschrift_betreuer"] = body.unterschrift_betreuer
+    if body.unterschrift_versicherter is not None:
+        updates["unterschrift_versicherter"] = body.unterschrift_versicherter
 
     if not updates:
         raise HTTPException(status_code=400, detail="Keine Unterschrift angegeben")

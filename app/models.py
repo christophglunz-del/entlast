@@ -174,6 +174,11 @@ class LeistungUpdate(BaseModel):
     notiz: str | None = None
 
 
+class UnterschriftRequest(BaseModel):
+    unterschrift_betreuer: str | None = None  # base64
+    unterschrift_versicherter: str | None = None  # base64
+
+
 class LeistungResponse(BaseModel):
     id: int
     kunde_id: int

@@ -8,6 +8,7 @@ import httpx
 from datetime import datetime, timedelta
 from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import Response
 from app.auth import get_current_user, get_db
 
 logger = logging.getLogger("entlast.lexoffice")
@@ -134,8 +135,8 @@ async def rechnung_erstellen(
     # Gesamtstunden berechnen
     gesamt_stunden = 0.0
     for l in leistungen:
-        start = l.get("startzeit") or l.get("start_zeit") or ""
-        ende = l.get("endzeit") or l.get("end_zeit") or ""
+        start = l.get("von") or l.get("startzeit") or l.get("start_zeit") or ""
+        ende = l.get("bis") or l.get("endzeit") or l.get("end_zeit") or ""
         if start and ende:
             sh, sm = map(int, start.split(":"))
             eh, em = map(int, ende.split(":"))
@@ -166,7 +167,11 @@ async def rechnung_erstellen(
     # Adresse je nach Variante
     kunde_name = f"{kunde.get('vorname', '')} {kunde.get('name', '')}".strip()
     if variante == "kasse":
-        address = {"name": pflegekasse, "supplement": "Pflegekasse"}
+        address = {
+            "name": pflegekasse,
+            "supplement": f"z. Hd. Leistungsabteilung – Vers.: {kunde_name}",
+            "countryCode": "DE",
+        }
     else:
         address = {
             "name": kunde_name,
@@ -201,11 +206,14 @@ async def rechnung_erstellen(
         remark = "Vielen Dank für die gute Zusammenarbeit."
         payment_label = f"Ich bitte um umgehende Zahlung, spätestens jedoch bis zum {faelligkeit_str}."
 
+    # Zeitzone: MESZ (+02:00) von April-Oktober, sonst MEZ (+01:00)
+    tz_offset = "+02:00" if 4 <= datetime.now().month <= 10 else "+01:00"
+
     lex_rechnung = {
-        "voucherDate": datetime.now().isoformat(),
+        "voucherDate": datetime.now().strftime(f"%Y-%m-%dT%H:%M:%S.000{tz_offset}"),
         "address": address,
         "lineItems": [{
-            "type": "custom",
+            "type": "custom",  # custom = freie Position (nicht service, das braucht Produkt-ID)
             "name": pos_name,
             "description": pos_desc,
             "quantity": round(gesamt_stunden, 2),
@@ -225,7 +233,7 @@ async def rechnung_erstellen(
         "introduction": "Meine Leistungen stelle ich Ihnen wie folgt in Rechnung.",
         "remark": remark,
         "shippingConditions": {
-            "shippingType": "service",
+            "shippingType": "serviceperiod",
             "shippingDate": f"{start_datum}T00:00:00.000+01:00",
             "shippingEndDate": f"{end_datum}T00:00:00.000+01:00",
         },
@@ -236,32 +244,35 @@ async def rechnung_erstellen(
     }
 
     async with httpx.AsyncClient(timeout=30) as client:
-        # 1. Rechnung erstellen
+        # Rechnung erstellen UND finalisieren in einem Schritt
         res = await client.post(
-            f"{LEXOFFICE_BASE}/invoices",
+            f"{LEXOFFICE_BASE}/invoices?finalize=true",
             json=lex_rechnung,
             headers=headers,
         )
         if res.status_code not in (200, 201):
-            logger.error(f"Lexoffice createInvoice: {res.status_code} {res.text[:500]}")
-            raise HTTPException(502, f"Lexoffice-Fehler beim Erstellen: {res.text[:200]}")
+            logger.error(f"Lexoffice createInvoice: {res.status_code} {res.text}")
+            raise HTTPException(502, f"Lexoffice-Fehler beim Erstellen: {res.text[:500]}")
 
         invoice = res.json()
+        logger.info(f"Lexoffice createInvoice response: {invoice}")
         invoice_id = invoice.get("id")
         if not invoice_id:
             raise HTTPException(502, "Keine Rechnungs-ID von Lexoffice erhalten")
 
-        await asyncio.sleep(0.5)
+        # documentFileId aus der Finalize-Response holen
+        document_file_id = invoice.get("documentFileId")
 
-        # 2. Rechnung finalisieren (Rechnungsnummer wird vergeben)
-        res2 = await client.get(
-            f"{LEXOFFICE_BASE}/invoices/{invoice_id}/document",
-            headers=headers,
-        )
-        document_file_id = None
-        if res2.status_code == 200:
-            doc = res2.json()
-            document_file_id = doc.get("documentFileId")
+        # Falls nicht in der Response: kurz warten und per GET holen
+        if not document_file_id:
+            await asyncio.sleep(1)
+            res2 = await client.get(
+                f"{LEXOFFICE_BASE}/invoices/{invoice_id}/document",
+                headers=headers,
+            )
+            if res2.status_code == 200:
+                doc = res2.json()
+                document_file_id = doc.get("documentFileId")
 
     # 3. Lokal in DB speichern
     db.execute(
@@ -406,6 +417,15 @@ async def lexoffice_proxy(
         if res.status_code >= 400:
             raise HTTPException(res.status_code, f"Lexoffice: {res.text[:200]}")
 
-        return res.json()
+        # PDF/Binary-Dateien direkt durchreichen (z.B. /files/{id})
+        content_type = res.headers.get("content-type", "")
+        if "application/json" in content_type:
+            return res.json()
+        else:
+            return Response(
+                content=res.content,
+                media_type=content_type or "application/octet-stream",
+                headers={"Content-Disposition": res.headers.get("Content-Disposition", "")},
+            )
 
     raise HTTPException(429, "Lexoffice Rate-Limit nach 3 Versuchen")
