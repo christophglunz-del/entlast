@@ -146,14 +146,13 @@ const SipgateAPI = {
         return nr.replace(/[^\d+]/g, '');
     },
 
-    async faxSenden(nummer, pdfBase64, dateiname) {
-        // Wird ueber Backend abgewickelt - hier nur Kompatibilitaet
-        console.warn('SipgateAPI.faxSenden: Bitte DB.faxVersenden(rechnungId) verwenden');
-        throw new Error('Fax-Versand laeuft jetzt ueber den Server. Bitte die neue Versand-Funktion nutzen.');
+    async faxSenden(rechnungId) {
+        // Fax-Versand ueber Backend-Endpoint
+        return apiFetch(`/rechnungen/${rechnungId}/fax`, { method: 'POST' });
     },
 
     async faxStatus(sessionId) {
-        console.warn('SipgateAPI.faxStatus: Bitte DB.faxStatus(rechnungId) verwenden');
+        console.warn('SipgateAPI.faxStatus: Noch nicht implementiert');
         return { type: 'UNKNOWN' };
     }
 };

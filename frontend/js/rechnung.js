@@ -944,75 +944,11 @@ const RechnungModule = {
    * @param {number} rechnungId - Lokale Rechnungs-ID
    */
   async briefVersenden(rechnungId) {
-    // LetterXpress initialisieren
-    if (typeof LetterXpressAPI === 'undefined') {
-      App.toast('LetterXpress-Modul nicht geladen', 'error');
-      return;
-    }
-
-    if (!LetterXpressAPI.istKonfiguriert()) {
-      await LetterXpressAPI.init();
-    }
-    if (!LetterXpressAPI.istKonfiguriert()) {
-      App.toast('LetterXpress Zugangsdaten fehlen — bitte in Einstellungen hinterlegen', 'error');
-      return;
-    }
-
-    // Rechnung und Kunde laden
-    const rechnung = await DB.rechnungById(rechnungId);
-    if (!rechnung) {
-      App.toast('Rechnung nicht gefunden', 'error');
-      return;
-    }
-
-    const kunde = await DB.kundeById(rechnung.kundeId);
-    if (!kunde) {
-      App.toast('Kunde nicht gefunden', 'error');
-      return;
-    }
-
-    // PDF von Lexoffice laden
-    if (!rechnung.lexofficeDocumentFileId) {
-      App.toast('Keine Lexoffice-PDF vorhanden. Bitte zuerst Rechnung in Lexoffice erstellen.', 'error');
-      return;
-    }
-
     try {
-      App.toast('PDF wird geladen...', 'info');
+      App.toast('Brief wird ueber LetterXpress gesendet...', 'info');
+      const ergebnis = await DB.briefVersenden(rechnungId);
 
-      // Lexoffice initialisieren falls noetig
-      if (!LexofficeAPI.istKonfiguriert()) await LexofficeAPI.init();
-
-      // PDF als Blob laden
-      const pdfBlob = await LexofficeAPI.getInvoicePdf(rechnung.lexofficeDocumentFileId);
-
-      // Base64 konvertieren
-      const pdfBase64 = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result.split(',')[1]);
-        reader.onerror = reject;
-        reader.readAsDataURL(pdfBlob);
-      });
-
-      App.toast('Brief wird über LetterXpress gesendet...', 'info');
-      const ergebnis = await LetterXpressAPI.briefSenden(pdfBase64, {
-        farbe: false,
-        duplex: true,
-        versandart: 'national'
-      });
-
-      const updateDaten = {
-        status: 'versendet',
-        versandDatum: new Date().toISOString()
-      };
-      if (ergebnis.letter && ergebnis.letter.job_id) {
-        updateDaten.letterxpressJobId = ergebnis.letter.job_id;
-      } else if (ergebnis.id) {
-        updateDaten.letterxpressJobId = ergebnis.id;
-      }
-      await DB.rechnungAktualisieren(rechnungId, updateDaten);
-
-      App.toast('Brief erfolgreich an LetterXpress übergeben!', 'success');
+      App.toast('Brief erfolgreich an LetterXpress uebergeben!', 'success');
       this.listeAnzeigen();
 
     } catch (err) {

@@ -1,12 +1,17 @@
-"""Router: Rechnungen-CRUD + Fax-Versand + Platzhalter fuer PDF, Brief, Lexoffice, DATEV."""
+"""Router: Rechnungen-CRUD + Fax-Versand + Brief-Versand + Platzhalter fuer PDF, Lexoffice, DATEV."""
 
+import logging
 import sqlite3
+
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
 from app.auth import get_current_user, get_db
 from app.models import RechnungCreate, RechnungUpdate, RechnungResponse
 from app.services.sipgate import send_fax, normalize_fax_number
 from app.services.lexoffice import _get_api_key, LEXOFFICE_BASE
+from app.services import letterxpress as lxp_service
+
+logger = logging.getLogger("entlast.rechnungen")
 
 router = APIRouter(prefix="/rechnungen", tags=["rechnungen"])
 
@@ -275,11 +280,92 @@ async def rechnung_brief(
     user: dict = Depends(get_current_user),
     db: sqlite3.Connection = Depends(get_db),
 ):
-    """Rechnung per Brief senden (Platzhalter, Phase 3)."""
-    existing = db.execute("SELECT id FROM rechnungen WHERE id = ?", (rechnung_id,)).fetchone()
-    if not existing:
+    """Rechnung per Brief ueber LetterXpress versenden.
+
+    1. Rechnung laden, Lexoffice-ID pruefen
+    2. PDF von Lexoffice holen (gleicher Weg wie beim Fax)
+    3. Per LetterXpress als Brief versenden
+    4. Versand-Status in DB aktualisieren
+    """
+    # Rechnung laden
+    rechnung = db.execute(
+        "SELECT * FROM rechnungen WHERE id = ?", (rechnung_id,)
+    ).fetchone()
+    if not rechnung:
         raise HTTPException(status_code=404, detail="Rechnung nicht gefunden")
-    raise HTTPException(status_code=501, detail="Noch nicht implementiert")
+
+    lexoffice_id = rechnung.get("lexoffice_id")
+    if not lexoffice_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Rechnung hat keine Lexoffice-ID. Bitte zuerst in Lexoffice exportieren.",
+        )
+
+    # PDF von Lexoffice holen
+    api_key = _get_api_key(db)
+    headers = {"Authorization": f"Bearer {api_key}", "Accept": "application/json"}
+
+    async with httpx.AsyncClient(timeout=30) as client:
+        # Schritt 1: documentFileId holen
+        doc_res = await client.get(
+            f"{LEXOFFICE_BASE}/invoices/{lexoffice_id}/document",
+            headers=headers,
+        )
+        if doc_res.status_code != 200:
+            raise HTTPException(
+                status_code=502,
+                detail=f"Lexoffice: Rechnungsdokument nicht abrufbar (HTTP {doc_res.status_code})",
+            )
+        document_file_id = doc_res.json().get("documentFileId")
+        if not document_file_id:
+            raise HTTPException(
+                status_code=502,
+                detail="Lexoffice: Keine documentFileId erhalten. Rechnung evtl. nicht finalisiert?",
+            )
+
+        # Schritt 2: PDF-Datei herunterladen
+        pdf_res = await client.get(
+            f"{LEXOFFICE_BASE}/files/{document_file_id}",
+            headers={"Authorization": f"Bearer {api_key}"},
+        )
+        if pdf_res.status_code != 200:
+            raise HTTPException(
+                status_code=502,
+                detail=f"Lexoffice: PDF-Download fehlgeschlagen (HTTP {pdf_res.status_code})",
+            )
+        pdf_bytes = pdf_res.content
+
+    # Brief per LetterXpress versenden
+    logger.info(f"Briefversand Rechnung {rechnung_id} ({len(pdf_bytes)} Bytes)")
+    result = await lxp_service.send_brief(db, pdf_bytes, {
+        "farbe": False,
+        "duplex": True,
+        "versandart": "national",
+    })
+
+    # Job-ID aus Antwort extrahieren
+    job_id = None
+    if result.get("letter") and result["letter"].get("job_id"):
+        job_id = result["letter"]["job_id"]
+    elif result.get("id"):
+        job_id = result["id"]
+
+    # Versand-Status in DB aktualisieren
+    db.execute(
+        """UPDATE rechnungen
+           SET versand_art = 'brief', versand_datum = datetime('now'),
+               status = 'versendet', updated_at = datetime('now')
+           WHERE id = ?""",
+        (rechnung_id,),
+    )
+    db.commit()
+
+    return {
+        "ok": True,
+        "versand": "brief",
+        "job_id": job_id,
+        "letter": result.get("letter"),
+    }
 
 
 @router.post("/{rechnung_id}/lexoffice")
