@@ -99,34 +99,38 @@ async def alle_rechnungen(
     from app.services.lexoffice import _get_api_key, LEXOFFICE_BASE
 
     api_key = _get_api_key(db)
+    headers = {"Authorization": f"Bearer {api_key}", "Accept": "application/json"}
     rechnungen = []
-    page = 0
 
     async with httpx.AsyncClient(timeout=30) as client:
-        while True:
-            res = await client.get(
-                f"{LEXOFFICE_BASE}/voucherlist",
-                params={
-                    "page": page,
-                    "size": 100,
-                    "voucherType": "invoice",
-                    "voucherStatus": "open,paid,paidoff,voided,overdue",
-                    "sort": "voucherDate,DESC",
-                },
-                headers={"Authorization": f"Bearer {api_key}", "Accept": "application/json"},
-            )
-            if res.status_code == 429:
-                await asyncio.sleep(2)
-                continue
-            if res.status_code != 200:
-                raise HTTPException(res.status_code, f"Lexoffice: {res.text[:200]}")
+        for status in ("open", "paid", "paidoff", "voided", "overdue"):
+            page = 0
+            while True:
+                await asyncio.sleep(0.5)  # Rate-Limiting
+                res = await client.get(
+                    f"{LEXOFFICE_BASE}/voucherlist",
+                    params={
+                        "page": page,
+                        "size": 100,
+                        "voucherType": "invoice",
+                        "voucherStatus": status,
+                        "sort": "voucherDate,DESC",
+                    },
+                    headers=headers,
+                )
+                if res.status_code == 429:
+                    await asyncio.sleep(2)
+                    continue
+                if res.status_code != 200:
+                    logger.warning(f"Lexoffice voucherlist status={status}: {res.status_code}")
+                    break
 
-            data = res.json()
-            rechnungen.extend(data.get("content", []))
+                data = res.json()
+                rechnungen.extend(data.get("content", []))
 
-            if data.get("last", True):
-                break
-            page += 1
+                if data.get("last", True):
+                    break
+                page += 1
 
     return rechnungen
 
