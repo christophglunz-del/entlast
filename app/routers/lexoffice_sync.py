@@ -132,7 +132,16 @@ async def alle_rechnungen(
                     break
                 page += 1
 
-    return rechnungen
+    # Deduplizieren nach ID (overdue erscheint auch unter open)
+    seen = set()
+    unique = []
+    for r in rechnungen:
+        rid = r.get("id")
+        if rid and rid not in seen:
+            seen.add(rid)
+            unique.append(r)
+
+    return unique
 
 
 # Rate-Limiter: max 2 Requests/Sekunde an Lexoffice
