@@ -283,6 +283,26 @@ async def rechnung_erstellen(
     }
 
 
+@router.get("/invoices/{invoice_id}")
+async def get_invoice(
+    invoice_id: str,
+    user: dict = Depends(get_current_user),
+    db: sqlite3.Connection = Depends(get_db),
+):
+    """Einzelne Rechnung aus Lexoffice abrufen."""
+    from app.services.lexoffice import _get_api_key, LEXOFFICE_BASE
+
+    api_key = _get_api_key(db)
+    async with httpx.AsyncClient(timeout=15) as client:
+        res = await client.get(
+            f"{LEXOFFICE_BASE}/invoices/{invoice_id}",
+            headers={"Authorization": f"Bearer {api_key}", "Accept": "application/json"},
+        )
+    if res.status_code != 200:
+        raise HTTPException(res.status_code, f"Lexoffice: {res.text[:200]}")
+    return res.json()
+
+
 @router.get("/alle-rechnungen")
 async def alle_rechnungen(
     user: dict = Depends(get_current_user),
