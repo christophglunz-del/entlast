@@ -319,7 +319,7 @@ const RechnungModule = {
           <tr><td style="padding:4px 8px;color:var(--gray-600);">Variante</td><td style="padding:4px 8px;">${variante === 'kasse' ? 'Kassenrechnung (§45b)' : variante === 'lbv' ? 'LBV-Splitting' : 'Privatrechnung'}</td></tr>
           <tr><td style="padding:4px 8px;color:var(--gray-600);">Zeitraum</td><td style="padding:4px 8px;">${App.monatsName(monat)} ${jahr}</td></tr>
           <tr><td style="padding:4px 8px;color:var(--gray-600);">Leistungen</td><td style="padding:4px 8px;">${kundeLeistungen.length} Einträge, ${gesamtStunden.toFixed(1)} Stunden</td></tr>
-          <tr><td style="padding:4px 8px;color:var(--gray-600);">Stundensatz</td><td style="padding:4px 8px;">${FIRMA.stundensatz.toFixed(2).replace('.', ',')} €</td></tr>
+          <tr><td style="padding:4px 8px;color:var(--gray-600);">Stundensatz</td><td style="padding:4px 8px;">${((FIRMA || {}).stundensatz || 32.75).toFixed(2).replace('.', ',')} €</td></tr>
         </table>
 
         <div style="display:flex;justify-content:space-between;padding:12px 0;font-size:1.2rem;font-weight:700;border-top:2px solid var(--gray-200);margin-top:8px;">
