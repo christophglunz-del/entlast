@@ -1,9 +1,12 @@
-"""Router: Rechnungen-CRUD + Platzhalter fuer PDF, Fax, Brief, Lexoffice, DATEV."""
+"""Router: Rechnungen-CRUD + Fax-Versand + Platzhalter fuer PDF, Brief, Lexoffice, DATEV."""
 
 import sqlite3
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
 from app.auth import get_current_user, get_db
 from app.models import RechnungCreate, RechnungUpdate, RechnungResponse
+from app.services.sipgate import send_fax, normalize_fax_number
+from app.services.lexoffice import _get_api_key, LEXOFFICE_BASE
 
 router = APIRouter(prefix="/rechnungen", tags=["rechnungen"])
 
@@ -176,11 +179,94 @@ async def rechnung_fax(
     user: dict = Depends(get_current_user),
     db: sqlite3.Connection = Depends(get_db),
 ):
-    """Rechnung per Fax senden (Platzhalter, Phase 3)."""
-    existing = db.execute("SELECT id FROM rechnungen WHERE id = ?", (rechnung_id,)).fetchone()
-    if not existing:
+    """Rechnung per Fax an die Pflegekasse senden.
+
+    1. Rechnung + Kunde laden
+    2. PDF von Lexoffice holen (ueber documentFileId)
+    3. Per Sipgate als Fax versenden
+    4. Versand-Status in DB aktualisieren
+    """
+    # Rechnung laden
+    rechnung = db.execute(
+        "SELECT * FROM rechnungen WHERE id = ?", (rechnung_id,)
+    ).fetchone()
+    if not rechnung:
         raise HTTPException(status_code=404, detail="Rechnung nicht gefunden")
-    raise HTTPException(status_code=501, detail="Noch nicht implementiert")
+
+    lexoffice_id = rechnung.get("lexoffice_id")
+    if not lexoffice_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Rechnung hat keine Lexoffice-ID. Bitte zuerst in Lexoffice exportieren.",
+        )
+
+    # Kunde laden (fuer Faxnummer)
+    kunde = db.execute(
+        "SELECT * FROM kunden WHERE id = ?", (rechnung["kunde_id"],)
+    ).fetchone()
+    if not kunde:
+        raise HTTPException(status_code=400, detail="Zugehoeriger Kunde nicht gefunden")
+
+    fax_nummer = kunde.get("pflegekasse_fax") or ""
+    if not fax_nummer:
+        raise HTTPException(
+            status_code=400,
+            detail="Keine Pflegekasse-Faxnummer beim Kunden hinterlegt",
+        )
+
+    # PDF von Lexoffice holen
+    api_key = _get_api_key(db)
+    headers = {"Authorization": f"Bearer {api_key}", "Accept": "application/json"}
+
+    async with httpx.AsyncClient(timeout=30) as client:
+        # Schritt 1: documentFileId holen
+        doc_res = await client.get(
+            f"{LEXOFFICE_BASE}/invoices/{lexoffice_id}/document",
+            headers=headers,
+        )
+        if doc_res.status_code != 200:
+            raise HTTPException(
+                status_code=502,
+                detail=f"Lexoffice: Rechnungsdokument nicht abrufbar (HTTP {doc_res.status_code})",
+            )
+        document_file_id = doc_res.json().get("documentFileId")
+        if not document_file_id:
+            raise HTTPException(
+                status_code=502,
+                detail="Lexoffice: Keine documentFileId erhalten. Rechnung evtl. nicht finalisiert?",
+            )
+
+        # Schritt 2: PDF-Datei herunterladen
+        pdf_res = await client.get(
+            f"{LEXOFFICE_BASE}/files/{document_file_id}",
+            headers={"Authorization": f"Bearer {api_key}"},
+        )
+        if pdf_res.status_code != 200:
+            raise HTTPException(
+                status_code=502,
+                detail=f"Lexoffice: PDF-Download fehlgeschlagen (HTTP {pdf_res.status_code})",
+            )
+        pdf_bytes = pdf_res.content
+
+    # Fax versenden
+    dateiname = f"Rechnung_{rechnung.get('rechnungsnummer', rechnung_id)}.pdf"
+    result = await send_fax(db, fax_nummer, pdf_bytes, dateiname)
+
+    # Versand-Status in DB aktualisieren
+    db.execute(
+        """UPDATE rechnungen
+           SET versand_art = 'fax', versand_datum = datetime('now'), updated_at = datetime('now')
+           WHERE id = ?""",
+        (rechnung_id,),
+    )
+    db.commit()
+
+    return {
+        "ok": True,
+        "versand": "fax",
+        "fax_nummer": normalize_fax_number(fax_nummer),
+        "session_id": result.get("sessionId"),
+    }
 
 
 @router.post("/{rechnung_id}/brief")

@@ -121,12 +121,19 @@ def init_mandant_db(db_path: str) -> None:
 
         CREATE TABLE IF NOT EXISTS fahrten (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            kunde_id INTEGER NOT NULL,
+            kunde_id INTEGER,
             datum TEXT NOT NULL,
+            wochentag TEXT,
+            start_adresse TEXT,
+            ziel_adressen TEXT,
+            gesamt_km REAL,
+            tracking_km REAL,
+            betrag REAL,
+            notiz TEXT,
+            gps_track TEXT,
             von_ort TEXT,
             nach_ort TEXT,
             km REAL,
-            betrag REAL,
             created_at TEXT NOT NULL DEFAULT (datetime('now')),
             FOREIGN KEY (kunde_id) REFERENCES kunden(id)
         );

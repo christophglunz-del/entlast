@@ -155,12 +155,19 @@ def init_mandant_db(db_datei: str):
 
             CREATE TABLE IF NOT EXISTS fahrten (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                kunde_id INTEGER NOT NULL,
+                kunde_id INTEGER,
                 datum TEXT NOT NULL,
+                wochentag TEXT,
+                start_adresse TEXT,
+                ziel_adressen TEXT,
+                gesamt_km REAL,
+                tracking_km REAL,
+                betrag REAL,
+                notiz TEXT,
+                gps_track TEXT,
                 von_ort TEXT,
                 nach_ort TEXT,
                 km REAL,
-                betrag REAL,
                 created_at TEXT NOT NULL DEFAULT (datetime('now')),
                 FOREIGN KEY (kunde_id) REFERENCES kunden(id)
             );
@@ -262,6 +269,22 @@ def init_mandant_db(db_datei: str):
             conn.execute("ALTER TABLE termine ADD COLUMN wiederkehrend INTEGER NOT NULL DEFAULT 0")
         if "wiederholungs_muster" not in existing_cols:
             conn.execute("ALTER TABLE termine ADD COLUMN wiederholungs_muster TEXT")
+        conn.commit()
+
+        # Neue Spalten in fahrten (GPS-Tracking, Adressen, etc.)
+        fahrten_cols = {row["name"] for row in conn.execute("PRAGMA table_info(fahrten)").fetchall()}
+        fahrten_migrations = {
+            "wochentag": "ALTER TABLE fahrten ADD COLUMN wochentag TEXT",
+            "start_adresse": "ALTER TABLE fahrten ADD COLUMN start_adresse TEXT",
+            "ziel_adressen": "ALTER TABLE fahrten ADD COLUMN ziel_adressen TEXT",
+            "gesamt_km": "ALTER TABLE fahrten ADD COLUMN gesamt_km REAL",
+            "tracking_km": "ALTER TABLE fahrten ADD COLUMN tracking_km REAL",
+            "notiz": "ALTER TABLE fahrten ADD COLUMN notiz TEXT",
+            "gps_track": "ALTER TABLE fahrten ADD COLUMN gps_track TEXT",
+        }
+        for col, sql in fahrten_migrations.items():
+            if col not in fahrten_cols:
+                conn.execute(sql)
         conn.commit()
     finally:
         conn.close()

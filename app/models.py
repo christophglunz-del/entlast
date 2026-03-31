@@ -240,6 +240,7 @@ class FahrtResponse(BaseModel):
     betrag: float | None = None
     notiz: str | None = None
     gps_track: str | None = None
+    route_beschreibung: str | None = None
     von_ort: str | None = None
     nach_ort: str | None = None
     km: float | None = None

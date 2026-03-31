@@ -29,7 +29,7 @@ const FahrtenModule = {
     const freitag = new Date(montag);
     freitag.setDate(freitag.getDate() + 4);
 
-    const fahrten = await DB.fahrtenFuerWoche(montag.toISOString().split('T')[0]);
+    const fahrten = await DB.fahrtenFuerWoche(App.localDateStr(montag));
 
     let gesamtKm = 0;
     let gesamtBetrag = 0;
@@ -43,7 +43,7 @@ const FahrtenModule = {
     for (let i = 0; i < 5; i++) {
       const tag = new Date(montag);
       tag.setDate(tag.getDate() + i);
-      const datumStr = tag.toISOString().split('T')[0];
+      const datumStr = App.localDateStr(tag);
       const tagesFahrten = fahrten.filter(f => f.datum === datumStr);
       tage.push({ datum: datumStr, tag, fahrten: tagesFahrten });
     }
@@ -67,7 +67,7 @@ const FahrtenModule = {
       <div class="week-nav">
         <button onclick="FahrtenModule.vorherigeWoche()">◀</button>
         <span class="week-label">
-          ${App.formatDatum(montag.toISOString())} - ${App.formatDatum(freitag.toISOString())}
+          ${App.formatDatum(App.localDateStr(montag))} - ${App.formatDatum(App.localDateStr(freitag))}
         </span>
         <button onclick="FahrtenModule.naechsteWoche()">▶</button>
       </div>
@@ -950,7 +950,7 @@ const FahrtenModule = {
     const kw = parseInt(document.getElementById('auswertungKW').value);
     const jahr = new Date().getFullYear();
     const montag = this.montagFuerKW(kw, jahr);
-    const montagStr = montag.toISOString().split('T')[0];
+    const montagStr = App.localDateStr(montag);
 
     const fahrten = await DB.fahrtenFuerWoche(montagStr);
     fahrten.sort((a, b) => a.datum.localeCompare(b.datum));
@@ -1110,7 +1110,7 @@ const FahrtenModule = {
       const kw = parseInt(document.getElementById('auswertungKW')?.value || this.getKW());
       const jahr = new Date().getFullYear();
       const montag = this.montagFuerKW(kw, jahr);
-      const montagStr = montag.toISOString().split('T')[0];
+      const montagStr = App.localDateStr(montag);
 
       const fahrten = await DB.fahrtenFuerWoche(montagStr);
       const doc = await PDFHelper.generateKilometerWoche(fahrten, montagStr);

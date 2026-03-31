@@ -31,6 +31,7 @@ def _row_to_response(row: dict) -> FahrtResponse:
         betrag=row.get("betrag"),
         notiz=row.get("notiz"),
         gps_track=row.get("gps_track"),
+        route_beschreibung=row.get("route_beschreibung"),
         # Legacy
         von_ort=row.get("von_ort"),
         nach_ort=row.get("nach_ort"),
