@@ -98,9 +98,10 @@ const LeistungModule = {
                 ${App.formatBetrag(gesamtBetrag)}
               </div>
             </div>
-            <div class="item-action">
+            <div class="item-action" style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
               ${alleUnterschrieben
-                ? '<span class="badge badge-success">\u2713 Unterschrieben</span>'
+                ? `<span class="badge badge-success">\u2713 Unterschrieben</span>
+                   <a href="rechnung.html?kunde=${kid}&monat=${mi}&jahr=${ji}" class="btn btn-sm btn-outline" onclick="event.stopPropagation();" style="font-size:0.7rem;">💰 Rechnung</a>`
                 : '<span class="badge badge-warning">\u270D Unterschrift fehlt</span>'
               }
             </div>

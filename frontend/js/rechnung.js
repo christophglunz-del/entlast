@@ -8,6 +8,24 @@ const RechnungModule = {
 
   async init() {
     await this.listeAnzeigen();
+    // URL-Parameter: ?kunde=ID&monat=M&jahr=J → Felder vorauswählen
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('kunde')) {
+      window.history.replaceState({}, '', window.location.pathname);
+      const sel = document.getElementById('rechnungKunde');
+      if (sel) {
+        sel.value = params.get('kunde');
+        this.kundeGewaehlt();
+      }
+      if (params.get('monat')) {
+        const mSel = document.getElementById('rechnungMonat');
+        if (mSel) mSel.value = params.get('monat');
+      }
+      if (params.get('jahr')) {
+        const jInput = document.getElementById('rechnungJahr');
+        if (jInput) jInput.value = params.get('jahr');
+      }
+    }
   },
 
   async listeAnzeigen() {
