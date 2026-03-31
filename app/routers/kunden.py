@@ -26,6 +26,7 @@ def _row_to_response(row: dict) -> KundeResponse:
         versichertennummer=decrypt(row.get("versichertennummer_encrypted")),
         pflegekasse=row.get("pflegekasse"),
         pflegekasse_fax=row.get("pflegekasse_fax"),
+        faxKasse=row.get("pflegekasse_fax"),
         iban=decrypt(row.get("iban_encrypted")),
         kundentyp=row.get("kundentyp", "pflege"),
         aktiv=bool(row.get("aktiv", 1)),
@@ -105,7 +106,7 @@ async def create_kunde(
             kunde.pflegegrad,
             encrypt(kunde.versichertennummer),
             kunde.pflegekasse,
-            kunde.pflegekasse_fax,
+            kunde.get_fax(),
             encrypt(kunde.iban),
             kunde.kundentyp,
             1 if kunde.aktiv else 0,
@@ -132,6 +133,12 @@ async def update_kunde(
 
     updates = {}
     data = kunde.model_dump(exclude_unset=True)
+
+    # faxKasse → pflegekasse_fax mappen
+    if "faxKasse" in data:
+        fax_val = data.pop("faxKasse")
+        if "pflegekasse_fax" not in data:
+            data["pflegekasse_fax"] = fax_val
 
     # Verschluesselte Felder separat behandeln
     if "versichertennummer" in data:

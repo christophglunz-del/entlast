@@ -87,11 +87,15 @@ class KundeCreate(BaseModel):
     versichertennummer: str | None = None
     pflegekasse: str | None = None
     pflegekasse_fax: str | None = None
+    faxKasse: str | None = None
     iban: str | None = None
     kundentyp: str = "pflege"  # pflege oder dienstleistung
     aktiv: bool = True
     besonderheiten: str | None = None
     lexoffice_id: str | None = None
+
+    def get_fax(self) -> str | None:
+        return self.pflegekasse_fax or self.faxKasse
 
 
 class KundeUpdate(BaseModel):
@@ -107,6 +111,7 @@ class KundeUpdate(BaseModel):
     versichertennummer: str | None = None
     pflegekasse: str | None = None
     pflegekasse_fax: str | None = None
+    faxKasse: str | None = None
     iban: str | None = None
     kundentyp: str | None = None
     aktiv: bool | None = None
@@ -115,6 +120,7 @@ class KundeUpdate(BaseModel):
 
 
 class KundeResponse(BaseModel):
+    model_config = {"populate_by_name": True}
     id: int
     name: str
     vorname: str | None = None
@@ -128,6 +134,7 @@ class KundeResponse(BaseModel):
     versichertennummer: str | None = None
     pflegekasse: str | None = None
     pflegekasse_fax: str | None = None
+    faxKasse: str | None = None
     iban: str | None = None
     kundentyp: str = "pflege"
     aktiv: bool = True
