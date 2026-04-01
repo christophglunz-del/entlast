@@ -1088,7 +1088,7 @@ const RechnungModule = {
       if (zeitEl) zeitEl.textContent = App.formatSyncZeit(syncZeitIso);
 
       // Im Hintergrund Kundendaten anreichern
-      setTimeout(() => this._kundenAnreichern(), 500);
+      // _kundenAnreichern deaktiviert — Daten sind jetzt in der DB
     } catch (err) {
       console.error('Lexoffice-Rechnungssync fehlgeschlagen:', err);
       container.innerHTML = '<div class="card text-center" style="color:var(--danger);">Fehler: ' + err.message + '</div>';
