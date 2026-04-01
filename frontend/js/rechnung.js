@@ -95,9 +95,14 @@ const RechnungModule = {
           </div>
         </div>
 
-        <button class="btn btn-primary btn-block" onclick="RechnungModule.rechnungErstellen()">
-          Rechnung in Lexoffice anlegen
-        </button>
+        <div class="btn-group" style="gap:8px;">
+          <button class="btn btn-primary btn-block" onclick="RechnungModule.rechnungErstellen()">
+            Rechnung in Lexoffice anlegen
+          </button>
+          <button class="btn btn-outline" onclick="RechnungModule.manuellErstellt()" style="white-space:nowrap;">
+            ✋ Manuell erstellt
+          </button>
+        </div>
       </div>
 
       <!-- Rechnungen aus Lexoffice -->
@@ -1111,6 +1116,50 @@ const RechnungModule = {
     } catch (err) {
       console.error('Lexoffice-Rechnungssync fehlgeschlagen:', err);
       container.innerHTML = '<div class="card text-center" style="color:var(--danger);">Fehler: ' + err.message + '</div>';
+    }
+  },
+
+  async manuellErstellt() {
+    const kundeId = parseInt(document.getElementById('rechnungKunde').value);
+    if (!kundeId) { App.toast('Bitte einen Kunden wählen', 'error'); return; }
+    const monat = parseInt(document.getElementById('rechnungMonat').value);
+    const jahr = parseInt(document.getElementById('rechnungJahr').value);
+
+    if (!await App.confirm('✋ Rechnung wurde in Lexoffice manuell erstellt?')) return;
+
+    try {
+      // Prüfe Duplikat
+      const rechnungen = await DB.alleRechnungen();
+      const existing = rechnungen.find(r => r.kundeId === kundeId && r.monat === monat && r.jahr === jahr);
+      if (existing) {
+        await apiFetch(`/rechnungen/${existing.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ versand_art: 'manuell', versand_datum: App.heute(), status: 'versendet' }),
+        });
+      } else {
+        await apiFetch('/rechnungen', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            kunde_id: kundeId, monat, jahr, status: 'versendet',
+            versand_art: 'manuell', versand_datum: App.heute(), typ: 'kasse',
+          }),
+        });
+        const neu = await DB.alleRechnungen();
+        const re = neu.find(r => r.kundeId === kundeId && r.monat === monat && r.jahr === jahr);
+        if (re) {
+          await apiFetch(`/rechnungen/${re.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ versand_art: 'manuell', versand_datum: App.heute(), status: 'versendet' }),
+          });
+        }
+      }
+      App.toast('Als manuell erstellt markiert', 'success');
+      this.lexofficeSync();
+    } catch (err) {
+      App.toast('Fehler: ' + err.message, 'error');
     }
   },
 
