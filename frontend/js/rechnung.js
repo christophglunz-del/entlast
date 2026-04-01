@@ -12,11 +12,14 @@ const RechnungModule = {
     const params = new URLSearchParams(window.location.search);
     if (params.get('kunde')) {
       window.history.replaceState({}, '', window.location.pathname);
+      const kundeId = params.get('kunde');
       const sel = document.getElementById('rechnungKunde');
-      if (sel) {
-        sel.value = params.get('kunde');
-        this.kundeGewaehlt();
-      }
+      if (sel) sel.value = kundeId;
+      // Suchfeld mit Kundennamen befüllen
+      const k = (this._rechnungKunden || []).find(c => c.id == kundeId);
+      const search = document.getElementById('rechnungKundeSearch');
+      if (search && k) search.value = App.kundenName(k);
+      this.kundeGewaehlt();
       if (params.get('monat')) {
         const mSel = document.getElementById('rechnungMonat');
         if (mSel) mSel.value = params.get('monat');
@@ -33,6 +36,7 @@ const RechnungModule = {
     if (!container) return;
 
     const kunden = await DB.alleKunden();
+    this._rechnungKunden = App.echteKunden(kunden);
 
     const jetzt = new Date();
     const aktuellerMonat = jetzt.getMonth() + 1;
@@ -44,8 +48,13 @@ const RechnungModule = {
         <p class="text-sm text-muted" style="margin-bottom:8px;">Rechnungen erstellen und versenden</p>
 
         <div class="form-group">
-          <label for="rechnungKunde">Kunde (betreute Person)</label>
-          <select id="rechnungKunde" class="form-control" onchange="RechnungModule.kundeGewaehlt()">
+          <label for="rechnungKundeSearch">Kunde (betreute Person)</label>
+          <input type="text" id="rechnungKundeSearch" class="form-control" placeholder="Kunde suchen..."
+                 oninput="RechnungModule.kundenFiltern(this.value)"
+                 onfocus="RechnungModule.kundenFiltern(this.value)"
+                 autocomplete="off">
+          <div id="rechnungKundeResults" style="max-height:200px;overflow-y:auto;border:1px solid var(--gray-200);border-radius:8px;display:none;background:#fff;margin-top:2px;z-index:10;position:relative;"></div>
+          <select id="rechnungKunde" class="form-control" required style="display:none;">
             <option value="">-- Kunde wählen --</option>
             ${App.echteKunden(kunden).map(k => `<option value="${k.id}">${KundenModule.escapeHtml(App.kundenName(k))}${k.kundentyp === 'dienstleistung' ? ' (DL)' : ''}</option>`).join('')}
           </select>
@@ -214,6 +223,54 @@ const RechnungModule = {
         </div>
       `;
     }).join('');
+  },
+
+  kundenFiltern(suchtext) {
+    const results = document.getElementById('rechnungKundeResults');
+    if (!results) return;
+    const kunden = this._rechnungKunden || [];
+    const begriff = (suchtext || '').toLowerCase().trim();
+
+    const gefiltert = begriff
+      ? kunden.filter(k => App.kundenName(k).toLowerCase().includes(begriff))
+      : kunden;
+
+    if (gefiltert.length === 0) {
+      results.innerHTML = '<div style="padding:8px;color:var(--gray-500);font-size:0.9rem;">Keine Kunden gefunden</div>';
+    } else {
+      results.innerHTML = gefiltert.map(k =>
+        `<div style="padding:8px 12px;cursor:pointer;font-size:0.9rem;border-bottom:1px solid var(--gray-100);"
+              onmousedown="RechnungModule.kundeAuswaehlen(${k.id})"
+              onmouseover="this.style.background='var(--primary-bg)'"
+              onmouseout="this.style.background=''">${KundenModule.escapeHtml(App.kundenName(k))}${k.kundentyp === 'dienstleistung' ? ' (DL)' : ''}</div>`
+      ).join('');
+    }
+    results.style.display = 'block';
+
+    if (!this._rechnungClickHandler) {
+      this._rechnungClickHandler = (e) => {
+        if (!e.target.closest('#rechnungKundeSearch') && !e.target.closest('#rechnungKundeResults')) {
+          results.style.display = 'none';
+        }
+      };
+      document.addEventListener('click', this._rechnungClickHandler);
+    }
+  },
+
+  kundeAuswaehlen(kundeId) {
+    const kunden = this._rechnungKunden || [];
+    const kunde = kunden.find(k => k.id === kundeId);
+    if (!kunde) return;
+
+    const searchInput = document.getElementById('rechnungKundeSearch');
+    const select = document.getElementById('rechnungKunde');
+    if (searchInput) searchInput.value = App.kundenName(kunde);
+    if (select) select.value = kundeId;
+
+    const results = document.getElementById('rechnungKundeResults');
+    if (results) results.style.display = 'none';
+
+    this.kundeGewaehlt();
   },
 
   async kundeGewaehlt() {
