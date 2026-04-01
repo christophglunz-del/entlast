@@ -1140,6 +1140,7 @@ const RechnungModule = {
     if (v.art === 'brief') return ` | <span style="color:#2e7d32;">✉️ Brief ${datum}</span>`;
     if (v.art === 'uebergabe') return ` | <span style="color:#2e7d32;">🤝 übergeben ${datum}</span>`;
     if (v.art === 'serviceportal') return ` | <span style="color:#2e7d32;">🌐 Portal ${datum}</span>`;
+    if (v.art === 'manuell') return ` | <span style="color:#2e7d32;">✋ manuell ${datum}</span>`;
     return ` | <span style="color:#2e7d32;">✓ versendet ${datum}</span>`;
   },
 
@@ -1459,8 +1460,8 @@ const RechnungModule = {
           ${(() => {
             const v = (this._versandMap || {})[lexofficeId];
             if (v && v.art) {
-              const iconMap = {fax:'📠', fax_warteschlange:'📠', fax_fehler:'❌', brief:'✉️', uebergabe:'🤝', serviceportal:'🌐'};
-              const labelMap = {fax:'Per Fax zugestellt', fax_warteschlange:'Fax wird gesendet', fax_fehler:'Fax fehlgeschlagen', brief:'Per Brief gesendet', uebergabe:'Persönlich übergeben', serviceportal:'Über Serviceportal eingereicht'};
+              const iconMap = {fax:'📠', fax_warteschlange:'📠', fax_fehler:'❌', brief:'✉️', uebergabe:'🤝', serviceportal:'🌐', manuell:'✋'};
+              const labelMap = {fax:'Per Fax zugestellt', fax_warteschlange:'Fax wird gesendet', fax_fehler:'Fax fehlgeschlagen', brief:'Per Brief gesendet', uebergabe:'Persönlich übergeben', serviceportal:'Über Serviceportal eingereicht', manuell:'Manuell erstellt und versendet'};
               const icon = iconMap[v.art] || '✓';
               const label = labelMap[v.art] || 'Versendet';
               const boxColor = v.art === 'fax_warteschlange' ? '#e3f2fd;color:#1565c0' : v.art === 'fax_fehler' ? '#fce4ec;color:#c62828' : '#e8f5e9;color:#2e7d32';
@@ -1497,6 +1498,9 @@ const RechnungModule = {
             </button>
             <button class="btn btn-sm btn-outline" onclick="RechnungModule.versandMarkieren('${lexofficeId}', 'serviceportal', '🌐 Als über Serviceportal eingereicht markieren?')">
               🌐 Serviceportal
+            </button>
+            <button class="btn btn-sm btn-outline" onclick="RechnungModule.versandMarkieren('${lexofficeId}', 'manuell', '✋ Als manuell erstellt und versendet markieren?')">
+              ✋ Manuell
             </button>
           </div>
           ${(this._versandMap || {})[lexofficeId]?.art ? '</details>' : ''}

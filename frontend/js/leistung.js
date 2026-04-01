@@ -97,7 +97,7 @@ const LeistungModule = {
         );
 
         const re = rechnungMap[`${kid}-${mi}-${ji}`];
-        const versandArten = ['fax', 'brief', 'uebergabe', 'serviceportal'];
+        const versandArten = ['fax', 'brief', 'uebergabe', 'serviceportal', 'manuell'];
         const istVersendet = re && re.lexofficeId && versandArten.includes(re.versandArt);
         const istWarteschlange = re && re.lexofficeId && re.versandArt === 'fax_warteschlange';
         const istAbgerechnet = re && re.lexofficeId;
@@ -148,6 +148,11 @@ const LeistungModule = {
                   return `<a href="rechnung.html?detail=${re.lexofficeId}" onclick="event.stopPropagation();"
                     class="btn btn-sm" style="font-size:0.75rem;background:#2e7d32;color:#fff;border:none;">
                     🌐 RE Portal</a>`;
+                }
+                if (re && re.lexofficeId && re.versandArt === 'manuell') {
+                  return `<a href="rechnung.html?detail=${re.lexofficeId}" onclick="event.stopPropagation();"
+                    class="btn btn-sm" style="font-size:0.75rem;background:#2e7d32;color:#fff;border:none;">
+                    ✋ RE manuell</a>`;
                 }
                 if (re && re.lexofficeId) {
                   return `<a href="rechnung.html?detail=${re.lexofficeId}" onclick="event.stopPropagation();"

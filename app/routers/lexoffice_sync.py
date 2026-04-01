@@ -418,7 +418,7 @@ async def versand_markieren(
     db: sqlite3.Connection = Depends(get_db),
 ):
     """Rechnung manuell als versendet markieren (Übergabe, Serviceportal)."""
-    if req.versand_art not in ("uebergabe", "serviceportal"):
+    if req.versand_art not in ("uebergabe", "serviceportal", "manuell"):
         raise HTTPException(400, "Ungültige Versandart")
 
     existing = db.execute(
@@ -436,7 +436,8 @@ async def versand_markieren(
         )
     db.commit()
 
-    label = "Persönlich übergeben" if req.versand_art == "uebergabe" else "Über Serviceportal eingereicht"
+    labels = {"uebergabe": "Persönlich übergeben", "serviceportal": "Über Serviceportal eingereicht", "manuell": "Manuell erstellt und versendet"}
+    label = labels.get(req.versand_art, "Versendet")
     return {"message": label}
 
 
