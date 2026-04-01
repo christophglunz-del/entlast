@@ -1398,7 +1398,12 @@ const RechnungModule = {
   async faxDetail(lexofficeId) {
     try {
       const { kunde, empfaenger } = await this._ladeRechnungUndKunde(lexofficeId);
-      const faxNr = kunde ? kunde.faxKasse : '';
+      let faxNr = kunde ? (kunde.faxKasse || kunde.pflegekasseFax || '') : '';
+      // Fallback: Faxnummer aus Pflegekassen-Tabelle nachschlagen
+      if (!faxNr && kunde && kunde.pflegekasse && window.PFLEGEKASSEN) {
+        const pk = PFLEGEKASSEN.find(k => k.name === kunde.pflegekasse);
+        if (pk && pk.fax) faxNr = pk.fax;
+      }
 
       if (!SipgateAPI.istKonfiguriert()) await SipgateAPI.init();
       if (!SipgateAPI.istKonfiguriert()) { App.toast('Sipgate nicht konfiguriert', 'error'); return; }
