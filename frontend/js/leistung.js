@@ -131,7 +131,7 @@ const LeistungModule = {
                 if (re && re.lexofficeId && re.versandArt === 'fax_warteschlange') {
                   return `<a href="rechnung.html?detail=${re.lexofficeId}" onclick="event.stopPropagation();"
                     class="btn btn-sm" style="font-size:0.75rem;background:#2196f3;color:#fff;border:none;">
-                    📠 RE Warteschlange</a>`;
+                    📠 Fax wird gesendet</a>`;
                 }
                 if (re && re.lexofficeId && re.versandArt === 'brief') {
                   return `<a href="rechnung.html?detail=${re.lexofficeId}" onclick="event.stopPropagation();"
