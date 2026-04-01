@@ -213,10 +213,17 @@ async def rechnung_fax(
         raise HTTPException(status_code=400, detail="Zugehoeriger Kunde nicht gefunden")
 
     fax_nummer = kunde.get("pflegekasse_fax") or ""
+    # Fallback: Faxnummer aus Pflegekassen-Tabelle nachschlagen
+    if not fax_nummer and kunde.get("pflegekasse"):
+        pk = db.execute(
+            "SELECT fax FROM pflegekassen WHERE name = ?", (kunde["pflegekasse"],)
+        ).fetchone()
+        if pk:
+            fax_nummer = pk.get("fax") or ""
     if not fax_nummer:
         raise HTTPException(
             status_code=400,
-            detail="Keine Pflegekasse-Faxnummer beim Kunden hinterlegt",
+            detail="Keine Faxnummer gefunden (weder beim Kunden noch bei der Pflegekasse)",
         )
 
     # PDF von Lexoffice holen
