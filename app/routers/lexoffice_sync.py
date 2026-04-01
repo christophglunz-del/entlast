@@ -408,7 +408,8 @@ async def fax_senden(
 
 class VersandMarkierenRequest(BaseModel):
     lexoffice_id: str
-    versand_art: str  # uebergabe, serviceportal
+    versand_art: str  # uebergabe, serviceportal, manuell
+    kunde_id: int | None = None
 
 
 @router.post("/versand-markieren")
@@ -431,8 +432,8 @@ async def versand_markieren(
         )
     else:
         db.execute(
-            "INSERT INTO rechnungen (lexoffice_id, versand_art, versand_datum, status, datum) VALUES (?, ?, date('now'), 'versendet', date('now'))",
-            (req.lexoffice_id, req.versand_art),
+            "INSERT INTO rechnungen (kunde_id, lexoffice_id, versand_art, versand_datum, status, datum) VALUES (?, ?, ?, date('now'), 'versendet', date('now'))",
+            (req.kunde_id or 0, req.lexoffice_id, req.versand_art),
         )
     db.commit()
 

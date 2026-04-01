@@ -1117,10 +1117,11 @@ const RechnungModule = {
   async versandMarkieren(lexofficeId, art, frage) {
     if (!await App.confirm(frage)) return;
     try {
+      const { kunde } = await this._ladeRechnungUndKunde(lexofficeId);
       await apiFetch('/lexoffice/versand-markieren', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lexoffice_id: lexofficeId, versand_art: art }),
+        body: JSON.stringify({ lexoffice_id: lexofficeId, versand_art: art, kunde_id: kunde ? kunde.id : null }),
       });
       App.toast('Status aktualisiert', 'success');
       this.lexofficeSync();
