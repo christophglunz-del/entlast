@@ -161,7 +161,10 @@ const LeistungModule = {
                 }
                 return `<a href="rechnung.html?kunde=${kid}&monat=${mi}&jahr=${ji}" onclick="event.stopPropagation();"
                   class="btn btn-sm" style="font-size:0.75rem;background:#dc2626;color:#fff;border:none;">
-                  💰 RE erstellen</a>`;
+                  💰 RE erstellen</a>
+                  <button onclick="event.stopPropagation(); LeistungModule.manuellMarkieren(${kid}, ${mi}, ${ji})"
+                  class="btn btn-sm" style="font-size:0.65rem;background:var(--gray-400);color:#fff;border:none;">
+                  ✋</button>`;
               })()}
             </div>
           </div>
@@ -764,6 +767,39 @@ const LeistungModule = {
     if (searchInput) searchInput.value = App.kundenName(kunde);
     if (select) select.value = kundeId;
     if (results) results.style.display = 'none';
+  },
+
+  async manuellMarkieren(kundeId, monat, jahr) {
+    if (!await App.confirm('✋ Rechnung wurde manuell erstellt und versendet?')) return;
+    try {
+      await apiFetch('/rechnungen', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          kunde_id: kundeId,
+          monat: monat,
+          jahr: jahr,
+          status: 'versendet',
+          versand_art: 'manuell',
+          versand_datum: App.heute(),
+          typ: 'kasse',
+        }),
+      });
+      // versand_art setzen (POST erstellt nur, setzt nicht versand_art)
+      const rechnungen = await DB.alleRechnungen();
+      const re = rechnungen.find(r => r.kundeId === kundeId && r.monat === monat && r.jahr === jahr);
+      if (re) {
+        await apiFetch(`/rechnungen/${re.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ versand_art: 'manuell', versand_datum: App.heute(), status: 'versendet' }),
+        });
+      }
+      App.toast('Als manuell markiert', 'success');
+      this.listeAnzeigen();
+    } catch (err) {
+      App.toast('Fehler: ' + err.message, 'error');
+    }
   },
 
   escapeHtml(text) {
