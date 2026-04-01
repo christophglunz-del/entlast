@@ -1331,7 +1331,7 @@ const RechnungModule = {
         <div class="card" style="background:white;">
           <div style="font-weight:600;margin-bottom:8px;">Versand</div>
           <div class="btn-group" style="flex-wrap:wrap;gap:8px;">
-            <button class="btn btn-sm btn-outline" onclick="RechnungModule.pdfLaden('${lexofficeId}')">
+            <button class="btn btn-sm btn-outline" onclick="RechnungModule.pdfLaden('${lexofficeId}', '${(rechnung.contactName || '').replace(/'/g, '')}', '${rechnung.voucherNumber || ''}')">
               📄 PDF laden
             </button>
             <button class="btn btn-sm btn-outline" onclick="RechnungModule.faxDetail('${lexofficeId}')">
@@ -1588,16 +1588,19 @@ const RechnungModule = {
     }
   },
 
-  async pdfLaden(lexofficeId) {
+  async pdfLaden(lexofficeId, kontaktName, rechnungsNr) {
     try {
       App.toast('PDF wird geladen...', 'info');
       const dok = await LexofficeAPI.finalizeInvoice(lexofficeId);
       if (!dok || !dok.documentFileId) { App.toast('PDF nicht verfügbar', 'error'); return; }
       const pdfBlob = await LexofficeAPI.getInvoicePdf(dok.documentFileId);
       const pdfUrl = URL.createObjectURL(pdfBlob);
+      const name = (kontaktName || 'Rechnung').replace(/[^a-zA-ZäöüÄÖÜß0-9_-]/g, '_');
+      const nr = (rechnungsNr || '').replace(/[^a-zA-Z0-9-]/g, '');
+      const dateiname = nr ? `${nr}_${name}.pdf` : `Rechnung_${name}.pdf`;
       const a = document.createElement('a');
       a.href = pdfUrl;
-      a.download = 'Rechnung.pdf';
+      a.download = dateiname;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

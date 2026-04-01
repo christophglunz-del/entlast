@@ -421,11 +421,28 @@ async def lexoffice_proxy(
         content_type = res.headers.get("content-type", "")
         if "application/json" in content_type:
             return res.json()
+        elif "application/pdf" in content_type:
+            return Response(
+                content=res.content,
+                media_type="application/pdf",
+                headers={"Content-Disposition": res.headers.get("Content-Disposition", "")},
+            )
         else:
+            # Lexoffice gibt PDFs manchmal als Base64-String zurück
+            import base64
+            try:
+                decoded = base64.b64decode(res.content)
+                if decoded[:5] == b'%PDF-':
+                    return Response(
+                        content=decoded,
+                        media_type="application/pdf",
+                        headers={"Content-Disposition": 'attachment; filename="Rechnung.pdf"'},
+                    )
+            except Exception:
+                pass
             return Response(
                 content=res.content,
                 media_type=content_type or "application/octet-stream",
-                headers={"Content-Disposition": res.headers.get("Content-Disposition", "")},
             )
 
     raise HTTPException(429, "Lexoffice Rate-Limit nach 3 Versuchen")
