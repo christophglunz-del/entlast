@@ -183,13 +183,31 @@ async def rechnung_erstellen(
             "supplement": f"z. Hd. Leistungsabteilung – Vers.: {kunde_name}",
             "countryCode": "DE",
         }
-        # Kassen-Kontakt in Lexoffice suchen → contactId + Adresse
+        # Kassen-Kontakt in Lexoffice suchen → contactId + Adresse aus Kontakt holen
         kassen_kunde = db.execute(
             "SELECT lexoffice_id FROM kunden WHERE name = ? AND lexoffice_id IS NOT NULL",
             (pflegekasse,),
         ).fetchone()
         if kassen_kunde and kassen_kunde.get("lexoffice_id"):
             address["contactId"] = kassen_kunde["lexoffice_id"]
+            # Adresse aus Lexoffice-Kontakt holen
+            try:
+                async with httpx.AsyncClient(timeout=15) as client:
+                    res = await client.get(
+                        f"{LEXOFFICE_BASE}/contacts/{kassen_kunde['lexoffice_id']}",
+                        headers=headers,
+                    )
+                    if res.status_code == 200:
+                        kontakt = res.json()
+                        billing = (kontakt.get("addresses", {}).get("billing") or [{}])[0]
+                        if billing.get("street"):
+                            address["street"] = billing["street"]
+                        if billing.get("zip"):
+                            address["zip"] = billing["zip"]
+                        if billing.get("city"):
+                            address["city"] = billing["city"]
+            except Exception:
+                pass  # Adresse aus Kontakt nicht verfügbar, contactId reicht
     else:
         address = {
             "name": kunde_name,
