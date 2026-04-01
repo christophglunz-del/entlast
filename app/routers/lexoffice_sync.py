@@ -172,6 +172,13 @@ async def rechnung_erstellen(
             "supplement": f"z. Hd. Leistungsabteilung – Vers.: {kunde_name}",
             "countryCode": "DE",
         }
+        # Kassen-Kontakt in Lexoffice suchen → contactId + Adresse
+        kassen_kunde = db.execute(
+            "SELECT lexoffice_id FROM kunden WHERE name = ? AND lexoffice_id IS NOT NULL",
+            (pflegekasse,),
+        ).fetchone()
+        if kassen_kunde and kassen_kunde.get("lexoffice_id"):
+            address["contactId"] = kassen_kunde["lexoffice_id"]
     else:
         address = {
             "name": kunde_name,
@@ -181,7 +188,7 @@ async def rechnung_erstellen(
             "countryCode": "DE",
         }
 
-    if kunde.get("lexoffice_id"):
+    if variante != "kasse" and kunde.get("lexoffice_id"):
         address["contactId"] = kunde["lexoffice_id"]
 
     # Positionsname
