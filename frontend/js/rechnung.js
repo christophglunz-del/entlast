@@ -316,7 +316,7 @@ const RechnungModule = {
         <table style="width:100%;font-size:0.9rem;border-collapse:collapse;">
           <tr><td style="padding:4px 8px;color:var(--gray-600);">Empfänger</td><td style="padding:4px 8px;font-weight:600;">${empfName}</td></tr>
           ${variante !== 'privat' ? `<tr><td style="padding:4px 8px;color:var(--gray-600);">Versicherte/r</td><td style="padding:4px 8px;">${App.kundenName(kunde)}</td></tr>` : ''}
-          <tr><td style="padding:4px 8px;color:var(--gray-600);">Variante</td><td style="padding:4px 8px;">${variante === 'kasse' ? 'Kassenrechnung (§45b)' : variante === 'lbv' ? 'LBV-Splitting' : 'Privatrechnung'}</td></tr>
+          <tr><td style="padding:4px 8px;color:var(--gray-600);">Variante</td><td style="padding:4px 8px;">${variante === 'kasse' ? 'Pflegekasse (§45b)' : variante === 'lbv' ? 'LBV-Splitting' : 'Privatrechnung'}</td></tr>
           <tr><td style="padding:4px 8px;color:var(--gray-600);">Zeitraum</td><td style="padding:4px 8px;">${App.monatsName(monat)} ${jahr}</td></tr>
           <tr><td style="padding:4px 8px;color:var(--gray-600);">Leistungen</td><td style="padding:4px 8px;">${kundeLeistungen.length} Einträge, ${gesamtStunden.toFixed(1)} Stunden</td></tr>
           <tr><td style="padding:4px 8px;color:var(--gray-600);">Stundensatz</td><td style="padding:4px 8px;">${((FIRMA || {}).stundensatz || 32.75).toFixed(2).replace('.', ',')} €</td></tr>

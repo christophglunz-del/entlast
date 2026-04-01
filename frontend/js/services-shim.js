@@ -62,11 +62,11 @@ const LexofficeAPI = {
     },
 
     async finalizeInvoice(id) {
-        return apiFetch(`/lexoffice/invoices/${id}/finalize`, { method: 'POST' });
+        return apiFetch(`/lexoffice/proxy/invoices/${id}/document`);
     },
 
     async getInvoicePdf(fileId) {
-        const res = await fetch(`/api/v1/lexoffice/files/${fileId}`, {
+        const res = await fetch(`/api/v1/lexoffice/proxy/files/${fileId}`, {
             credentials: 'include'
         });
         if (!res.ok) throw new Error(`PDF-Download fehlgeschlagen: ${res.status}`);
