@@ -36,7 +36,8 @@ async def get_statistiken(
         "AND NOT EXISTS ("
         "  SELECT 1 FROM rechnungen r "
         "  WHERE r.kunde_id = l.kunde_id "
-        "  AND substr(r.datum, 1, 7) = substr(l.datum, 1, 7)"
+        "  AND r.monat = CAST(substr(l.datum, 6, 2) AS INTEGER) "
+        "  AND r.jahr = CAST(substr(l.datum, 1, 4) AS INTEGER)"
         ")",
         (erster_des_monats,),
     ).fetchone()["c"]
