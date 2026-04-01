@@ -1114,6 +1114,22 @@ const RechnungModule = {
     }
   },
 
+  async versandMarkieren(lexofficeId, art, frage) {
+    if (!await App.confirm(frage)) return;
+    try {
+      await apiFetch('/lexoffice/versand-markieren', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lexoffice_id: lexofficeId, versand_art: art }),
+      });
+      App.toast('Status aktualisiert', 'success');
+      this.lexofficeSync();
+      this.detailAnzeigen(lexofficeId);
+    } catch (err) {
+      App.toast('Fehler: ' + err.message, 'error');
+    }
+  },
+
   _versandStatus(lexofficeId) {
     const v = (this._versandMap || {})[lexofficeId];
     if (!v || !v.art) return '';
@@ -1122,6 +1138,8 @@ const RechnungModule = {
     if (v.art === 'fax_warteschlange') return ` | <span style="color:#2196f3;">📠 Fax wird gesendet ${datum}</span>`;
     if (v.art === 'fax_fehler') return ` | <span style="color:#dc2626;">📠 Fax fehlgeschlagen</span>`;
     if (v.art === 'brief') return ` | <span style="color:#2e7d32;">✉️ Brief ${datum}</span>`;
+    if (v.art === 'uebergabe') return ` | <span style="color:#2e7d32;">🤝 übergeben ${datum}</span>`;
+    if (v.art === 'serviceportal') return ` | <span style="color:#2e7d32;">🌐 Portal ${datum}</span>`;
     return ` | <span style="color:#2e7d32;">✓ versendet ${datum}</span>`;
   },
 
@@ -1441,8 +1459,10 @@ const RechnungModule = {
           ${(() => {
             const v = (this._versandMap || {})[lexofficeId];
             if (v && v.art) {
-              const icon = v.art === 'fax' ? '📠' : v.art === 'fax_warteschlange' ? '📠' : v.art === 'fax_fehler' ? '❌' : v.art === 'brief' ? '✉️' : '✓';
-              const label = v.art === 'fax' ? 'Per Fax zugestellt' : v.art === 'fax_warteschlange' ? 'Fax wird gesendet' : v.art === 'fax_fehler' ? 'Fax fehlgeschlagen' : v.art === 'brief' ? 'Per Brief gesendet' : 'Versendet';
+              const iconMap = {fax:'📠', fax_warteschlange:'📠', fax_fehler:'❌', brief:'✉️', uebergabe:'🤝', serviceportal:'🌐'};
+              const labelMap = {fax:'Per Fax zugestellt', fax_warteschlange:'Fax wird gesendet', fax_fehler:'Fax fehlgeschlagen', brief:'Per Brief gesendet', uebergabe:'Persönlich übergeben', serviceportal:'Über Serviceportal eingereicht'};
+              const icon = iconMap[v.art] || '✓';
+              const label = labelMap[v.art] || 'Versendet';
               const boxColor = v.art === 'fax_warteschlange' ? '#e3f2fd;color:#1565c0' : v.art === 'fax_fehler' ? '#fce4ec;color:#c62828' : '#e8f5e9;color:#2e7d32';
               const datum = v.datum ? ' am ' + App.formatDatum(v.datum) : '';
               return `
@@ -1467,14 +1487,17 @@ const RechnungModule = {
             <button class="btn btn-sm btn-outline" onclick="RechnungModule.briefDetail('${lexofficeId}')">
               ✉️ Brief
             </button>
-            <button class="btn btn-sm btn-outline" onclick="RechnungModule.webmailDetail('${lexofficeId}')">
-              💻 Webmail
-            </button>
             ${lokalerKunde && lokalerKunde.email && !lokalerKunde.pflegekasse ? `
               <button class="btn btn-sm btn-outline" onclick="RechnungModule.emailDetail('${lexofficeId}')">
                 📧 E-Mail
               </button>
             ` : ''}
+            <button class="btn btn-sm btn-outline" onclick="RechnungModule.versandMarkieren('${lexofficeId}', 'uebergabe', '🤝 Als persönlich übergeben markieren?')">
+              🤝 Übergabe
+            </button>
+            <button class="btn btn-sm btn-outline" onclick="RechnungModule.versandMarkieren('${lexofficeId}', 'serviceportal', '🌐 Als über Serviceportal eingereicht markieren?')">
+              🌐 Serviceportal
+            </button>
           </div>
           ${(this._versandMap || {})[lexofficeId]?.art ? '</details>' : ''}
         </div>

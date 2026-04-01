@@ -97,7 +97,8 @@ const LeistungModule = {
         );
 
         const re = rechnungMap[`${kid}-${mi}-${ji}`];
-        const istVersendet = re && re.lexofficeId && re.versandArt === 'fax';
+        const versandArten = ['fax', 'brief', 'uebergabe', 'serviceportal'];
+        const istVersendet = re && re.lexofficeId && versandArten.includes(re.versandArt);
         const istWarteschlange = re && re.lexofficeId && re.versandArt === 'fax_warteschlange';
         const istAbgerechnet = re && re.lexofficeId;
         const zeileFarbe = istVersendet ? 'border-left:4px solid #2e7d32;'
@@ -137,6 +138,16 @@ const LeistungModule = {
                   return `<a href="rechnung.html?detail=${re.lexofficeId}" onclick="event.stopPropagation();"
                     class="btn btn-sm" style="font-size:0.75rem;background:#2e7d32;color:#fff;border:none;">
                     ✉️ RE Brief</a>`;
+                }
+                if (re && re.lexofficeId && re.versandArt === 'uebergabe') {
+                  return `<a href="rechnung.html?detail=${re.lexofficeId}" onclick="event.stopPropagation();"
+                    class="btn btn-sm" style="font-size:0.75rem;background:#2e7d32;color:#fff;border:none;">
+                    🤝 RE übergeben</a>`;
+                }
+                if (re && re.lexofficeId && re.versandArt === 'serviceportal') {
+                  return `<a href="rechnung.html?detail=${re.lexofficeId}" onclick="event.stopPropagation();"
+                    class="btn btn-sm" style="font-size:0.75rem;background:#2e7d32;color:#fff;border:none;">
+                    🌐 RE Portal</a>`;
                 }
                 if (re && re.lexofficeId) {
                   return `<a href="rechnung.html?detail=${re.lexofficeId}" onclick="event.stopPropagation();"

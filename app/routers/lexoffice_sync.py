@@ -406,6 +406,40 @@ async def fax_senden(
     }
 
 
+class VersandMarkierenRequest(BaseModel):
+    lexoffice_id: str
+    versand_art: str  # uebergabe, serviceportal
+
+
+@router.post("/versand-markieren")
+async def versand_markieren(
+    req: VersandMarkierenRequest,
+    user: dict = Depends(get_current_user),
+    db: sqlite3.Connection = Depends(get_db),
+):
+    """Rechnung manuell als versendet markieren (Übergabe, Serviceportal)."""
+    if req.versand_art not in ("uebergabe", "serviceportal"):
+        raise HTTPException(400, "Ungültige Versandart")
+
+    existing = db.execute(
+        "SELECT id FROM rechnungen WHERE lexoffice_id = ?", (req.lexoffice_id,)
+    ).fetchone()
+    if existing:
+        db.execute(
+            "UPDATE rechnungen SET versand_art=?, versand_datum=date('now'), status='versendet' WHERE id=?",
+            (req.versand_art, existing["id"]),
+        )
+    else:
+        db.execute(
+            "INSERT INTO rechnungen (lexoffice_id, versand_art, versand_datum, status, datum) VALUES (?, ?, date('now'), 'versendet', date('now'))",
+            (req.lexoffice_id, req.versand_art),
+        )
+    db.commit()
+
+    label = "Persönlich übergeben" if req.versand_art == "uebergabe" else "Über Serviceportal eingereicht"
+    return {"message": label}
+
+
 @router.post("/fax-status-pruefen")
 async def fax_status_pruefen(
     user: dict = Depends(get_current_user),
