@@ -220,10 +220,12 @@ async def rechnung_erstellen(
     if variante != "kasse" and kunde.get("lexoffice_id"):
         address["contactId"] = kunde["lexoffice_id"]
 
-    # Positionsname
+    # Positionsname + Versichertennummer
+    from app.encryption import decrypt
+    vnr = decrypt(kunde.get("versichertennummer_encrypted"))
     if variante == "kasse":
         pos_name = kunde_name
-        pos_desc = "Betreuung im Alltag nach § 45b SGB XI"
+        pos_desc = f"Vers.-Nr.: {vnr}\nBetreuung im Alltag nach § 45b SGB XI" if vnr else "Betreuung im Alltag nach § 45b SGB XI"
     else:
         pos_name = "Alltagshilfe"
         pos_desc = "Betreuung im Alltag"
