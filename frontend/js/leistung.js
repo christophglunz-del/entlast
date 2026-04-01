@@ -117,41 +117,36 @@ const LeistungModule = {
               </div>
             </div>
             <div class="item-action" style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+              ${alleUnterschrieben
+                ? '<span class="text-xs" style="color:#2e7d32;">✓ Unterschrieben</span>'
+                : '<span class="text-xs" style="color:#f59e0b;">✍ Unterschrift fehlt</span>'
+              }
               ${(() => {
                 const re = rechnungMap[`${kid}-${mi}-${ji}`];
                 if (re && re.lexofficeId && re.versandArt === 'fax') {
-                  // GRÜN: Fax zugestellt
                   return `<a href="rechnung.html?detail=${re.lexofficeId}" onclick="event.stopPropagation();"
                     class="btn btn-sm" style="font-size:0.75rem;background:#2e7d32;color:#fff;border:none;">
-                    📠 Gefaxt</a>`;
+                    📠 RE gefaxt</a>`;
                 }
                 if (re && re.lexofficeId && re.versandArt === 'fax_warteschlange') {
-                  // BLAU: Fax in Warteschlange
                   return `<a href="rechnung.html?detail=${re.lexofficeId}" onclick="event.stopPropagation();"
                     class="btn btn-sm" style="font-size:0.75rem;background:#2196f3;color:#fff;border:none;">
-                    📠 Warteschlange</a>`;
+                    📠 RE Warteschlange</a>`;
                 }
                 if (re && re.lexofficeId && re.versandArt === 'brief') {
-                  // GRÜN: Brief versendet
                   return `<a href="rechnung.html?detail=${re.lexofficeId}" onclick="event.stopPropagation();"
                     class="btn btn-sm" style="font-size:0.75rem;background:#2e7d32;color:#fff;border:none;">
-                    ✉️ Brief</a>`;
+                    ✉️ RE Brief</a>`;
                 }
                 if (re && re.lexofficeId) {
-                  // GELB: Abgerechnet, nicht versendet
                   return `<a href="rechnung.html?detail=${re.lexofficeId}" onclick="event.stopPropagation();"
                     class="btn btn-sm" style="font-size:0.75rem;background:#f59e0b;color:#fff;border:none;">
-                    💰 Abgerechnet</a>`;
+                    💰 RE erstellt</a>`;
                 }
-                // ROT: Nicht abgerechnet
                 return `<a href="rechnung.html?kunde=${kid}&monat=${mi}&jahr=${ji}" onclick="event.stopPropagation();"
                   class="btn btn-sm" style="font-size:0.75rem;background:#dc2626;color:#fff;border:none;">
-                  💰 Rechnung</a>`;
+                  💰 RE erstellen</a>`;
               })()}
-              ${alleUnterschrieben
-                ? '<span class="text-xs" style="color:#2e7d32;">\u2713 Unterschrieben</span>'
-                : '<span class="text-xs" style="color:#f59e0b;">\u270D Unterschrift fehlt</span>'
-              }
             </div>
           </div>
         `;
