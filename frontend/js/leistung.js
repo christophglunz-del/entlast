@@ -163,8 +163,8 @@ const LeistungModule = {
                   class="btn btn-sm" style="font-size:0.75rem;background:#dc2626;color:#fff;border:none;">
                   💰 RE erstellen</a>
                   <button onclick="event.stopPropagation(); LeistungModule.manuellMarkieren(${kid}, ${mi}, ${ji})"
-                  class="btn btn-sm" style="font-size:0.65rem;background:var(--gray-400);color:#fff;border:none;">
-                  ✋</button>`;
+                  class="btn btn-sm" style="font-size:0.65rem;background:var(--gray-400);color:#fff;border:none;"
+                  title="Manuell erstellt und versendet">✋</button>`;
               })()}
             </div>
           </div>
