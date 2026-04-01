@@ -98,9 +98,9 @@ const LeistungModule = {
 
         const re = rechnungMap[`${kid}-${mi}-${ji}`];
         const versandArten = ['fax', 'brief', 'uebergabe', 'serviceportal', 'manuell'];
-        const istVersendet = re && re.lexofficeId && versandArten.includes(re.versandArt);
-        const istWarteschlange = re && re.lexofficeId && re.versandArt === 'fax_warteschlange';
-        const istAbgerechnet = re && re.lexofficeId;
+        const istVersendet = re && versandArten.includes(re.versandArt);
+        const istWarteschlange = re && re.versandArt === 'fax_warteschlange';
+        const istAbgerechnet = re && (re.lexofficeId || re.versandArt);
         const zeileFarbe = istVersendet ? 'border-left:4px solid #2e7d32;'
           : istWarteschlange ? 'border-left:4px solid #2196f3;'
           : istAbgerechnet ? 'border-left:4px solid #f59e0b;'
@@ -124,40 +124,17 @@ const LeistungModule = {
               }
               ${(() => {
                 const re = rechnungMap[`${kid}-${mi}-${ji}`];
-                if (re && re.lexofficeId && re.versandArt === 'fax') {
-                  return `<a href="rechnung.html?detail=${re.lexofficeId}" onclick="event.stopPropagation();"
-                    class="btn btn-sm" style="font-size:0.75rem;background:#2e7d32;color:#fff;border:none;">
-                    📠 RE gefaxt</a>`;
-                }
-                if (re && re.lexofficeId && re.versandArt === 'fax_warteschlange') {
-                  return `<a href="rechnung.html?detail=${re.lexofficeId}" onclick="event.stopPropagation();"
-                    class="btn btn-sm" style="font-size:0.75rem;background:#2196f3;color:#fff;border:none;">
-                    📠 Fax wird gesendet</a>`;
-                }
-                if (re && re.lexofficeId && re.versandArt === 'brief') {
-                  return `<a href="rechnung.html?detail=${re.lexofficeId}" onclick="event.stopPropagation();"
-                    class="btn btn-sm" style="font-size:0.75rem;background:#2e7d32;color:#fff;border:none;">
-                    ✉️ RE Brief</a>`;
-                }
-                if (re && re.lexofficeId && re.versandArt === 'uebergabe') {
-                  return `<a href="rechnung.html?detail=${re.lexofficeId}" onclick="event.stopPropagation();"
-                    class="btn btn-sm" style="font-size:0.75rem;background:#2e7d32;color:#fff;border:none;">
-                    🤝 RE übergeben</a>`;
-                }
-                if (re && re.lexofficeId && re.versandArt === 'serviceportal') {
-                  return `<a href="rechnung.html?detail=${re.lexofficeId}" onclick="event.stopPropagation();"
-                    class="btn btn-sm" style="font-size:0.75rem;background:#2e7d32;color:#fff;border:none;">
-                    🌐 RE Portal</a>`;
-                }
-                if (re && re.lexofficeId && re.versandArt === 'manuell') {
-                  return `<a href="rechnung.html?detail=${re.lexofficeId}" onclick="event.stopPropagation();"
-                    class="btn btn-sm" style="font-size:0.75rem;background:#2e7d32;color:#fff;border:none;">
-                    ✋ RE manuell</a>`;
+                const link = re && re.lexofficeId ? `rechnung.html?detail=${re.lexofficeId}` : null;
+                const btn = (bg, label) => link
+                  ? `<a href="${link}" onclick="event.stopPropagation();" class="btn btn-sm" style="font-size:0.75rem;background:${bg};color:#fff;border:none;">${label}</a>`
+                  : `<span class="btn btn-sm" style="font-size:0.75rem;background:${bg};color:#fff;border:none;">${label}</span>`;
+                const labels = {fax:'📠 RE gefaxt', fax_warteschlange:'📠 Fax wird gesendet', brief:'✉️ RE Brief', uebergabe:'🤝 RE übergeben', serviceportal:'🌐 RE Portal', manuell:'✋ RE manuell'};
+                if (re && labels[re.versandArt]) {
+                  const bg = re.versandArt === 'fax_warteschlange' ? '#2196f3' : '#2e7d32';
+                  return btn(bg, labels[re.versandArt]);
                 }
                 if (re && re.lexofficeId) {
-                  return `<a href="rechnung.html?detail=${re.lexofficeId}" onclick="event.stopPropagation();"
-                    class="btn btn-sm" style="font-size:0.75rem;background:#f59e0b;color:#fff;border:none;">
-                    💰 RE erstellt</a>`;
+                  return btn('#f59e0b', '💰 RE erstellt');
                 }
                 return `<a href="rechnung.html?kunde=${kid}&monat=${mi}&jahr=${ji}" onclick="event.stopPropagation();"
                   class="btn btn-sm" style="font-size:0.75rem;background:#dc2626;color:#fff;border:none;">
@@ -772,28 +749,34 @@ const LeistungModule = {
   async manuellMarkieren(kundeId, monat, jahr) {
     if (!await App.confirm('✋ Rechnung wurde manuell erstellt und versendet?')) return;
     try {
-      await apiFetch('/rechnungen', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          kunde_id: kundeId,
-          monat: monat,
-          jahr: jahr,
-          status: 'versendet',
-          versand_art: 'manuell',
-          versand_datum: App.heute(),
-          typ: 'kasse',
-        }),
-      });
-      // versand_art setzen (POST erstellt nur, setzt nicht versand_art)
+      // Prüfe ob schon existiert
       const rechnungen = await DB.alleRechnungen();
-      const re = rechnungen.find(r => r.kundeId === kundeId && r.monat === monat && r.jahr === jahr);
-      if (re) {
-        await apiFetch(`/rechnungen/${re.id}`, {
+      const existing = rechnungen.find(r => r.kundeId === kundeId && r.monat === monat && r.jahr === jahr);
+      if (existing) {
+        await apiFetch(`/rechnungen/${existing.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ versand_art: 'manuell', versand_datum: App.heute(), status: 'versendet' }),
         });
+      } else {
+        await apiFetch('/rechnungen', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            kunde_id: kundeId, monat, jahr, status: 'versendet',
+            versand_art: 'manuell', versand_datum: App.heute(), typ: 'kasse',
+          }),
+        });
+        // versand_art nachtragen
+        const neu = await DB.alleRechnungen();
+        const re = neu.find(r => r.kundeId === kundeId && r.monat === monat && r.jahr === jahr);
+        if (re) {
+          await apiFetch(`/rechnungen/${re.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ versand_art: 'manuell', versand_datum: App.heute(), status: 'versendet' }),
+          });
+        }
       }
       App.toast('Als manuell markiert', 'success');
       this.listeAnzeigen();
