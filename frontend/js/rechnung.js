@@ -1445,12 +1445,15 @@ const RechnungModule = {
     if (!faxNummer) { App.toast('Bitte Faxnummer eingeben', 'error'); return; }
 
     const content = document.getElementById('rechnungDetailContent');
-    content.innerHTML = '<div class="card" style="background:white;text-align:center;"><div class="spinner"></div> PDF wird geladen und gefaxt...</div>';
+    content.innerHTML = '<div class="card" style="background:white;text-align:center;"><div class="spinner"></div> Fax wird gesendet...</div>';
     try {
-      const { pdfBase64 } = await this._ladePdfBase64(lexofficeId);
-      await SipgateAPI.faxSenden(faxNummer, pdfBase64, 'Rechnung.pdf');
+      const result = await apiFetch('/lexoffice/fax-senden', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lexoffice_id: lexofficeId, fax_nummer: faxNummer }),
+      });
       this.detailSchliessen();
-      App.toast('Fax gesendet!', 'success');
+      App.toast(result.message || 'Fax gesendet!', 'success');
     } catch (err) {
       App.toast('Fax-Fehler: ' + err.message, 'error');
       this.detailAnzeigen(lexofficeId);

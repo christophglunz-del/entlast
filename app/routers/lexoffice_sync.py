@@ -301,6 +301,63 @@ async def rechnung_erstellen(
     }
 
 
+class FaxRequest(BaseModel):
+    lexoffice_id: str
+    fax_nummer: str
+
+
+@router.post("/fax-senden")
+async def fax_senden(
+    req: FaxRequest,
+    user: dict = Depends(get_current_user),
+    db: sqlite3.Connection = Depends(get_db),
+):
+    """PDF von Lexoffice holen und per Sipgate faxen — alles serverseitig."""
+    from app.services.lexoffice import _get_api_key, LEXOFFICE_BASE
+    from app.services.sipgate import send_fax, normalize_fax_number
+
+    api_key = _get_api_key(db)
+    headers = {"Authorization": f"Bearer {api_key}", "Accept": "application/json"}
+
+    async with httpx.AsyncClient(timeout=30) as client:
+        # 1. documentFileId holen
+        res = await client.get(
+            f"{LEXOFFICE_BASE}/invoices/{req.lexoffice_id}/document",
+            headers=headers,
+        )
+        if res.status_code != 200:
+            raise HTTPException(502, f"Lexoffice Document-Fehler: {res.text[:200]}")
+        doc = res.json()
+        file_id = doc.get("documentFileId")
+        if not file_id:
+            raise HTTPException(502, "Keine documentFileId von Lexoffice")
+
+        await asyncio.sleep(0.5)
+
+        # 2. PDF herunterladen
+        res2 = await client.get(
+            f"{LEXOFFICE_BASE}/files/{file_id}",
+            headers=headers,
+        )
+        if res2.status_code != 200:
+            raise HTTPException(502, f"Lexoffice PDF-Fehler: {res2.status_code}")
+
+        pdf_bytes = res2.content
+        # Base64-Decode falls nötig
+        import base64
+        if pdf_bytes[:5] == b'JVBER':
+            pdf_bytes = base64.b64decode(pdf_bytes)
+
+    # 3. Per Sipgate faxen
+    fax_nr = normalize_fax_number(req.fax_nummer)
+    result = await send_fax(db, fax_nr, pdf_bytes, "Rechnung.pdf")
+
+    return {
+        "message": f"Fax gesendet an {fax_nr}",
+        "session_id": result.get("sessionId"),
+    }
+
+
 @router.get("/invoices/{invoice_id}")
 async def get_invoice(
     invoice_id: str,
