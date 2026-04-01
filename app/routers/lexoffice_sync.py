@@ -118,6 +118,17 @@ async def rechnung_erstellen(
     if not kunde:
         raise HTTPException(404, "Kunde nicht gefunden")
 
+    # Duplikat-Prüfung: Existiert bereits eine Rechnung für diesen Kunden/Monat?
+    existing = db.execute(
+        "SELECT id, lexoffice_id FROM rechnungen WHERE kunde_id = ? AND monat = ? AND jahr = ? AND status != 'storniert'",
+        (req.kunde_id, req.monat, req.jahr),
+    ).fetchone()
+    if existing:
+        raise HTTPException(
+            409,
+            f"Für diesen Kunden existiert bereits eine Rechnung für {req.monat:02d}/{req.jahr}"
+        )
+
     # Firma laden (für Stundensatz)
     firma = db.execute("SELECT * FROM firma WHERE id = 1").fetchone()
     stundensatz = firma["stundensatz"] if firma else 32.75
@@ -351,6 +362,22 @@ async def fax_senden(
     # 3. Per Sipgate faxen
     fax_nr = normalize_fax_number(req.fax_nummer)
     result = await send_fax(db, fax_nr, pdf_bytes, "Rechnung.pdf")
+
+    # 4. Versandstatus lokal speichern
+    existing = db.execute(
+        "SELECT id FROM rechnungen WHERE lexoffice_id = ?", (req.lexoffice_id,)
+    ).fetchone()
+    if existing:
+        db.execute(
+            "UPDATE rechnungen SET versand_art='fax', versand_datum=date('now'), status='versendet' WHERE id=?",
+            (existing["id"],),
+        )
+    else:
+        db.execute(
+            "INSERT INTO rechnungen (lexoffice_id, versand_art, versand_datum, status, datum) VALUES (?, 'fax', date('now'), 'versendet', date('now'))",
+            (req.lexoffice_id,),
+        )
+    db.commit()
 
     return {
         "message": f"Fax gesendet an {fax_nr}",

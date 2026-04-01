@@ -295,6 +295,18 @@ const RechnungModule = {
       variante = LexofficeAPI.varianteErmitteln(kunde);
     }
 
+    // Duplikat-Prüfung: Existiert bereits eine Rechnung in Lexoffice?
+    const bereitsVorhanden = (this._alleRechnungen || []).find(r => {
+      if (!r.voucherDate || r.voucherStatus === 'voided') return false;
+      const rDatum = new Date(r.voucherDate);
+      const kundenName = App.kundenName ? App.kundenName(kunde) : kunde.name;
+      return (r.contactName || '').includes(kundenName)
+          && rDatum.getMonth() + 1 === monat && rDatum.getFullYear() === jahr;
+    });
+    if (bereitsVorhanden) {
+      if (!await App.confirm(`Achtung: Für ${App.kundenName(kunde)} existiert bereits ${bereitsVorhanden.voucherNumber} (${App.monatsName(monat)} ${jahr}). Trotzdem erstellen?`)) return;
+    }
+
     // Gesamtstunden berechnen
     let gesamtStunden = 0;
     kundeLeistungen.forEach(l => {
