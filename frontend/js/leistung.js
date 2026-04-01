@@ -57,6 +57,15 @@ const LeistungModule = {
     const kundenMap = {};
     kunden.forEach(k => kundenMap[k.id] = k);
 
+    // Lokale Rechnungen laden für "Abgerechnet"-Badge
+    const rechnungen = await DB.alleRechnungen();
+    const rechnungMap = {};
+    for (const r of rechnungen) {
+      if (r.kundeId && r.monat && r.jahr) {
+        rechnungMap[`${r.kundeId}-${r.monat}-${r.jahr}`] = r;
+      }
+    }
+
     let html = '';
     for (const [monat, eintraege] of Object.entries(grouped)) {
       const [j, m] = monat.split('-');
@@ -99,11 +108,20 @@ const LeistungModule = {
               </div>
             </div>
             <div class="item-action" style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
-              ${alleUnterschrieben
-                ? `<span class="badge badge-success">\u2713 Unterschrieben</span>
-                   <a href="rechnung.html?kunde=${kid}&monat=${mi}&jahr=${ji}" class="btn btn-sm btn-outline" onclick="event.stopPropagation();" style="font-size:0.7rem;">💰 Rechnung</a>`
-                : '<span class="badge badge-warning">\u270D Unterschrift fehlt</span>'
-              }
+              ${(() => {
+                const re = rechnungMap[`${kid}-${mi}-${ji}`];
+                if (re && re.lexofficeId) {
+                  const versandt = re.versandArt === 'fax' ? '📠 gefaxt' : re.versandArt === 'brief' ? '✉️ Brief' : '';
+                  return `<span class="badge" style="background:#e8f5e9;color:#2e7d32;">💰 Abgerechnet</span>
+                    ${versandt ? `<span class="text-xs" style="color:#2e7d32;">${versandt}</span>` : ''}
+                    <a href="rechnung.html" onclick="event.stopPropagation();" class="btn btn-sm btn-outline" style="font-size:0.7rem;">📄 Rechnung</a>`;
+                }
+                if (alleUnterschrieben) {
+                  return `<span class="badge badge-success">\u2713 Unterschrieben</span>
+                    <a href="rechnung.html?kunde=${kid}&monat=${mi}&jahr=${ji}" class="btn btn-sm btn-outline" onclick="event.stopPropagation();" style="font-size:0.7rem;">💰 Rechnung</a>`;
+                }
+                return '<span class="badge badge-warning">\u270D Unterschrift fehlt</span>';
+              })()}
             </div>
           </div>
         `;
