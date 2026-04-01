@@ -1595,8 +1595,13 @@ const RechnungModule = {
       if (!dok || !dok.documentFileId) { App.toast('PDF nicht verfügbar', 'error'); return; }
       const pdfBlob = await LexofficeAPI.getInvoicePdf(dok.documentFileId);
       const pdfUrl = URL.createObjectURL(pdfBlob);
-      window.open(pdfUrl, '_blank');
-      setTimeout(() => URL.revokeObjectURL(pdfUrl), 30000);
+      const a = document.createElement('a');
+      a.href = pdfUrl;
+      a.download = 'Rechnung.pdf';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(pdfUrl), 5000);
     } catch (err) {
       App.toast('PDF-Fehler: ' + err.message, 'error');
     }
@@ -1753,10 +1758,7 @@ const RechnungModule = {
       const pdfBlob = await LexofficeAPI.getInvoicePdf(documentFileId);
       const pdfUrl = URL.createObjectURL(pdfBlob);
 
-      // PDF in neuem Tab öffnen (Vorschau)
-      window.open(pdfUrl, '_blank');
-
-      // Auch Download anbieten
+      // PDF direkt herunterladen
       const kundenName = (kunde && kunde.name) ? kunde.name.replace(/\s+/g, '_') : 'Kunde';
       const dateiname = `Rechnung_Lexoffice_${kundenName}_${App.monatsName(rechnung.monat)}_${rechnung.jahr}.pdf`;
 
