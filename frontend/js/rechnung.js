@@ -1087,11 +1087,26 @@ const RechnungModule = {
       const zeitEl = document.getElementById('syncZeit');
       if (zeitEl) zeitEl.textContent = App.formatSyncZeit(syncZeitIso);
 
-      // Fax-Status für Warteschlange-Einträge prüfen
-      if (Object.values(this._versandMap).some(v => v.art === 'fax_warteschlange' || v.art === 'faxWarteschlange')) {
+      // Fax-Status für Warteschlange-Einträge prüfen + Poll starten
+      const hatWartende = Object.values(this._versandMap).some(v => v.art === 'fax_warteschlange' || v.art === 'faxWarteschlange');
+      if (hatWartende) {
         apiFetch('/lexoffice/fax-status-pruefen', { method: 'POST' }).then(r => {
           if (r.aktualisiert > 0) this.lexofficeSync();
         }).catch(() => {});
+
+        // Alle 30s prüfen bis keine wartenden mehr
+        if (this._faxPollInterval) clearInterval(this._faxPollInterval);
+        this._faxPollInterval = setInterval(async () => {
+          try {
+            const r = await apiFetch('/lexoffice/fax-status-pruefen', { method: 'POST' });
+            if (r.aktualisiert > 0) this.lexofficeSync();
+            const lokale = await DB.alleRechnungen();
+            if (!lokale.some(l => (l.versandArt || l.versand_art) === 'fax_warteschlange')) {
+              clearInterval(this._faxPollInterval);
+              this._faxPollInterval = null;
+            }
+          } catch (e) {}
+        }, 30000);
       }
     } catch (err) {
       console.error('Lexoffice-Rechnungssync fehlgeschlagen:', err);
