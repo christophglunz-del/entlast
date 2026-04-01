@@ -1417,8 +1417,25 @@ const RechnungModule = {
         </div>
 
         <div class="card" style="background:white;">
-          <div style="font-weight:600;margin-bottom:8px;">Versand</div>
-          <div class="btn-group" style="flex-wrap:wrap;gap:8px;">
+          ${(() => {
+            const v = (this._versandMap || {})[lexofficeId];
+            if (v && v.art) {
+              const icon = v.art === 'fax' ? '📠' : v.art === 'brief' ? '✉️' : '✓';
+              const label = v.art === 'fax' ? 'Per Fax gesendet' : v.art === 'brief' ? 'Per Brief gesendet' : 'Versendet';
+              const datum = v.datum ? ' am ' + App.formatDatum(v.datum) : '';
+              return `
+                <div style="padding:12px;background:#e8f5e9;border-radius:8px;margin-bottom:12px;display:flex;align-items:center;gap:8px;">
+                  <span style="font-size:1.5rem;">${icon}</span>
+                  <div>
+                    <div style="font-weight:600;color:#2e7d32;">${label}${datum}</div>
+                  </div>
+                </div>
+                <details style="margin-bottom:8px;">
+                  <summary style="cursor:pointer;font-size:0.85rem;color:var(--gray-500);">Erneut versenden...</summary>
+                  <div class="btn-group mt-1" style="flex-wrap:wrap;gap:8px;">`;
+            }
+            return '<div style="font-weight:600;margin-bottom:8px;">Versand</div><div class="btn-group" style="flex-wrap:wrap;gap:8px;">';
+          })()}
             <button class="btn btn-sm btn-outline" onclick="RechnungModule.pdfLaden('${lexofficeId}', '${(rechnung.contactName || '').replace(/'/g, '')}', '${rechnung.voucherNumber || ''}')">
               📄 PDF laden
             </button>
@@ -1437,6 +1454,7 @@ const RechnungModule = {
               </button>
             ` : ''}
           </div>
+          ${(this._versandMap || {})[lexofficeId]?.art ? '</details>' : ''}
         </div>
       `;
     } catch (err) {
