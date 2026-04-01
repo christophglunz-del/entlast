@@ -1374,7 +1374,23 @@ const RechnungModule = {
     const rechnung = await LexofficeAPI.getInvoice(lexofficeId);
     const kontaktId = rechnung.address?.contactId;
     const alleKunden = await DB.alleKunden();
-    const kunde = alleKunden.find(k => k.lexofficeId === kontaktId);
+    let kunde = alleKunden.find(k => k.lexofficeId === kontaktId);
+    // Bei Kassenrechnungen: contactId ist die Kasse, nicht der Pflegekunde
+    // → Versicherten über Positionsname oder supplement finden
+    if (!kunde || !kunde.pflegekasse) {
+      const supplement = rechnung.address?.supplement || '';
+      const posName = rechnung.lineItems?.[0]?.name || '';
+      // "z. Hd. Leistungsabteilung – Vers.: Christel Tax" → "Christel Tax"
+      const versMatch = supplement.match(/Vers\.?:\s*(.+)/i);
+      const versName = versMatch ? versMatch[1].trim() : posName;
+      if (versName) {
+        const found = alleKunden.find(k => {
+          const fullName = App.kundenName ? App.kundenName(k) : `${k.vorname || ''} ${k.name || ''}`.trim();
+          return fullName === versName || k.name === versName;
+        });
+        if (found) kunde = found;
+      }
+    }
     const empfaenger = rechnung.address?.name || 'Unbekannt';
     return { rechnung, kunde, empfaenger };
   },
