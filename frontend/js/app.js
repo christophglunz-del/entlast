@@ -41,6 +41,21 @@ const App = {
       try {
         const registration = await navigator.serviceWorker.register('/sw.js');
         console.log('Service Worker registriert:', registration.scope);
+
+        // Auf Updates prüfen
+        registration.addEventListener('updatefound', () => {
+          const newWorker = registration.installing;
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'activated') {
+              // Neuer SW aktiv → Seite automatisch neu laden
+              console.log('Neuer Service Worker aktiv — Seite wird aktualisiert');
+              window.location.reload();
+            }
+          });
+        });
+
+        // Regelmäßig auf Updates prüfen (alle 60s)
+        setInterval(() => registration.update(), 60000);
       } catch (err) {
         console.warn('Service Worker Registrierung fehlgeschlagen:', err);
       }
