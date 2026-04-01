@@ -430,7 +430,7 @@ const RechnungModule = {
       });
 
       this.detailSchliessen();
-      App.toast(`Rechnung erstellt: ${ergebnis.betrag.toFixed(2).replace('.', ',')} € (${ergebnis.variante})`, 'success', 5000);
+      App.toast(`Rechnung erstellt: ${ergebnis.betrag.toFixed(2).replace('.', ',')} €`, 'success', 5000);
       this.lexofficeSync();
     } catch (err) {
       console.error('Lexoffice Fehler:', err);
