@@ -422,7 +422,7 @@ async def fax_status_pruefen(
     for r in wartende:
         try:
             status = await fax_status(db, r["sipgate_session_id"])
-            fax_type = status.get("type", "UNKNOWN")
+            fax_type = status.get("faxStatusType", "UNKNOWN")
             if fax_type == "SENT":
                 db.execute("UPDATE rechnungen SET versand_art='fax' WHERE id=?", (r["id"],))
                 aktualisiert += 1
