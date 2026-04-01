@@ -222,7 +222,7 @@ const KundenModule = {
             <div class="form-group">
               <label for="kundeGeburtstag">Geburtstag</label>
               <input type="date" id="kundeGeburtstag" class="form-control"
-                     value="${kunde ? (kunde.geburtstag || '') : ''}">
+                     value="${kunde ? (kunde.geburtsdatum || '') : ''}">
             </div>
           </div>
 
@@ -340,7 +340,7 @@ const KundenModule = {
       faxKasse: document.getElementById('kundeFaxKasse').value.trim(),
       pflegegrad: document.getElementById('kundePflegegrad').value ? parseInt(document.getElementById('kundePflegegrad').value) : null,
       pflegegradSeit: document.getElementById('kundePflegegradSeit').value || null,
-      geburtstag: document.getElementById('kundeGeburtstag').value || null,
+      geburtsdatum: document.getElementById('kundeGeburtstag').value || null,
       besonderheiten: document.getElementById('kundeBesonderheiten').value.trim(),
       kundentyp: document.getElementById('kundeKundentyp').value || 'pflege'
     };
