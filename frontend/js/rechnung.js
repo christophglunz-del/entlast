@@ -1087,8 +1087,12 @@ const RechnungModule = {
       const zeitEl = document.getElementById('syncZeit');
       if (zeitEl) zeitEl.textContent = App.formatSyncZeit(syncZeitIso);
 
-      // Im Hintergrund Kundendaten anreichern
-      // _kundenAnreichern deaktiviert — Daten sind jetzt in der DB
+      // Fax-Status für Warteschlange-Einträge prüfen
+      if (Object.values(this._versandMap).some(v => v.art === 'fax_warteschlange' || v.art === 'faxWarteschlange')) {
+        apiFetch('/lexoffice/fax-status-pruefen', { method: 'POST' }).then(r => {
+          if (r.aktualisiert > 0) this.lexofficeSync();
+        }).catch(() => {});
+      }
     } catch (err) {
       console.error('Lexoffice-Rechnungssync fehlgeschlagen:', err);
       container.innerHTML = '<div class="card text-center" style="color:var(--danger);">Fehler: ' + err.message + '</div>';
@@ -1100,6 +1104,8 @@ const RechnungModule = {
     if (!v || !v.art) return '';
     const datum = v.datum ? App.formatDatum(v.datum) : '';
     if (v.art === 'fax') return ` | <span style="color:#2e7d32;">📠 gefaxt ${datum}</span>`;
+    if (v.art === 'fax_warteschlange') return ` | <span style="color:#2196f3;">📠 Warteschlange ${datum}</span>`;
+    if (v.art === 'fax_fehler') return ` | <span style="color:#dc2626;">📠 Fax fehlgeschlagen</span>`;
     if (v.art === 'brief') return ` | <span style="color:#2e7d32;">✉️ Brief ${datum}</span>`;
     return ` | <span style="color:#2e7d32;">✓ versendet ${datum}</span>`;
   },
@@ -1420,11 +1426,12 @@ const RechnungModule = {
           ${(() => {
             const v = (this._versandMap || {})[lexofficeId];
             if (v && v.art) {
-              const icon = v.art === 'fax' ? '📠' : v.art === 'brief' ? '✉️' : '✓';
-              const label = v.art === 'fax' ? 'Per Fax gesendet' : v.art === 'brief' ? 'Per Brief gesendet' : 'Versendet';
+              const icon = v.art === 'fax' ? '📠' : v.art === 'fax_warteschlange' ? '📠' : v.art === 'fax_fehler' ? '❌' : v.art === 'brief' ? '✉️' : '✓';
+              const label = v.art === 'fax' ? 'Per Fax zugestellt' : v.art === 'fax_warteschlange' ? 'Fax in Warteschlange' : v.art === 'fax_fehler' ? 'Fax fehlgeschlagen' : v.art === 'brief' ? 'Per Brief gesendet' : 'Versendet';
+              const boxColor = v.art === 'fax_warteschlange' ? '#e3f2fd;color:#1565c0' : v.art === 'fax_fehler' ? '#fce4ec;color:#c62828' : '#e8f5e9;color:#2e7d32';
               const datum = v.datum ? ' am ' + App.formatDatum(v.datum) : '';
               return `
-                <div style="padding:12px;background:#e8f5e9;border-radius:8px;margin-bottom:12px;display:flex;align-items:center;gap:8px;">
+                <div style="padding:12px;background:${boxColor};border-radius:8px;margin-bottom:12px;display:flex;align-items:center;gap:8px;">
                   <span style="font-size:1.5rem;">${icon}</span>
                   <div>
                     <div style="font-weight:600;color:#2e7d32;">${label}${datum}</div>

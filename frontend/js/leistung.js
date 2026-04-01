@@ -97,8 +97,12 @@ const LeistungModule = {
         );
 
         const re = rechnungMap[`${kid}-${mi}-${ji}`];
-        const zeileFarbe = (re && re.lexofficeId && re.versandArt) ? 'border-left:4px solid #2e7d32;'
-          : (re && re.lexofficeId) ? 'border-left:4px solid #f59e0b;'
+        const istVersendet = re && re.lexofficeId && re.versandArt === 'fax';
+        const istWarteschlange = re && re.lexofficeId && re.versandArt === 'fax_warteschlange';
+        const istAbgerechnet = re && re.lexofficeId;
+        const zeileFarbe = istVersendet ? 'border-left:4px solid #2e7d32;'
+          : istWarteschlange ? 'border-left:4px solid #2196f3;'
+          : istAbgerechnet ? 'border-left:4px solid #f59e0b;'
           : 'border-left:4px solid #dc2626;';
 
         html += `
@@ -115,12 +119,23 @@ const LeistungModule = {
             <div class="item-action" style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
               ${(() => {
                 const re = rechnungMap[`${kid}-${mi}-${ji}`];
-                if (re && re.lexofficeId && re.versandArt) {
-                  // GRÜN: Abgerechnet + versendet
-                  const icon = re.versandArt === 'fax' ? '📠' : '✉️';
+                if (re && re.lexofficeId && re.versandArt === 'fax') {
+                  // GRÜN: Fax zugestellt
                   return `<a href="rechnung.html?detail=${re.lexofficeId}" onclick="event.stopPropagation();"
                     class="btn btn-sm" style="font-size:0.75rem;background:#2e7d32;color:#fff;border:none;">
-                    ${icon} Versendet</a>`;
+                    📠 Gefaxt</a>`;
+                }
+                if (re && re.lexofficeId && re.versandArt === 'fax_warteschlange') {
+                  // BLAU: Fax in Warteschlange
+                  return `<a href="rechnung.html?detail=${re.lexofficeId}" onclick="event.stopPropagation();"
+                    class="btn btn-sm" style="font-size:0.75rem;background:#2196f3;color:#fff;border:none;">
+                    📠 Warteschlange</a>`;
+                }
+                if (re && re.lexofficeId && re.versandArt === 'brief') {
+                  // GRÜN: Brief versendet
+                  return `<a href="rechnung.html?detail=${re.lexofficeId}" onclick="event.stopPropagation();"
+                    class="btn btn-sm" style="font-size:0.75rem;background:#2e7d32;color:#fff;border:none;">
+                    ✉️ Brief</a>`;
                 }
                 if (re && re.lexofficeId) {
                   // GELB: Abgerechnet, nicht versendet

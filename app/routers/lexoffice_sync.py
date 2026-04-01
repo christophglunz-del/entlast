@@ -383,26 +383,57 @@ async def fax_senden(
     fax_nr = normalize_fax_number(req.fax_nummer)
     result = await send_fax(db, fax_nr, pdf_bytes, "Rechnung.pdf")
 
-    # 4. Versandstatus lokal speichern
+    # 4. Versandstatus lokal speichern — erstmal "warteschlange"
+    session_id = result.get("sessionId") or ""
     existing = db.execute(
         "SELECT id FROM rechnungen WHERE lexoffice_id = ?", (req.lexoffice_id,)
     ).fetchone()
     if existing:
         db.execute(
-            "UPDATE rechnungen SET versand_art='fax', versand_datum=date('now'), status='versendet' WHERE id=?",
-            (existing["id"],),
+            "UPDATE rechnungen SET versand_art='fax_warteschlange', versand_datum=date('now'), status='versendet', sipgate_session_id=? WHERE id=?",
+            (session_id, existing["id"]),
         )
     else:
         db.execute(
-            "INSERT INTO rechnungen (lexoffice_id, versand_art, versand_datum, status, datum) VALUES (?, 'fax', date('now'), 'versendet', date('now'))",
-            (req.lexoffice_id,),
+            "INSERT INTO rechnungen (lexoffice_id, versand_art, versand_datum, status, sipgate_session_id, datum) VALUES (?, 'fax_warteschlange', date('now'), 'versendet', ?, date('now'))",
+            (req.lexoffice_id, session_id),
         )
     db.commit()
 
     return {
-        "message": f"Fax gesendet an {fax_nr}",
-        "session_id": result.get("sessionId"),
+        "message": f"Fax in Warteschlange für {fax_nr}",
+        "session_id": session_id,
     }
+
+
+@router.post("/fax-status-pruefen")
+async def fax_status_pruefen(
+    user: dict = Depends(get_current_user),
+    db: sqlite3.Connection = Depends(get_db),
+):
+    """Alle Faxe in Warteschlange bei Sipgate prüfen und Status aktualisieren."""
+    from app.services.sipgate import fax_status
+
+    wartende = db.execute(
+        "SELECT id, sipgate_session_id FROM rechnungen WHERE versand_art = 'fax_warteschlange' AND sipgate_session_id IS NOT NULL"
+    ).fetchall()
+
+    aktualisiert = 0
+    for r in wartende:
+        try:
+            status = await fax_status(db, r["sipgate_session_id"])
+            fax_type = status.get("type", "UNKNOWN")
+            if fax_type == "SENT":
+                db.execute("UPDATE rechnungen SET versand_art='fax' WHERE id=?", (r["id"],))
+                aktualisiert += 1
+            elif fax_type == "FAILED":
+                db.execute("UPDATE rechnungen SET versand_art='fax_fehler' WHERE id=?", (r["id"],))
+                aktualisiert += 1
+        except Exception:
+            pass
+
+    db.commit()
+    return {"wartende": len(wartende), "aktualisiert": aktualisiert}
 
 
 @router.get("/invoices/{invoice_id}")

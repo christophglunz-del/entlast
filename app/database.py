@@ -216,6 +216,7 @@ def init_mandant_db(db_datei: str):
                 lexoffice_id TEXT,
                 versand_art TEXT,
                 versand_datum TEXT,
+                sipgate_session_id TEXT,
                 created_at TEXT NOT NULL DEFAULT (datetime('now')),
                 updated_at TEXT NOT NULL DEFAULT (datetime('now')),
                 FOREIGN KEY (kunde_id) REFERENCES kunden(id)
