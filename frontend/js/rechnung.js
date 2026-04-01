@@ -996,9 +996,15 @@ const RechnungModule = {
 
       this._alleRechnungen = alle;
 
-      // Lokale Rechnungen laden um "via App" zu erkennen
+      // Lokale Rechnungen laden um "via App" und Versandstatus zu erkennen
       const lokale = await DB.alleRechnungen();
       this._appErstellteIds = new Set(lokale.filter(r => r.lexofficeInvoiceId).map(r => r.lexofficeInvoiceId));
+      this._versandMap = {};
+      for (const r of lokale) {
+        if (r.lexofficeId) {
+          this._versandMap[r.lexofficeId] = { art: r.versandArt, datum: r.versandDatum };
+        }
+      }
 
       // Gefilterte Anzeige
       this.filterAnwenden();
@@ -1015,6 +1021,15 @@ const RechnungModule = {
       console.error('Lexoffice-Rechnungssync fehlgeschlagen:', err);
       container.innerHTML = '<div class="card text-center" style="color:var(--danger);">Fehler: ' + err.message + '</div>';
     }
+  },
+
+  _versandStatus(lexofficeId) {
+    const v = (this._versandMap || {})[lexofficeId];
+    if (!v || !v.art) return '';
+    const datum = v.datum ? App.formatDatum(v.datum) : '';
+    if (v.art === 'fax') return ` | <span style="color:#2e7d32;">📠 gefaxt ${datum}</span>`;
+    if (v.art === 'brief') return ` | <span style="color:#2e7d32;">✉️ Brief ${datum}</span>`;
+    return ` | <span style="color:#2e7d32;">✓ versendet ${datum}</span>`;
   },
 
   statusFilter(filter) {
@@ -1111,6 +1126,7 @@ const RechnungModule = {
                 <div class="text-sm text-muted">
                   ${r.voucherNumber || '-'} | ${datum}
                   ${viaApp ? ' | <span style="color:var(--primary);">via App</span>' : ''}
+                  ${this._versandStatus(r.id)}
                 </div>
               </div>
               <span class="badge ${badgeClass}">
