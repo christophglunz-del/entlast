@@ -1059,7 +1059,7 @@ const RechnungModule = {
     const suche = (document.getElementById('rechnungSuche')?.value || '').toLowerCase();
     const statusFilter = this._aktuellerStatusFilter;
 
-    let gefiltert = this._alleRechnungen || [];
+    let gefiltert = (this._alleRechnungen || []).filter(r => r.voucherStatus !== 'voided');
 
     // Status-Filter
     if (statusFilter === 'offen') {
@@ -1089,7 +1089,7 @@ const RechnungModule = {
     }
 
     // Summenzeile berechnen
-    const alleGesamt = this._alleRechnungen || [];
+    const alleGesamt = (this._alleRechnungen || []).filter(r => r.voucherStatus !== 'voided');
     const offeneRechnungen = alleGesamt.filter(r => r.voucherStatus === 'open' || r.voucherStatus === 'overdue');
     const bezahlteRechnungen = alleGesamt.filter(r => r.voucherStatus === 'paidoff');
     const summeOffen = offeneRechnungen.reduce((s, r) => s + (r.openAmount || r.totalAmount || 0), 0);
