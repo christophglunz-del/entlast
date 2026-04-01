@@ -66,8 +66,28 @@ const LeistungModule = {
       }
     }
 
-    let html = '';
+    // Monatsfilter
+    const monate = Object.keys(grouped).sort().reverse();
+    const aktuellerFilter = this._monatsFilter || monate[0];
+    if (!this._monatsFilter) this._monatsFilter = aktuellerFilter;
+
+    let html = `
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+        ${monate.map(m => {
+          const [j, mo] = m.split('-');
+          const aktiv = m === aktuellerFilter;
+          return `<button class="btn btn-sm ${aktiv ? 'btn-primary' : 'btn-outline'}"
+            onclick="LeistungModule._monatsFilter='${m}'; LeistungModule.listeAnzeigen();">
+            ${App.monatsName(parseInt(mo))} ${j}</button>`;
+        }).join('')}
+        <button class="btn btn-sm ${!this._monatsFilter || this._monatsFilter === 'alle' ? 'btn-primary' : 'btn-outline'}"
+          onclick="LeistungModule._monatsFilter='alle'; LeistungModule.listeAnzeigen();">
+          Alle</button>
+      </div>
+    `;
+
     for (const [monat, eintraege] of Object.entries(grouped)) {
+      if (aktuellerFilter !== 'alle' && monat !== aktuellerFilter) continue;
       const [j, m] = monat.split('-');
       const mi = parseInt(m);
       const ji = parseInt(j);
