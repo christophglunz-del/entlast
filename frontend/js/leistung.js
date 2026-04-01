@@ -96,8 +96,13 @@ const LeistungModule = {
           l => l.unterschriftVersicherter
         );
 
+        const re = rechnungMap[`${kid}-${mi}-${ji}`];
+        const zeileFarbe = (re && re.lexofficeId && re.versandArt) ? 'border-left:4px solid #2e7d32;'
+          : (re && re.lexofficeId) ? 'border-left:4px solid #f59e0b;'
+          : 'border-left:4px solid #dc2626;';
+
         html += `
-          <div class="list-item" onclick="LeistungModule.monatsUebersichtAnzeigen(${kid}, ${mi}, ${ji})">
+          <div class="list-item" onclick="LeistungModule.monatsUebersichtAnzeigen(${kid}, ${mi}, ${ji})" style="${zeileFarbe}">
             <div class="item-avatar">${App.initialen(k.name, k.vorname)}</div>
             <div class="item-content">
               <div class="item-title">${this.escapeHtml(App.kundenName(k))}</div>
@@ -110,18 +115,28 @@ const LeistungModule = {
             <div class="item-action" style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
               ${(() => {
                 const re = rechnungMap[`${kid}-${mi}-${ji}`];
+                if (re && re.lexofficeId && re.versandArt) {
+                  // GRÜN: Abgerechnet + versendet
+                  const icon = re.versandArt === 'fax' ? '📠' : '✉️';
+                  return `<a href="rechnung.html?detail=${re.lexofficeId}" onclick="event.stopPropagation();"
+                    class="btn btn-sm" style="font-size:0.75rem;background:#2e7d32;color:#fff;border:none;">
+                    ${icon} Versendet</a>`;
+                }
                 if (re && re.lexofficeId) {
-                  const versandt = re.versandArt === 'fax' ? '📠 gefaxt' : re.versandArt === 'brief' ? '✉️ Brief' : '';
-                  return `<span class="badge" style="background:#e8f5e9;color:#2e7d32;">💰 Abgerechnet</span>
-                    ${versandt ? `<span class="text-xs" style="color:#2e7d32;">${versandt}</span>` : ''}
-                    <a href="rechnung.html?detail=${re.lexofficeId}" onclick="event.stopPropagation();" class="btn btn-sm btn-outline" style="font-size:0.7rem;">📄 Rechnung</a>`;
+                  // GELB: Abgerechnet, nicht versendet
+                  return `<a href="rechnung.html?detail=${re.lexofficeId}" onclick="event.stopPropagation();"
+                    class="btn btn-sm" style="font-size:0.75rem;background:#f59e0b;color:#fff;border:none;">
+                    💰 Abgerechnet</a>`;
                 }
-                if (alleUnterschrieben) {
-                  return `<span class="badge badge-success">\u2713 Unterschrieben</span>
-                    <a href="rechnung.html?kunde=${kid}&monat=${mi}&jahr=${ji}" class="btn btn-sm btn-outline" onclick="event.stopPropagation();" style="font-size:0.7rem;">💰 Rechnung</a>`;
-                }
-                return '<span class="badge badge-warning">\u270D Unterschrift fehlt</span>';
+                // ROT: Nicht abgerechnet
+                return `<a href="rechnung.html?kunde=${kid}&monat=${mi}&jahr=${ji}" onclick="event.stopPropagation();"
+                  class="btn btn-sm" style="font-size:0.75rem;background:#dc2626;color:#fff;border:none;">
+                  💰 Rechnung</a>`;
               })()}
+              ${alleUnterschrieben
+                ? '<span class="text-xs" style="color:#2e7d32;">\u2713 Unterschrieben</span>'
+                : '<span class="text-xs" style="color:#f59e0b;">\u270D Unterschrift fehlt</span>'
+              }
             </div>
           </div>
         `;
