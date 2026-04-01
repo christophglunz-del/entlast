@@ -10,7 +10,10 @@ const RechnungModule = {
     await this.listeAnzeigen();
     // URL-Parameter: ?kunde=ID&monat=M&jahr=J → Felder vorauswählen
     const params = new URLSearchParams(window.location.search);
-    if (params.get('kunde')) {
+    if (params.get('detail')) {
+      window.history.replaceState({}, '', window.location.pathname);
+      this.detailAnzeigen(params.get('detail'));
+    } else if (params.get('kunde')) {
       window.history.replaceState({}, '', window.location.pathname);
       const kundeId = params.get('kunde');
       const sel = document.getElementById('rechnungKunde');

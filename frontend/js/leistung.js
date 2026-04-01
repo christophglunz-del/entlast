@@ -114,7 +114,7 @@ const LeistungModule = {
                   const versandt = re.versandArt === 'fax' ? '📠 gefaxt' : re.versandArt === 'brief' ? '✉️ Brief' : '';
                   return `<span class="badge" style="background:#e8f5e9;color:#2e7d32;">💰 Abgerechnet</span>
                     ${versandt ? `<span class="text-xs" style="color:#2e7d32;">${versandt}</span>` : ''}
-                    <a href="rechnung.html" onclick="event.stopPropagation();" class="btn btn-sm btn-outline" style="font-size:0.7rem;">📄 Rechnung</a>`;
+                    <a href="rechnung.html?detail=${re.lexofficeId}" onclick="event.stopPropagation();" class="btn btn-sm btn-outline" style="font-size:0.7rem;">📄 Rechnung</a>`;
                 }
                 if (alleUnterschrieben) {
                   return `<span class="badge badge-success">\u2713 Unterschrieben</span>
