@@ -41,73 +41,10 @@ const RechnungModule = {
     const kunden = await DB.alleKunden();
     this._rechnungKunden = App.echteKunden(kunden);
 
-    const jetzt = new Date();
-    const aktuellerMonat = jetzt.getMonth() + 1;
-    const aktuellesJahr = jetzt.getFullYear();
-    const vormonat = aktuellerMonat === 1 ? 12 : aktuellerMonat - 1;
-
     container.innerHTML = `
-      <div class="card">
-        <p class="text-sm text-muted" style="margin-bottom:8px;">Rechnungen erstellen und versenden</p>
-
-        <div class="form-group">
-          <label for="rechnungKundeSearch">Kunde (betreute Person)</label>
-          <input type="text" id="rechnungKundeSearch" class="form-control" placeholder="Kunde suchen..."
-                 oninput="RechnungModule.kundenFiltern(this.value)"
-                 onfocus="RechnungModule.kundenFiltern(this.value)"
-                 autocomplete="off">
-          <div id="rechnungKundeResults" style="max-height:200px;overflow-y:auto;border:1px solid var(--gray-200);border-radius:8px;display:none;background:#fff;margin-top:2px;z-index:10;position:relative;"></div>
-          <select id="rechnungKunde" class="form-control" required style="display:none;">
-            <option value="">-- Kunde wählen --</option>
-            ${App.echteKunden(kunden).map(k => `<option value="${k.id}">${KundenModule.escapeHtml(App.kundenName(k))}${k.kundentyp === 'dienstleistung' ? ' (DL)' : ''}</option>`).join('')}
-          </select>
-        </div>
-
-        <div id="rechnungEmpfaengerWahl" class="hidden">
-          <div class="form-group">
-            <label>Rechnungsempfänger</label>
-            <select id="rechnungEmpfaenger" class="form-control">
-              <option value="kasse" id="optKasse">An Pflegekasse</option>
-              <option value="direkt">Direkt an Kunden</option>
-            </select>
-          </div>
-        </div>
-
-        <div id="rechnungKundeInfo" class="hidden">
-          <div id="rechnungBesonderheiten" class="hidden" style="padding: 8px; background: var(--warning-bg); border-radius: 8px; margin-bottom: 12px;">
-          </div>
-        </div>
-
-        <div class="form-row">
-          <div class="form-group">
-            <label for="rechnungMonat">Monat</label>
-            <select id="rechnungMonat" class="form-control">
-              ${Array.from({length: 12}, (_, i) => {
-                const m = i + 1;
-                return `<option value="${m}" ${m === vormonat ? 'selected' : ''}>${App.monatsName(m)}</option>`;
-              }).join('')}
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="rechnungJahr">Jahr</label>
-            <input type="number" id="rechnungJahr" class="form-control"
-                   value="${aktuellesJahr}" min="2024" max="2030">
-          </div>
-        </div>
-
-        <div class="btn-group" style="gap:8px;">
-          <button class="btn btn-primary btn-block" onclick="RechnungModule.rechnungErstellen()">
-            Rechnung in Lexoffice anlegen
-          </button>
-          <button class="btn btn-outline" onclick="RechnungModule.manuellErstellt()" style="white-space:nowrap;">
-            ✋ Manuell erstellt
-          </button>
-        </div>
-      </div>
-
-      <!-- Rechnungen aus Lexoffice -->
-      <div class="section-title mt-3">
-        <span class="icon">📊</span> Rechnungen
+      <!-- Rechnungsarchiv aus Lexoffice -->
+      <div class="section-title">
+        <span class="icon">📊</span> Rechnungsarchiv
         <span id="syncZeit" class="text-xs text-muted" style="margin-left:8px;"></span>
         <button class="btn btn-sm btn-outline" onclick="RechnungModule.lexofficeSync()" style="float:right;">
           🔄 Aktualisieren

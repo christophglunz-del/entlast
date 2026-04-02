@@ -144,21 +144,18 @@ const LeistungModule = {
               }
               ${(() => {
                 const re = rechnungMap[`${kid}-${mi}-${ji}`];
-                const link = re && re.lexofficeId ? `rechnung.html?detail=${re.lexofficeId}` : null;
-                const btn = (bg, label) => link
-                  ? `<a href="${link}" onclick="event.stopPropagation();" class="btn btn-sm" style="font-size:0.75rem;background:${bg};color:#fff;border:none;">${label}</a>`
-                  : `<span class="btn btn-sm" style="font-size:0.75rem;background:${bg};color:#fff;border:none;">${label}</span>`;
+                const btn = (bg, label, onclick) =>
+                  `<button onclick="event.stopPropagation(); ${onclick}" class="btn btn-sm" style="font-size:0.75rem;background:${bg};color:#fff;border:none;">${label}</button>`;
                 const labels = {fax:'📠 RE gefaxt', fax_warteschlange:'📠 Fax wird gesendet', brief:'✉️ RE Brief', uebergabe:'🤝 RE übergeben', serviceportal:'🌐 RE Portal', manuell:'✋ RE manuell'};
                 if (re && labels[re.versandArt]) {
                   const bg = re.versandArt === 'fax_warteschlange' ? '#2196f3' : '#2e7d32';
-                  return btn(bg, labels[re.versandArt]);
+                  const onclick = re.lexofficeId ? `LeistungModule.rechnungDetailAnzeigen('${re.lexofficeId}')` : '';
+                  return btn(bg, labels[re.versandArt], onclick);
                 }
                 if (re && re.lexofficeId) {
-                  return btn('#f59e0b', '💰 RE erstellt');
+                  return btn('#f59e0b', '💰 RE erstellt', `LeistungModule.rechnungDetailAnzeigen('${re.lexofficeId}')`);
                 }
-                return `<a href="rechnung.html?kunde=${kid}&monat=${mi}&jahr=${ji}" onclick="event.stopPropagation();"
-                  class="btn btn-sm" style="font-size:0.75rem;background:#dc2626;color:#fff;border:none;">
-                  💰 RE erstellen</a>`;
+                return btn('#dc2626', '💰 RE erstellen', `LeistungModule.rechnungErstellenOverlay(${kid}, ${mi}, ${ji})`);
               })()}
             </div>
           </div>
@@ -796,6 +793,580 @@ const LeistungModule = {
         }
       }
       App.toast('Als manuell markiert', 'success');
+      this.listeAnzeigen();
+    } catch (err) {
+      App.toast('Fehler: ' + err.message, 'error');
+    }
+  },
+
+  // =============================================
+  // Rechnungs-Overlay (direkt auf der Leistungsseite)
+  // =============================================
+
+  // Cache für Versandstatus (lexofficeId -> {art, datum})
+  _versandMap: {},
+  _alleRechnungen: [],
+
+  /**
+   * Overlay zum Erstellen einer Rechnung (ersetzt Navigation zu rechnung.html)
+   */
+  async rechnungErstellenOverlay(kundeId, monat, jahr) {
+    const overlay = document.getElementById('rechnungDetailOverlay');
+    const content = document.getElementById('rechnungDetailContent');
+    if (!overlay || !content) return;
+
+    overlay.classList.remove('hidden');
+    content.innerHTML = '<div class="card" style="background:white;text-align:center;"><div class="spinner"></div> Lade Daten...</div>';
+
+    try {
+      // Lexoffice initialisieren
+      if (typeof LexofficeAPI === 'undefined' || !LexofficeAPI.istKonfiguriert()) {
+        if (typeof LexofficeAPI !== 'undefined') await LexofficeAPI.init();
+        if (!LexofficeAPI || !LexofficeAPI.istKonfiguriert()) {
+          content.innerHTML = `<div class="card" style="background:white;"><p style="color:var(--danger);">Lexoffice API-Key fehlt</p><button class="btn btn-outline" onclick="LeistungModule.rechnungOverlaySchliessen()">Schließen</button></div>`;
+          return;
+        }
+      }
+
+      const kunde = await DB.kundeById(kundeId);
+      if (!kunde) { App.toast('Kunde nicht gefunden', 'error'); this.rechnungOverlaySchliessen(); return; }
+
+      // Leistungen laden
+      const leistungen = await DB.leistungenFuerMonat(monat, jahr);
+      const kundeLeistungen = leistungen.filter(l => l.kundeId === kundeId);
+      if (kundeLeistungen.length === 0) {
+        App.toast(`Keine Leistungen für ${App.monatsName(monat)} ${jahr}`, 'error');
+        this.rechnungOverlaySchliessen();
+        return;
+      }
+
+      let betrag = 0;
+      let gesamtStunden = 0;
+      kundeLeistungen.forEach(l => {
+        const stunden = App.stundenBerechnen(l.startzeit, l.endzeit);
+        gesamtStunden += stunden;
+        betrag += App.betragBerechnen(stunden);
+      });
+
+      // Variante bestimmen
+      const istPflegekunde = !kunde.kundentyp || kunde.kundentyp === 'pflege';
+      let variante = 'privat';
+      if (kunde.pflegekasse && istPflegekunde) {
+        variante = LexofficeAPI.varianteErmitteln(kunde);
+      }
+
+      const empfName = variante === 'privat' ? App.kundenName(kunde) : (kunde.pflegekasse || 'Pflegekasse');
+
+      // Empfänger-Auswahl bei Pflegekunden
+      const empfaengerWahl = (kunde.pflegekasse && istPflegekunde) ? `
+        <div class="form-group" style="margin-bottom:12px;">
+          <label>Rechnungsempfänger</label>
+          <select id="overlayEmpfaenger" class="form-control" onchange="LeistungModule._empfaengerOverlayGeaendert(this.value, ${kundeId})">
+            <option value="kasse">An ${this.escapeHtml(kunde.pflegekasse)}</option>
+            <option value="direkt">Direkt an Kunden</option>
+          </select>
+        </div>
+      ` : '<input type="hidden" id="overlayEmpfaenger" value="direkt">';
+
+      content.innerHTML = `
+        <div class="card" style="background:white;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <h3 style="margin:0;font-size:1.1rem;">Rechnung erstellen</h3>
+            <button class="btn btn-sm" onclick="LeistungModule.rechnungOverlaySchliessen()" style="font-size:1.3rem;background:none;border:none;">✕</button>
+          </div>
+
+          ${empfaengerWahl}
+
+          ${kunde.besonderheiten ? `<div style="padding:8px;background:var(--warning-bg);border-radius:8px;margin-bottom:12px;"><strong>⚠️</strong> ${this.escapeHtml(kunde.besonderheiten)}</div>` : ''}
+
+          <table style="width:100%;font-size:0.9rem;border-collapse:collapse;">
+            <tr><td style="padding:4px 8px;color:var(--gray-600);">Empfänger</td><td id="overlayEmpfName" style="padding:4px 8px;font-weight:600;">${empfName}</td></tr>
+            ${variante !== 'privat' ? `<tr><td style="padding:4px 8px;color:var(--gray-600);">Versicherte/r</td><td style="padding:4px 8px;">${App.kundenName(kunde)}</td></tr>` : ''}
+            <tr><td style="padding:4px 8px;color:var(--gray-600);">Variante</td><td id="overlayVariante" style="padding:4px 8px;">${variante === 'kasse' ? 'Pflegekasse (§45b)' : variante === 'lbv' ? 'LBV-Splitting' : 'Privatrechnung'}</td></tr>
+            <tr><td style="padding:4px 8px;color:var(--gray-600);">Zeitraum</td><td style="padding:4px 8px;">${App.monatsName(monat)} ${jahr}</td></tr>
+            <tr><td style="padding:4px 8px;color:var(--gray-600);">Leistungen</td><td style="padding:4px 8px;">${kundeLeistungen.length} Einträge, ${gesamtStunden.toFixed(1)} Stunden</td></tr>
+            <tr><td style="padding:4px 8px;color:var(--gray-600);">Stundensatz</td><td style="padding:4px 8px;">${((FIRMA || {}).stundensatz || 32.75).toFixed(2).replace('.', ',')} €</td></tr>
+          </table>
+
+          <div style="display:flex;justify-content:space-between;padding:12px 0;font-size:1.2rem;font-weight:700;border-top:2px solid var(--gray-200);margin-top:8px;">
+            <span>Betrag</span>
+            <span>${betrag.toFixed(2).replace('.', ',')} €</span>
+          </div>
+
+          <div class="btn-group mt-2" style="gap:8px;">
+            <button class="btn btn-primary btn-block" onclick="LeistungModule._rechnungAbsenden()">
+              In Lexoffice erstellen
+            </button>
+            <button class="btn btn-outline" onclick="LeistungModule._manuellErstelltOverlay()">
+              ✋ Manuell erstellt
+            </button>
+            <button class="btn btn-outline" onclick="LeistungModule.rechnungOverlaySchliessen()">
+              Abbrechen
+            </button>
+          </div>
+        </div>
+      `;
+
+      // Daten zwischenspeichern
+      this._pendingRechnung = { kundeId, monat, jahr, betrag, kunde, kundeLeistungen, variante };
+
+    } catch (err) {
+      console.error('Fehler:', err);
+      content.innerHTML = `<div class="card" style="background:white;"><p style="color:var(--danger);">Fehler: ${err.message}</p><button class="btn btn-outline" onclick="LeistungModule.rechnungOverlaySchliessen()">Schließen</button></div>`;
+    }
+  },
+
+  _empfaengerOverlayGeaendert(wert, kundeId) {
+    // Empfänger-Name und Variante im Overlay aktualisieren
+    const empfNameEl = document.getElementById('overlayEmpfName');
+    const varianteEl = document.getElementById('overlayVariante');
+    if (!this._pendingRechnung) return;
+    const kunde = this._pendingRechnung.kunde;
+    if (wert === 'kasse' && kunde.pflegekasse) {
+      if (empfNameEl) empfNameEl.textContent = kunde.pflegekasse;
+      this._pendingRechnung.variante = LexofficeAPI.varianteErmitteln(kunde);
+      if (varianteEl) varianteEl.textContent = this._pendingRechnung.variante === 'kasse' ? 'Pflegekasse (§45b)' : this._pendingRechnung.variante === 'lbv' ? 'LBV-Splitting' : 'Privatrechnung';
+    } else {
+      if (empfNameEl) empfNameEl.textContent = App.kundenName(kunde);
+      this._pendingRechnung.variante = 'privat';
+      if (varianteEl) varianteEl.textContent = 'Privatrechnung';
+    }
+  },
+
+  async _rechnungAbsenden() {
+    if (!this._pendingRechnung) return;
+    const { kundeId, monat, jahr } = this._pendingRechnung;
+    this._pendingRechnung = null;
+
+    const empfaenger = document.getElementById('overlayEmpfaenger')?.value || 'kasse';
+    const content = document.getElementById('rechnungDetailContent');
+    content.innerHTML = '<div class="card" style="background:white;text-align:center;"><div class="spinner"></div> Rechnung wird in Lexoffice erstellt...</div>';
+
+    try {
+      const ergebnis = await apiFetch('/lexoffice/rechnung-erstellen', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kunde_id: kundeId, monat, jahr, empfaenger }),
+      });
+
+      // Nach Erstellung: Versandoptionen anzeigen
+      const lexofficeId = ergebnis.lexoffice_id || ergebnis.lexofficeId;
+      if (lexofficeId) {
+        App.toast(`Rechnung erstellt: ${ergebnis.betrag.toFixed(2).replace('.', ',')} €`, 'success', 3000);
+        // Versandstatus laden und Detail-Overlay zeigen
+        await this._versandMapAktualisieren();
+        await this.rechnungDetailAnzeigen(lexofficeId);
+      } else {
+        App.toast(`Rechnung erstellt: ${ergebnis.betrag.toFixed(2).replace('.', ',')} €`, 'success', 5000);
+        this.rechnungOverlaySchliessen();
+      }
+      // Liste im Hintergrund aktualisieren
+      this.listeAnzeigen();
+    } catch (err) {
+      console.error('Lexoffice Fehler:', err);
+      content.innerHTML = `
+        <div class="card" style="background:white;">
+          <p style="color:var(--danger);">Fehler: ${err.message}</p>
+          <button class="btn btn-outline" onclick="LeistungModule.rechnungOverlaySchliessen()">Schließen</button>
+        </div>
+      `;
+    }
+  },
+
+  async _manuellErstelltOverlay() {
+    if (!this._pendingRechnung) return;
+    const { kundeId, monat, jahr } = this._pendingRechnung;
+
+    if (!await App.confirm('✋ Rechnung wurde in Lexoffice manuell erstellt?')) return;
+
+    const content = document.getElementById('rechnungDetailContent');
+    content.innerHTML = '<div class="card" style="background:white;text-align:center;"><div class="spinner"></div></div>';
+
+    try {
+      const rechnungen = await DB.alleRechnungen();
+      const existing = rechnungen.find(r => r.kundeId === kundeId && r.monat === monat && r.jahr === jahr);
+      if (existing) {
+        await apiFetch(`/rechnungen/${existing.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ versand_art: 'manuell', versand_datum: App.heute(), status: 'versendet' }),
+        });
+      } else {
+        await apiFetch('/rechnungen', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            kunde_id: kundeId, monat, jahr, status: 'versendet',
+            versand_art: 'manuell', versand_datum: App.heute(), typ: 'kasse',
+          }),
+        });
+        const neu = await DB.alleRechnungen();
+        const re = neu.find(r => r.kundeId === kundeId && r.monat === monat && r.jahr === jahr);
+        if (re) {
+          await apiFetch(`/rechnungen/${re.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ versand_art: 'manuell', versand_datum: App.heute(), status: 'versendet' }),
+          });
+        }
+      }
+      App.toast('Als manuell erstellt markiert', 'success');
+      this._pendingRechnung = null;
+      this.rechnungOverlaySchliessen();
+      this.listeAnzeigen();
+    } catch (err) {
+      App.toast('Fehler: ' + err.message, 'error');
+    }
+  },
+
+  /**
+   * Rechnungsdetail-Overlay (ersetzt Navigation zu rechnung.html?detail=LEXID)
+   */
+  async rechnungDetailAnzeigen(lexofficeId) {
+    const overlay = document.getElementById('rechnungDetailOverlay');
+    const content = document.getElementById('rechnungDetailContent');
+    if (!overlay || !content) return;
+
+    overlay.classList.remove('hidden');
+    content.innerHTML = '<div class="card" style="background:white;text-align:center;"><div class="spinner"></div> Lade Rechnungsdetails...</div>';
+
+    try {
+      if (typeof LexofficeAPI === 'undefined') { App.toast('Lexoffice-Modul nicht geladen', 'error'); return; }
+      if (!LexofficeAPI.istKonfiguriert()) await LexofficeAPI.init();
+
+      const rechnung = await LexofficeAPI.getInvoice(lexofficeId);
+
+      // Empfaenger
+      const addr = rechnung.address || {};
+      const empfaenger = addr.name || addr.contactId || 'Unbekannt';
+      const empfAdresse = [addr.street, addr.zip, addr.city].filter(Boolean).join(', ');
+
+      // Positionen
+      const positionen = rechnung.lineItems || [];
+
+      // Leistungszeitraum
+      const shipping = rechnung.shippingConditions || {};
+      const von = shipping.shippingDate ? new Date(shipping.shippingDate).toLocaleDateString('de-DE') : '';
+      const bis = shipping.shippingEndDate ? new Date(shipping.shippingEndDate).toLocaleDateString('de-DE') : '';
+      const zeitraum = von && bis ? `${von} – ${bis}` : von || '-';
+
+      const reDatum = rechnung.voucherDate ? new Date(rechnung.voucherDate).toLocaleDateString('de-DE') : '-';
+      const total = rechnung.totalPrice || {};
+      const betrag = total.totalNetAmount != null ? total.totalNetAmount.toFixed(2).replace('.', ',') : '-';
+
+      const lokale = await DB.alleRechnungen();
+      const viaApp = lokale.some(r => r.lexofficeInvoiceId === lexofficeId);
+
+      // Lokalen Kunden finden
+      const alleKunden = await DB.alleKunden();
+      const kontaktId = addr.contactId;
+      let lokalerKunde = alleKunden.find(k => k.lexofficeId === kontaktId);
+
+      // Versicherten-Person finden bei Kassenrechnungen
+      const versichertePerson = positionen.length > 0 ? positionen[0].name : null;
+      const istKassenrechnung = versichertePerson && versichertePerson !== 'Alltagshilfe';
+
+      // Versandstatus laden
+      await this._versandMapAktualisieren();
+
+      content.innerHTML = `
+        <div class="card" style="background:white;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <h3 style="margin:0;font-size:1.1rem;">Rechnungsdetail</h3>
+            <button class="btn btn-sm" onclick="LeistungModule.rechnungOverlaySchliessen()" style="font-size:1.3rem;background:none;border:none;">✕</button>
+          </div>
+
+          <table style="width:100%;font-size:0.9rem;border-collapse:collapse;">
+            <tr><td style="padding:4px 8px;color:var(--gray-600);">Empfänger</td><td style="padding:4px 8px;font-weight:600;">${empfaenger}</td></tr>
+            ${empfAdresse ? `<tr><td style="padding:4px 8px;color:var(--gray-600);">Adresse</td><td style="padding:4px 8px;">${empfAdresse}</td></tr>` : ''}
+            ${istKassenrechnung ? `<tr><td style="padding:4px 8px;color:var(--gray-600);">Versicherte/r</td><td style="padding:4px 8px;font-weight:500;">${versichertePerson}</td></tr>` : ''}
+            <tr><td style="padding:4px 8px;color:var(--gray-600);">Datum</td><td style="padding:4px 8px;">${reDatum}</td></tr>
+            <tr><td style="padding:4px 8px;color:var(--gray-600);">Zeitraum</td><td style="padding:4px 8px;">${zeitraum}</td></tr>
+            ${viaApp ? '<tr><td style="padding:4px 8px;color:var(--gray-600);">Erstellt</td><td style="padding:4px 8px;color:var(--primary);">via App</td></tr>' : ''}
+          </table>
+
+          <hr style="margin:12px 0;border:none;border-top:1px solid var(--gray-200);">
+
+          <div style="font-weight:600;margin-bottom:8px;">Positionen</div>
+          ${positionen.map(p => `
+            <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--gray-100);">
+              <div>
+                <div style="font-weight:500;">${p.name || '-'}</div>
+                ${p.description ? `<div class="text-sm text-muted">${p.description}</div>` : ''}
+              </div>
+              <div style="text-align:right;white-space:nowrap;">
+                <div>${p.quantity || '-'} ${p.unitName || ''}</div>
+                <div class="fw-bold">${p.lineItemAmount != null ? p.lineItemAmount.toFixed(2).replace('.', ',') + ' €' : ''}</div>
+              </div>
+            </div>
+          `).join('')}
+
+          <div style="display:flex;justify-content:space-between;padding:12px 0;font-size:1.1rem;font-weight:700;">
+            <span>Gesamt</span>
+            <span>${betrag} €</span>
+          </div>
+
+          ${rechnung.remark ? `<div style="padding:8px;background:var(--gray-100);border-radius:8px;font-size:0.85rem;margin-top:8px;">${rechnung.remark}</div>` : ''}
+        </div>
+
+        <div class="card" style="background:white;">
+          ${(() => {
+            const v = (this._versandMap || {})[lexofficeId];
+            if (v && v.art) {
+              const iconMap = {fax:'📠', fax_warteschlange:'📠', fax_fehler:'❌', brief:'✉️', uebergabe:'🤝', serviceportal:'🌐', manuell:'✋'};
+              const labelMap = {fax:'Per Fax zugestellt', fax_warteschlange:'Fax wird gesendet', fax_fehler:'Fax fehlgeschlagen', brief:'Per Brief gesendet', uebergabe:'Persönlich übergeben', serviceportal:'Über Serviceportal eingereicht', manuell:'Manuell erstellt und versendet'};
+              const icon = iconMap[v.art] || '✓';
+              const label = labelMap[v.art] || 'Versendet';
+              const boxColor = v.art === 'fax_warteschlange' ? '#e3f2fd;color:#1565c0' : v.art === 'fax_fehler' ? '#fce4ec;color:#c62828' : '#e8f5e9;color:#2e7d32';
+              const datum = v.datum ? ' am ' + App.formatDatum(v.datum) : '';
+              return `
+                <div style="padding:12px;background:${boxColor};border-radius:8px;margin-bottom:12px;display:flex;align-items:center;gap:8px;">
+                  <span style="font-size:1.5rem;">${icon}</span>
+                  <div><div style="font-weight:600;color:#2e7d32;">${label}${datum}</div></div>
+                </div>
+                <details style="margin-bottom:8px;">
+                  <summary style="cursor:pointer;font-size:0.85rem;color:var(--gray-500);">Erneut versenden...</summary>
+                  <div class="btn-group mt-1" style="flex-wrap:wrap;gap:8px;">`;
+            }
+            return '<div style="font-weight:600;margin-bottom:8px;">Versand</div><div class="btn-group" style="flex-wrap:wrap;gap:8px;">';
+          })()}
+            <button class="btn btn-sm btn-outline" onclick="LeistungModule._pdfLaden('${lexofficeId}', '${(empfaenger || '').replace(/'/g, '')}', '${rechnung.voucherNumber || ''}')">
+              📄 PDF laden
+            </button>
+            <button class="btn btn-sm btn-outline" onclick="LeistungModule._faxDetail('${lexofficeId}')">
+              📠 Fax
+            </button>
+            <button class="btn btn-sm btn-outline" onclick="LeistungModule._briefDetail('${lexofficeId}')">
+              ✉️ Brief
+            </button>
+            <button class="btn btn-sm btn-outline" onclick="LeistungModule._versandMarkieren('${lexofficeId}', 'uebergabe', '🤝 Als persönlich übergeben markieren?')">
+              🤝 Übergabe
+            </button>
+            <button class="btn btn-sm btn-outline" onclick="LeistungModule._versandMarkieren('${lexofficeId}', 'serviceportal', '🌐 Als über Serviceportal eingereicht markieren?')">
+              🌐 Serviceportal
+            </button>
+            <button class="btn btn-sm btn-outline" onclick="LeistungModule._versandMarkieren('${lexofficeId}', 'manuell', '✋ Als manuell erstellt und versendet markieren?')">
+              ✋ Manuell
+            </button>
+          </div>
+          ${(this._versandMap || {})[lexofficeId]?.art ? '</details>' : ''}
+        </div>
+      `;
+    } catch (err) {
+      console.error('Detail-Laden fehlgeschlagen:', err);
+      content.innerHTML = `
+        <div class="card" style="background:white;">
+          <p style="color:var(--danger);">Fehler: ${err.message}</p>
+          <button class="btn btn-sm btn-outline" onclick="LeistungModule.rechnungOverlaySchliessen()">Schließen</button>
+        </div>
+      `;
+    }
+  },
+
+  rechnungOverlaySchliessen() {
+    const overlay = document.getElementById('rechnungDetailOverlay');
+    if (overlay) overlay.classList.add('hidden');
+  },
+
+  /**
+   * Versandstatus aus lokaler DB laden
+   */
+  async _versandMapAktualisieren() {
+    const lokale = await DB.alleRechnungen();
+    this._versandMap = {};
+    for (const r of lokale) {
+      if (r.lexofficeId) {
+        this._versandMap[r.lexofficeId] = { art: r.versandArt, datum: r.versandDatum };
+      }
+    }
+  },
+
+  /**
+   * Lexoffice-Rechnungsdaten + lokalen Kunden laden
+   */
+  async _ladeRechnungUndKunde(lexofficeId) {
+    const rechnung = await LexofficeAPI.getInvoice(lexofficeId);
+    const kontaktId = rechnung.address?.contactId;
+    const alleKunden = await DB.alleKunden();
+    let kunde = alleKunden.find(k => k.lexofficeId === kontaktId);
+    if (!kunde || !kunde.pflegekasse) {
+      const supplement = rechnung.address?.supplement || '';
+      const posName = rechnung.lineItems?.[0]?.name || '';
+      const versMatch = supplement.match(/Vers\.?:\s*(.+)/i);
+      const versName = versMatch ? versMatch[1].trim() : posName;
+      if (versName) {
+        const found = alleKunden.find(k => {
+          const fullName = App.kundenName ? App.kundenName(k) : `${k.vorname || ''} ${k.name || ''}`.trim();
+          return fullName === versName || k.name === versName;
+        });
+        if (found) kunde = found;
+      }
+    }
+    const empfaenger = rechnung.address?.name || 'Unbekannt';
+    return { rechnung, kunde, empfaenger };
+  },
+
+  /**
+   * PDF von Lexoffice als Base64 laden
+   */
+  async _ladePdfBase64(lexofficeId) {
+    const dok = await LexofficeAPI.finalizeInvoice(lexofficeId);
+    if (!dok || !dok.documentFileId) throw new Error('PDF nicht verfügbar');
+    const pdfBlob = await LexofficeAPI.getInvoicePdf(dok.documentFileId);
+    const pdfBase64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result.split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(pdfBlob);
+    });
+    return { pdfBlob, pdfBase64 };
+  },
+
+  async _pdfLaden(lexofficeId, kontaktName, rechnungsNr) {
+    try {
+      App.toast('PDF wird geladen...', 'info');
+      const dok = await LexofficeAPI.finalizeInvoice(lexofficeId);
+      if (!dok || !dok.documentFileId) { App.toast('PDF nicht verfügbar', 'error'); return; }
+      const pdfBlob = await LexofficeAPI.getInvoicePdf(dok.documentFileId);
+      const pdfUrl = URL.createObjectURL(pdfBlob);
+      const name = (kontaktName || 'Rechnung').replace(/[^a-zA-ZäöüÄÖÜß0-9_-]/g, '_');
+      const nr = (rechnungsNr || '').replace(/[^a-zA-Z0-9-]/g, '');
+      const dateiname = nr ? `${nr}_${name}.pdf` : `Rechnung_${name}.pdf`;
+      const a = document.createElement('a');
+      a.href = pdfUrl;
+      a.download = dateiname;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(pdfUrl), 5000);
+    } catch (err) {
+      App.toast('PDF-Fehler: ' + err.message, 'error');
+    }
+  },
+
+  async _faxDetail(lexofficeId) {
+    try {
+      const { kunde, empfaenger } = await this._ladeRechnungUndKunde(lexofficeId);
+      let faxNr = kunde ? (kunde.faxKasse || kunde.pflegekasseFax || '') : '';
+      if (!faxNr && kunde && kunde.pflegekasse && window.PFLEGEKASSEN) {
+        const pk = PFLEGEKASSEN.find(k => k.name === kunde.pflegekasse);
+        if (pk && pk.fax) faxNr = pk.fax;
+      }
+
+      if (!SipgateAPI.istKonfiguriert()) await SipgateAPI.init();
+      if (!SipgateAPI.istKonfiguriert()) { App.toast('Sipgate nicht konfiguriert', 'error'); return; }
+
+      const faxNummer = faxNr ? SipgateAPI.faxNummerNormalisieren(faxNr) : '';
+      const hinweis = faxNummer
+        ? ''
+        : '<p style="color:var(--warning-600);font-size:0.85rem;margin:0 0 8px;">Keine Faxnummer hinterlegt — bitte manuell eingeben.</p>';
+
+      const content = document.getElementById('rechnungDetailContent');
+      content.innerHTML = `
+        <div class="card" style="background:white;">
+          <h3 style="margin:0 0 12px;">Fax senden</h3>
+          <table style="width:100%;font-size:0.9rem;">
+            <tr><td style="padding:4px 8px;color:var(--gray-600);">Empfänger</td><td style="padding:4px 8px;font-weight:600;">${empfaenger}</td></tr>
+          </table>
+          ${hinweis}
+          <div class="form-group" style="margin-top:8px;">
+            <label for="faxNummerInput">Faxnummer</label>
+            <input type="tel" id="faxNummerInput" class="form-control" value="${faxNummer}" placeholder="z.B. +492324 12345">
+          </div>
+          <div class="btn-group mt-2" style="gap:8px;">
+            <button class="btn btn-primary btn-block" onclick="LeistungModule._faxAbsenden('${lexofficeId}')">
+              📠 Jetzt faxen
+            </button>
+            <button class="btn btn-outline" onclick="LeistungModule.rechnungDetailAnzeigen('${lexofficeId}')">Zurück</button>
+          </div>
+        </div>
+      `;
+    } catch (err) {
+      App.toast('Fehler: ' + err.message, 'error');
+    }
+  },
+
+  async _faxAbsenden(lexofficeId) {
+    const faxInput = document.getElementById('faxNummerInput');
+    const faxNummer = faxInput ? faxInput.value.trim() : '';
+    if (!faxNummer) { App.toast('Bitte Faxnummer eingeben', 'error'); return; }
+
+    const content = document.getElementById('rechnungDetailContent');
+    content.innerHTML = '<div class="card" style="background:white;text-align:center;"><div class="spinner"></div> Fax wird gesendet...</div>';
+    try {
+      const result = await apiFetch('/lexoffice/fax-senden', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lexoffice_id: lexofficeId, fax_nummer: faxNummer }),
+      });
+      App.toast(result.message || 'Fax gesendet!', 'success');
+      await this._versandMapAktualisieren();
+      this.rechnungDetailAnzeigen(lexofficeId);
+      this.listeAnzeigen();
+    } catch (err) {
+      App.toast('Fax-Fehler: ' + err.message, 'error');
+      this.rechnungDetailAnzeigen(lexofficeId);
+    }
+  },
+
+  async _briefDetail(lexofficeId) {
+    try {
+      const { empfaenger } = await this._ladeRechnungUndKunde(lexofficeId);
+
+      if (typeof LetterXpressAPI !== 'undefined') {
+        if (!LetterXpressAPI.istKonfiguriert()) await LetterXpressAPI.init();
+        if (!LetterXpressAPI.istKonfiguriert()) { App.toast('LetterXpress nicht konfiguriert', 'error'); return; }
+      }
+
+      const content = document.getElementById('rechnungDetailContent');
+      content.innerHTML = `
+        <div class="card" style="background:white;">
+          <h3 style="margin:0 0 12px;">Brief senden</h3>
+          <table style="width:100%;font-size:0.9rem;">
+            <tr><td style="padding:4px 8px;color:var(--gray-600);">Empfänger</td><td style="padding:4px 8px;font-weight:600;">${empfaenger}</td></tr>
+            <tr><td style="padding:4px 8px;color:var(--gray-600);">Versand</td><td style="padding:4px 8px;">LetterXpress, s/w, national</td></tr>
+          </table>
+          <div class="btn-group mt-2" style="gap:8px;">
+            <button class="btn btn-primary btn-block" onclick="LeistungModule._briefAbsenden('${lexofficeId}')">
+              ✉️ Jetzt als Brief senden
+            </button>
+            <button class="btn btn-outline" onclick="LeistungModule.rechnungDetailAnzeigen('${lexofficeId}')">Zurück</button>
+          </div>
+        </div>
+      `;
+    } catch (err) {
+      App.toast('Fehler: ' + err.message, 'error');
+    }
+  },
+
+  async _briefAbsenden(lexofficeId) {
+    const content = document.getElementById('rechnungDetailContent');
+    content.innerHTML = '<div class="card" style="background:white;text-align:center;"><div class="spinner"></div> PDF wird geladen und als Brief gesendet...</div>';
+    try {
+      const { pdfBase64 } = await this._ladePdfBase64(lexofficeId);
+      await LetterXpressAPI.briefSenden(pdfBase64, { farbe: false, duplex: true, versandart: 'national' });
+      App.toast('Brief an LetterXpress übergeben!', 'success');
+      await this._versandMapAktualisieren();
+      this.rechnungDetailAnzeigen(lexofficeId);
+      this.listeAnzeigen();
+    } catch (err) {
+      App.toast('Brief-Fehler: ' + err.message, 'error');
+      this.rechnungDetailAnzeigen(lexofficeId);
+    }
+  },
+
+  async _versandMarkieren(lexofficeId, art, frage) {
+    if (!await App.confirm(frage)) return;
+    try {
+      const { kunde } = await this._ladeRechnungUndKunde(lexofficeId);
+      await apiFetch('/lexoffice/versand-markieren', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lexoffice_id: lexofficeId, versand_art: art, kunde_id: kunde ? kunde.id : null }),
+      });
+      App.toast('Status aktualisiert', 'success');
+      await this._versandMapAktualisieren();
+      this.rechnungDetailAnzeigen(lexofficeId);
       this.listeAnzeigen();
     } catch (err) {
       App.toast('Fehler: ' + err.message, 'error');
