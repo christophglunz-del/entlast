@@ -4,8 +4,9 @@ import json
 import sqlite3
 import httpx
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, date, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query
+from dateutil.rrule import rrulestr
 from app.auth import get_current_user, get_db
 from app.models import TerminCreate, TerminUpdate, TerminResponse
 
@@ -199,18 +200,47 @@ async def google_sync(
     ical_text = res.text
     neu = 0
     aktualisiert = 0
+    rrule_expanded = 0
+
+    # Zeitfenster fuer RRULE-Expansion: heute bis heute + 90 Tage
+    today = date.today()
+    horizon = today + timedelta(days=90)
+
+    # iCal-Zeilen entfalten (Continuation Lines: Zeile beginnt mit Space/Tab)
+    unfolded_lines = []
+    for raw_line in ical_text.split("\n"):
+        raw_line = raw_line.rstrip("\r")
+        if raw_line.startswith((" ", "\t")) and unfolded_lines:
+            unfolded_lines[-1] += raw_line[1:]
+        else:
+            unfolded_lines.append(raw_line)
+    ical_text_unfolded = "\n".join(unfolded_lines)
 
     # Einfacher iCal-Parser (VEVENT-Blöcke)
-    events = ical_text.split("BEGIN:VEVENT")
+    events = ical_text_unfolded.split("BEGIN:VEVENT")
     for event_block in events[1:]:  # Erstes Element ist Header
         lines = {}
+        raw_lines = []  # Alle Zeilen mit Parametern (fuer rrulestr)
+        exdates = []
         for line in event_block.split("\n"):
             line = line.strip()
+            if not line or line == "END:VEVENT":
+                continue
+            raw_lines.append(line)
             if ":" in line:
                 key, _, val = line.partition(":")
-                # Entferne Parameter wie DTSTART;VALUE=DATE
-                key = key.split(";")[0]
-                lines[key] = val
+                base_key = key.split(";")[0]
+                if base_key == "EXDATE":
+                    # EXDATE kann mehrere Daten enthalten (kommasepariert)
+                    for d in val.split(","):
+                        d = d.strip()
+                        if d:
+                            exdates.append(d[:8])  # Nur YYYYMMDD
+                else:
+                    lines[base_key] = val
+                    # Bewahre die volle Zeile mit Parametern fuer DTSTART/DTEND
+                    if base_key in ("DTSTART", "DTEND"):
+                        lines[f"_{base_key}_full"] = line
 
         uid = lines.get("UID", "")
         summary = lines.get("SUMMARY", "").replace("\\,", ",").replace("\\n", " ")
@@ -220,13 +250,13 @@ async def google_sync(
         # Datum parsen
         dtstart = lines.get("DTSTART", "")
         dtend = lines.get("DTEND", "")
+
         # Ganztägig: 20260407 oder mit Zeit: 20260407T090000Z
-        if len(dtstart) == 8:
-            datum = f"{dtstart[:4]}-{dtstart[4:6]}-{dtstart[6:8]}"
+        is_allday = len(dtstart) == 8
+        if is_allday:
             startzeit = None
             endzeit = None
         elif "T" in dtstart:
-            datum = f"{dtstart[:4]}-{dtstart[4:6]}-{dtstart[6:8]}"
             startzeit = f"{dtstart[9:11]}:{dtstart[11:13]}"
             endzeit = f"{dtend[9:11]}:{dtend[11:13]}" if dtend and "T" in dtend else None
         else:
@@ -234,25 +264,93 @@ async def google_sync(
 
         location = lines.get("LOCATION", "").replace("\\,", ",")
         description = lines.get("DESCRIPTION", "").replace("\\n", "\n").replace("\\,", ",")
+        notiz = description or location or None
 
-        # Prüfe ob Termin schon existiert (über google_uid)
-        existing = db.execute(
-            "SELECT id FROM termine WHERE google_uid = ?", (uid,)
-        ).fetchone()
+        rrule_val = lines.get("RRULE", "")
 
-        if existing:
-            db.execute(
-                "UPDATE termine SET titel=?, datum=?, von=?, bis=?, notiz=? WHERE id=?",
-                (summary, datum, startzeit, endzeit, description or location or None, existing["id"]),
-            )
-            aktualisiert += 1
+        if rrule_val:
+            # --- Wiederkehrender Termin: expandieren ---
+            # FREQ=YEARLY ignorieren (Geburtstage etc. sind Einzeltermine)
+            if "FREQ=YEARLY" in rrule_val:
+                continue
+
+            try:
+                # rrulestr braucht die DTSTART-Zeile + RRULE-Zeile
+                dtstart_line = lines.get("_DTSTART_full", f"DTSTART:{dtstart}")
+                rrule_text = f"{dtstart_line}\nRRULE:{rrule_val}"
+
+                # EXDATE als Set von date-Objekten
+                exdate_set = set()
+                for exd in exdates:
+                    try:
+                        exdate_set.add(date(int(exd[:4]), int(exd[4:6]), int(exd[6:8])))
+                    except (ValueError, IndexError):
+                        pass
+
+                rule = rrulestr(rrule_text, ignoretz=True)
+
+                # Expansion: alle Vorkommen von heute bis heute + 90 Tage
+                window_start = datetime(today.year, today.month, today.day)
+                window_end = datetime(horizon.year, horizon.month, horizon.day, 23, 59, 59)
+                occurrences = rule.between(window_start, window_end, inc=True)
+
+                for occ in occurrences:
+                    occ_date = occ.date()
+
+                    # EXDATE pruefen
+                    if occ_date in exdate_set:
+                        continue
+
+                    datum = occ_date.isoformat()
+                    occurrence_uid = f"{uid}_{occ_date.strftime('%Y%m%d')}"
+
+                    existing = db.execute(
+                        "SELECT id FROM termine WHERE google_uid = ?", (occurrence_uid,)
+                    ).fetchone()
+
+                    if existing:
+                        db.execute(
+                            "UPDATE termine SET titel=?, datum=?, von=?, bis=?, notiz=? WHERE id=?",
+                            (summary, datum, startzeit, endzeit, notiz, existing["id"]),
+                        )
+                        aktualisiert += 1
+                    else:
+                        db.execute(
+                            "INSERT INTO termine (titel, datum, von, bis, notiz, google_uid) VALUES (?, ?, ?, ?, ?, ?)",
+                            (summary, datum, startzeit, endzeit, notiz, occurrence_uid),
+                        )
+                        neu += 1
+                    rrule_expanded += 1
+
+            except Exception as e:
+                logger.warning(f"RRULE-Expansion fehlgeschlagen fuer UID={uid}: {e}")
+                continue
         else:
-            db.execute(
-                "INSERT INTO termine (titel, datum, von, bis, notiz, google_uid) VALUES (?, ?, ?, ?, ?, ?)",
-                (summary, datum, startzeit, endzeit, description or location or None, uid),
-            )
-            neu += 1
+            # --- Einzeltermin (wie bisher) ---
+            datum = f"{dtstart[:4]}-{dtstart[4:6]}-{dtstart[6:8]}"
+
+            existing = db.execute(
+                "SELECT id FROM termine WHERE google_uid = ?", (uid,)
+            ).fetchone()
+
+            if existing:
+                db.execute(
+                    "UPDATE termine SET titel=?, datum=?, von=?, bis=?, notiz=? WHERE id=?",
+                    (summary, datum, startzeit, endzeit, notiz, existing["id"]),
+                )
+                aktualisiert += 1
+            else:
+                db.execute(
+                    "INSERT INTO termine (titel, datum, von, bis, notiz, google_uid) VALUES (?, ?, ?, ?, ?, ?)",
+                    (summary, datum, startzeit, endzeit, notiz, uid),
+                )
+                neu += 1
 
     db.commit()
-    logger.info(f"Google-Sync: {neu} neu, {aktualisiert} aktualisiert")
-    return {"message": f"Google-Sync: {neu} neu, {aktualisiert} aktualisiert", "neu": neu, "aktualisiert": aktualisiert}
+    logger.info(f"Google-Sync: {neu} neu, {aktualisiert} aktualisiert, {rrule_expanded} aus Wiederholungen")
+    return {
+        "message": f"Google-Sync: {neu} neu, {aktualisiert} aktualisiert, {rrule_expanded} aus Wiederholungen",
+        "neu": neu,
+        "aktualisiert": aktualisiert,
+        "rrule_expanded": rrule_expanded,
+    }
