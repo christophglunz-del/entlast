@@ -89,6 +89,22 @@ const FahrtenModule = {
       });
 
       if (eindeutig.length > 0) {
+        // Tour-Button nur anzeigen wenn >= 2 nicht-erfasste Kunden
+        const nichtErfasst = eindeutig.filter(item => !item.bereitsErfasst);
+        let tourButtonHtml = '';
+        if (nichtErfasst.length >= 2) {
+          const kundenNamen = nichtErfasst.map(item => App.kundenName(item.kunde).split(',')[0].trim()).join(', ');
+          tourButtonHtml = `
+            <div style="margin-bottom:8px;">
+              <button class="btn btn-primary" style="width:100%;padding:10px 12px;font-size:0.95rem;"
+                      onclick="FahrtenModule.tagestourErstellen()">
+                🚗 Tagestour: ${nichtErfasst.length} Kunden
+              </button>
+              <div class="text-xs text-muted" style="margin-top:4px;text-align:center;">${KundenModule.escapeHtml(kundenNamen)}</div>
+            </div>
+            <hr style="border:none;border-top:1px solid #90caf9;margin:8px 0;">`;
+        }
+
         const eintraege = eindeutig.map(item => {
           const btnDisabled = item.bereitsErfasst ? 'disabled style="opacity:0.5;"' : '';
           const btnLabel = item.bereitsErfasst ? '✓ erfasst' : '→ Fahrt';
@@ -106,6 +122,7 @@ const FahrtenModule = {
         heutigeTermineHtml = `
           <div class="card" style="background:#e3f2fd;">
             <div style="font-weight:600;margin-bottom:8px;">📅 Heutige Kunden</div>
+            ${tourButtonHtml}
             ${eintraege}
           </div>`;
       }
@@ -800,6 +817,174 @@ const FahrtenModule = {
       // Route direkt berechnen
       this.routeBerechnen();
     }, 100);
+  },
+
+  // ===== TAGESTOUR =====
+
+  async tagestourErstellen() {
+    App.toast('Tagestour wird vorbereitet...', 'info');
+
+    try {
+      const heute = App.heute();
+      const [termine, alleKunden] = await Promise.all([
+        DB.termineFuerDatum(heute),
+        DB.alleKunden()
+      ]);
+      const kundenMap = {};
+      alleKunden.forEach(k => { kundenMap[k.id] = k; });
+
+      // Heutige Fahrten zum Abgleich (bereits erfasste ausschliessen)
+      const heutigeFahrten = await DB.fahrtenFuerWoche(App.localDateStr(App.getMontag(new Date())));
+      const bereitsErfassteZiele = new Set();
+      heutigeFahrten.filter(f => f.datum === heute).forEach(f => {
+        (f.zielAdressen || []).forEach(z => bereitsErfassteZiele.add(z.toLowerCase().trim()));
+      });
+
+      // Termine mit Kunde + Adresse, sortiert nach Uhrzeit
+      const terminMitKunde = termine
+        .filter(t => t.kundeId && kundenMap[t.kundeId])
+        .map(t => {
+          const kunde = kundenMap[t.kundeId];
+          const adresse = [kunde.strasse, kunde.plz, kunde.ort].filter(Boolean).join(', ');
+          if (!adresse) return null;
+          const bereitsErfasst = bereitsErfassteZiele.has(adresse.toLowerCase().trim());
+          return { termin: t, kunde, adresse, bereitsErfasst };
+        })
+        .filter(item => item && !item.bereitsErfasst);
+
+      // Deduplizieren nach Kunde
+      const gesehen = new Set();
+      const eindeutig = terminMitKunde.filter(item => {
+        if (gesehen.has(item.kunde.id)) return false;
+        gesehen.add(item.kunde.id);
+        return true;
+      });
+
+      // Sortiert nach Termin-Uhrzeit (zeit Feld oder startzeit)
+      eindeutig.sort((a, b) => {
+        const zeitA = a.termin.zeit || a.termin.startzeit || '00:00';
+        const zeitB = b.termin.zeit || b.termin.startzeit || '00:00';
+        return zeitA.localeCompare(zeitB);
+      });
+
+      if (eindeutig.length < 2) {
+        App.toast('Mindestens 2 Kunden-Termine noetig', 'info');
+        return;
+      }
+
+      const startAdresse = (FIRMA || {}).startAdresse || 'Kreisstraße 12, 45525 Hattingen';
+      const kundenNamen = eindeutig.map(item => App.kundenName(item.kunde).split(',')[0].trim());
+      const notizText = 'Tagestour: ' + kundenNamen.join(' → ');
+
+      // Alle Adressen fuer die Tour: Firma → Kunde1 → Kunde2 → ... → Firma
+      const tourAdressen = [startAdresse, ...eindeutig.map(item => item.adresse), startAdresse];
+
+      // Kassen rausfiltern fuer das Formular-Dropdown
+      const kassenKw = ['aok','barmer','dak','techniker','knappschaft','bkk','novitas','energie','lbv','landesamt','krankenkasse','ersatzkasse','pflegekasse'];
+      const echteKunden = alleKunden.filter(k => !kassenKw.some(kw => (k.name||'').toLowerCase().includes(kw)) && k.kundentyp !== 'inaktiv');
+
+      const container = document.getElementById('fahrtenContent');
+
+      // Ziel-Eintraege vorausgefuellt rendern
+      const zieleHtml = eindeutig.map(item => {
+        const kundenOptions = echteKunden.map(k => {
+          const adresse = [k.strasse, k.plz, k.ort].filter(Boolean).join(', ');
+          const selected = k.id === item.kunde.id ? ' selected' : '';
+          return `<option value="${k.id}" data-adresse="${KundenModule.escapeHtml(adresse)}"${selected}>${KundenModule.escapeHtml(App.kundenName(k))}${adresse ? ' (' + KundenModule.escapeHtml(k.ort || '') + ')' : ''}</option>`;
+        }).join('');
+
+        return `
+          <div class="ziel-entry mb-1">
+            <input type="text" class="form-control ziel-suche" value="${KundenModule.escapeHtml(App.kundenName(item.kunde))}" placeholder="Ziel über Kunden suchen..." oninput="FahrtenModule.zielFiltern(this)" onfocus="FahrtenModule.zielFiltern(this)" style="margin-bottom: 4px;">
+            <select class="form-control ziel-kunde" onchange="FahrtenModule.kundeGewaehlt(this)" size="1" style="margin-bottom: 4px;">
+              <option value="">-- Ziel wählen --</option>
+              ${kundenOptions}
+            </select>
+            <input type="text" class="form-control ziel-adresse" value="${KundenModule.escapeHtml(item.adresse)}" placeholder="Adresse">
+          </div>`;
+      }).join('');
+
+      container.innerHTML = `
+        <div class="card">
+          <h3 class="card-title mb-2">🚗 Tagestour - ${App.wochentagName(heute)}, ${App.formatDatum(heute)}</h3>
+          <div class="text-sm text-muted mb-2">${KundenModule.escapeHtml(notizText)}</div>
+
+          <div class="form-group">
+            <label>Start</label>
+            <input type="text" id="fahrtStart" class="form-control"
+                   value="${KundenModule.escapeHtml(startAdresse)}" placeholder="Startadresse eingeben">
+          </div>
+
+          <div class="form-group">
+            <label>Ziele (${eindeutig.length} Kunden + Rückfahrt)</label>
+            <div id="zieleListe">
+              ${zieleHtml}
+            </div>
+            <button type="button" class="btn btn-sm btn-secondary mt-1" onclick="FahrtenModule.zielHinzufuegen()">
+              + Weiteres Ziel
+            </button>
+          </div>
+
+          <div class="form-group">
+            <label for="fahrtNotiz">Notiz</label>
+            <input type="text" id="fahrtNotiz" class="form-control" value="${KundenModule.escapeHtml(notizText)}">
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="fahrtKm">Kilometer</label>
+              <input type="number" id="fahrtKm" class="form-control" step="0.1" min="0"
+                     placeholder="wird berechnet..." oninput="FahrtenModule.kmAktualisieren()">
+            </div>
+            <div class="form-group">
+              <label>Betrag</label>
+              <div id="fahrtBetrag" class="form-control" style="background: var(--gray-100); display: flex; align-items: center;">
+                0,00 &euro;
+              </div>
+            </div>
+          </div>
+
+          <div class="btn-group mb-2">
+            <button type="button" class="btn btn-sm btn-outline" onclick="FahrtenModule.routeBerechnen()">
+              🗺️ Route berechnen &amp; km ermitteln
+            </button>
+          </div>
+
+          <div class="map-container" style="height: 250px;">
+            <div id="routeMap" style="height: 100%; width: 100%;"></div>
+          </div>
+        </div>
+
+        <div class="btn-group mt-2">
+          <button class="btn btn-primary btn-block" onclick="FahrtenModule.fahrtSpeichern('${heute}')">
+            Speichern
+          </button>
+          <button class="btn btn-secondary" onclick="FahrtenModule.wocheAnzeigen()">
+            Abbrechen
+          </button>
+        </div>
+      `;
+
+      // Karte initialisieren und Route automatisch berechnen
+      setTimeout(() => {
+        if (this.map) this.map.remove();
+        this.map = L.map('routeMap').setView([51.3993, 7.1859], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; OpenStreetMap', maxZoom: 19
+        }).addTo(this.map);
+
+        // Autocomplete
+        this.setupAutocomplete(document.getElementById('fahrtStart'));
+        document.querySelectorAll('.ziel-adresse').forEach(el => this.setupAutocomplete(el));
+
+        // Route direkt berechnen
+        this.routeBerechnen();
+      }, 100);
+
+    } catch (err) {
+      console.error('Tagestour-Fehler:', err);
+      App.toast('Fehler bei Tagestour-Erstellung', 'error');
+    }
   },
 
   // Ziel-Eingabe: Suche + Dropdown + Freitext
