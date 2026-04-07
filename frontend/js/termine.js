@@ -144,7 +144,7 @@ const TermineModule = {
                       return `
                         <div class="calendar-event" style="border-left-color: ${farbe}; background: ${farbe}15;"
                              onclick="event.stopPropagation(); TermineModule.terminBearbeiten(${t.id})">
-                          <div class="event-title" style="color: ${farbe};">${kunde ? (kunde.vorname || kunde.name.split(' ')[0]) : 'Termin'}${unterschriftBadge}</div>
+                          <div class="event-title" style="color: ${farbe};">${kunde ? App.kundenName(kunde) : (t.titel || 'Termin')}${unterschriftBadge}</div>
                           <div class="event-time">${App.formatZeit(t.startzeit)}-${App.formatZeit(t.endzeit)}</div>
                         </div>
                       `;
@@ -175,7 +175,7 @@ const TermineModule = {
                   ${kunde ? App.initialen(kunde.name, kunde.vorname) : '?'}
                 </div>
                 <div class="item-content">
-                  <div class="item-title">${t.titel || (kunde ? App.kundenName(kunde) : 'Termin')}</div>
+                  <div class="item-title">${kunde ? App.kundenName(kunde) : (t.titel || 'Termin')}</div>
                   <div class="item-subtitle">
                     ${App.wochentagKurz(displayDatum)} ${App.formatDatum(displayDatum)} |
                     ${App.formatZeit(t.startzeit)} - ${App.formatZeit(t.endzeit)}
