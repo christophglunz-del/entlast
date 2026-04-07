@@ -282,7 +282,7 @@ class TerminUpdate(BaseModel):
 
 class TerminResponse(BaseModel):
     id: int
-    kunde_id: int
+    kunde_id: int | None = None
     datum: str
     von: str | None = None
     bis: str | None = None
