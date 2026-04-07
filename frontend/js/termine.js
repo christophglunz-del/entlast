@@ -130,16 +130,17 @@ const TermineModule = {
               <div class="time-slot" style="font-weight: 600;">${zeit}</div>
               ${tage.map(tag => {
                 const datumStr = App.localDateStr(tag);
+                const istFeiertag = wochenTermine.some(te => (te._displayDatum || te.datum) === datumStr && (te.notiz || '').toLowerCase().includes('feiertag'));
                 const slotTermine = wochenTermine.filter(t => {
                   const tDatum = t._displayDatum || t.datum;
                   const tStunde = parseInt(t.startzeit);
                   return tDatum === datumStr && tStunde === stunde;
                 });
                 return `
-                  <div class="time-slot" onclick="TermineModule.neuerTermin('${datumStr}', '${zeit}')">
+                  <div class="time-slot" style="${istFeiertag ? 'background:#fef2f2;opacity:0.5;' : ''}" onclick="TermineModule.neuerTermin('${datumStr}', '${zeit}')">
                     ${slotTermine.map(t => {
                       const kunde = kundenMap[t.kundeId];
-                      const farbe = this.kundenFarben[t.kundeId] || '#E91E7B';
+                      const farbe = istFeiertag ? '#999' : (this.kundenFarben[t.kundeId] || '#E91E7B');
                       const unterschriftBadge = TermineModule.istLetzterImMonat(t, datumStr) ? ' <span style="background:#ea580c;color:#fff;font-size:0.6rem;padding:1px 3px;border-radius:3px;white-space:nowrap;">\u270D\uFE0F Unterschrift</span>' : '';
                       return `
                         <div class="calendar-event" style="border-left-color: ${farbe}; background: ${farbe}15;"
@@ -167,10 +168,11 @@ const TermineModule = {
             return dA.localeCompare(dB) || a.startzeit.localeCompare(b.startzeit);
           }).map(t => {
             const kunde = kundenMap[t.kundeId];
-            const farbe = this.kundenFarben[t.kundeId] || '#E91E7B';
+            const istFeiertagTermin = (t.notiz || '').toLowerCase().includes('feiertag');
+            const farbe = istFeiertagTermin ? '#999' : (this.kundenFarben[t.kundeId] || '#E91E7B');
             const displayDatum = t._displayDatum || t.datum;
             return `
-              <div class="list-item" onclick="TermineModule.terminBearbeiten(${t.id})">
+              <div class="list-item" style="${istFeiertagTermin ? 'opacity:0.4;' : ''}" onclick="TermineModule.terminBearbeiten(${t.id})">
                 <div class="item-avatar" style="background: ${farbe}20; color: ${farbe};">
                   ${kunde ? App.initialen(kunde.name, kunde.vorname) : '?'}
                 </div>

@@ -202,9 +202,9 @@ async def google_sync(
     aktualisiert = 0
     rrule_expanded = 0
 
-    # Zeitfenster fuer RRULE-Expansion: heute bis heute + 90 Tage
-    today = date.today()
-    horizon = today + timedelta(days=90)
+    # Zeitfenster fuer RRULE-Expansion: ab 01.04.2026 (oder heute falls früher) bis +90 Tage
+    today = min(date.today(), date(2026, 4, 1))
+    horizon = date.today() + timedelta(days=90)
 
     # iCal-Zeilen entfalten (Continuation Lines: Zeile beginnt mit Space/Tab)
     unfolded_lines = []
