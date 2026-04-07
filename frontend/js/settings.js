@@ -26,6 +26,9 @@ const SettingsModule = {
     const letterxpressUserOk = await DB.settingKonfiguriert('letterxpress_user');
     const letterxpressKeyOk = await DB.settingKonfiguriert('letterxpress_key');
 
+    // Google Kalender URL
+    const gcalUrl = await DB.settingLesen('gcal_ical_url');
+
     // Statistiken
     const stats = await DB.statistiken();
 
@@ -175,7 +178,22 @@ const SettingsModule = {
         </div>
       </div>
 
-      <div id="gcalSettingsPlaceholder"></div>
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Google Kalender importieren</span>
+          <span class="card-icon pink">📅</span>
+        </div>
+        <p class="text-sm text-muted">Google-Termine in entlast.de anzeigen. Die iCal-URL finden Sie in den Google-Kalender-Einstellungen unter "Adresse im iCal-Format" (geheime Adresse).</p>
+        <div class="form-group mt-1">
+          <label>Google iCal-URL</label>
+          <div style="display:flex;gap:8px;">
+            <input type="text" id="settGcalUrl" class="form-control" placeholder="https://calendar.google.com/calendar/ical/...basic.ics" style="font-size:0.8rem;"
+                   value="${gcalUrl || ''}">
+            <button class="btn btn-sm btn-primary" onclick="SettingsModule.gcalUrlSpeichern()">Speichern</button>
+          </div>
+          <div id="gcalSyncStatus" class="form-hint mt-1"></div>
+        </div>
+      </div>
 
       <!-- Datensicherung -->
       <div class="card">
@@ -288,6 +306,27 @@ const SettingsModule = {
       editDiv.style.display = 'none';
       const input = editDiv.querySelector('input');
       if (input) input.value = '';
+    }
+  },
+
+  async gcalUrlSpeichern() {
+    try {
+      const url = (document.getElementById('settGcalUrl')?.value || '').trim();
+      if (url && !url.includes('calendar.google.com') && !url.endsWith('.ics')) {
+        App.toast('Bitte eine gültige Google iCal-URL eingeben', 'error');
+        return;
+      }
+      await DB.settingSpeichern('gcal_ical_url', url);
+      const status = document.getElementById('gcalSyncStatus');
+      if (url) {
+        App.toast('Google Kalender-URL gespeichert', 'success');
+        if (status) status.innerHTML = '✓ URL gespeichert — Termine werden beim nächsten Sync importiert';
+      } else {
+        App.toast('Google Kalender-URL entfernt', 'info');
+        if (status) status.innerHTML = '';
+      }
+    } catch (err) {
+      App.toast('Fehler: ' + err.message, 'error');
     }
   },
 

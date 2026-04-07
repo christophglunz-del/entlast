@@ -1,11 +1,15 @@
-"""Router: Termine-CRUD."""
+"""Router: Termine-CRUD + Google-Kalender-Import."""
 
 import json
 import sqlite3
+import httpx
+import logging
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query
 from app.auth import get_current_user, get_db
 from app.models import TerminCreate, TerminUpdate, TerminResponse
+
+logger = logging.getLogger("entlast.termine")
 
 router = APIRouter(prefix="/termine", tags=["termine"])
 
@@ -174,3 +178,81 @@ async def delete_termin(
     db.execute("DELETE FROM termine WHERE id = ?", (termin_id,))
     db.commit()
     return {"ok": True}
+
+
+@router.post("/google-sync")
+async def google_sync(
+    user: dict = Depends(get_current_user),
+    db: sqlite3.Connection = Depends(get_db),
+):
+    """Google-Kalender via iCal-URL importieren."""
+    url_row = db.execute("SELECT value FROM settings WHERE key = 'gcal_ical_url'").fetchone()
+    url = url_row["value"] if url_row else None
+    if not url:
+        raise HTTPException(400, "Keine Google Kalender-URL konfiguriert (Einstellungen)")
+
+    async with httpx.AsyncClient(timeout=30) as client:
+        res = await client.get(url)
+    if res.status_code != 200:
+        raise HTTPException(502, f"Google Kalender nicht erreichbar: HTTP {res.status_code}")
+
+    ical_text = res.text
+    neu = 0
+    aktualisiert = 0
+
+    # Einfacher iCal-Parser (VEVENT-Blöcke)
+    events = ical_text.split("BEGIN:VEVENT")
+    for event_block in events[1:]:  # Erstes Element ist Header
+        lines = {}
+        for line in event_block.split("\n"):
+            line = line.strip()
+            if ":" in line:
+                key, _, val = line.partition(":")
+                # Entferne Parameter wie DTSTART;VALUE=DATE
+                key = key.split(";")[0]
+                lines[key] = val
+
+        uid = lines.get("UID", "")
+        summary = lines.get("SUMMARY", "").replace("\\,", ",").replace("\\n", " ")
+        if not summary:
+            continue
+
+        # Datum parsen
+        dtstart = lines.get("DTSTART", "")
+        dtend = lines.get("DTEND", "")
+        # Ganztägig: 20260407 oder mit Zeit: 20260407T090000Z
+        if len(dtstart) == 8:
+            datum = f"{dtstart[:4]}-{dtstart[4:6]}-{dtstart[6:8]}"
+            startzeit = None
+            endzeit = None
+        elif "T" in dtstart:
+            datum = f"{dtstart[:4]}-{dtstart[4:6]}-{dtstart[6:8]}"
+            startzeit = f"{dtstart[9:11]}:{dtstart[11:13]}"
+            endzeit = f"{dtend[9:11]}:{dtend[11:13]}" if dtend and "T" in dtend else None
+        else:
+            continue
+
+        location = lines.get("LOCATION", "").replace("\\,", ",")
+        description = lines.get("DESCRIPTION", "").replace("\\n", "\n").replace("\\,", ",")
+
+        # Prüfe ob Termin schon existiert (über google_uid)
+        existing = db.execute(
+            "SELECT id FROM termine WHERE google_uid = ?", (uid,)
+        ).fetchone()
+
+        if existing:
+            db.execute(
+                "UPDATE termine SET titel=?, datum=?, startzeit=?, endzeit=?, notizen=? WHERE id=?",
+                (summary, datum, startzeit, endzeit, description or location or None, existing["id"]),
+            )
+            aktualisiert += 1
+        else:
+            db.execute(
+                "INSERT INTO termine (titel, datum, startzeit, endzeit, notizen, google_uid) VALUES (?, ?, ?, ?, ?, ?)",
+                (summary, datum, startzeit, endzeit, description or location or None, uid),
+            )
+            neu += 1
+
+    db.commit()
+    logger.info(f"Google-Sync: {neu} neu, {aktualisiert} aktualisiert")
+    return {"message": f"Google-Sync: {neu} neu, {aktualisiert} aktualisiert", "neu": neu, "aktualisiert": aktualisiert}
