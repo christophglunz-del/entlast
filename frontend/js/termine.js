@@ -146,10 +146,10 @@ const TermineModule = {
                           <div style="display:flex;gap:2px;margin-top:2px;">
                             <a href="leistung.html?kundeId=${t.kundeId}&datum=${datumStr}&von=${t.startzeit || ''}&bis=${t.endzeit || ''}"
                                onclick="event.stopPropagation();"
-                               style="font-size:0.55rem;background:${farbe};color:#fff;padding:1px 4px;border-radius:3px;text-decoration:none;">→L</a>
+                               style="font-size:0.7rem;background:${farbe};color:#fff;padding:4px 8px;border-radius:4px;text-decoration:none;min-height:28px;display:inline-flex;align-items:center;">→L</a>
                             <a href="fahrten.html?kundeId=${t.kundeId}"
                                onclick="event.stopPropagation();"
-                               style="font-size:0.55rem;background:#666;color:#fff;padding:1px 4px;border-radius:3px;text-decoration:none;">→km</a>
+                               style="font-size:0.7rem;background:#666;color:#fff;padding:4px 8px;border-radius:4px;text-decoration:none;min-height:28px;display:inline-flex;align-items:center;">→km</a>
                           </div>` : '';
                       return `
                         <div class="calendar-event" style="border-left-color: ${farbe}; background: ${farbe}15;"
