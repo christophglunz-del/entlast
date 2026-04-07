@@ -115,8 +115,11 @@ const TermineModule = {
         <div class="week-header">
           <div>Zeit</div>
           ${tage.map(t => {
-            const istHeute = t.toISOString().split('T')[0] === App.heute();
-            return `<div style="${istHeute ? 'background: var(--primary-dark);' : ''}">${App.wochentagKurz(t.toISOString())}<br><small>${t.getDate()}.${t.getMonth()+1}.</small></div>`;
+            const tagDatum = App.localDateStr(t);
+            const istHeute = tagDatum === App.heute();
+            const feiertag = wochenTermine.find(te => (te._displayDatum || te.datum) === tagDatum && (te.notiz || '').toLowerCase().includes('feiertag'));
+            const bgStyle = feiertag ? 'background:#dc2626;color:#fff;' : istHeute ? 'background: var(--primary-dark);' : '';
+            return `<div style="${bgStyle}">${App.wochentagKurz(t.toISOString())}<br><small>${t.getDate()}.${t.getMonth()+1}.</small>${feiertag ? '<br><small style=\"font-size:0.55rem;\">'+feiertag.titel+'</small>' : ''}</div>`;
           }).join('')}
         </div>
 
