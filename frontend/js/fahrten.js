@@ -48,12 +48,77 @@ const FahrtenModule = {
       tage.push({ datum: datumStr, tag, fahrten: tagesFahrten });
     }
 
+    // Heutige Termine als Fahrten-Vorschläge laden
+    let heutigeTermineHtml = '';
+    try {
+      const heute = App.heute();
+      const [termine, alleKunden] = await Promise.all([
+        DB.termineFuerDatum(heute),
+        DB.alleKunden()
+      ]);
+      const kundenMap = {};
+      alleKunden.forEach(k => { kundenMap[k.id] = k; });
+
+      // Heutige Fahrten (Zieladressen) zum Abgleich
+      const heutigeFahrten = fahrten.filter(f => f.datum === heute);
+      const bereitsErfassteZiele = new Set();
+      heutigeFahrten.forEach(f => {
+        (f.zielAdressen || []).forEach(z => bereitsErfassteZiele.add(z.toLowerCase().trim()));
+      });
+
+      // Termine mit Kunde + Adresse filtern
+      const terminMitKunde = termine
+        .filter(t => t.kundeId && kundenMap[t.kundeId])
+        .map(t => {
+          const kunde = kundenMap[t.kundeId];
+          const adresse = [kunde.strasse, kunde.plz, kunde.ort].filter(Boolean).join(', ');
+          if (!adresse) return null;
+          const bereitsErfasst = bereitsErfassteZiele.has(adresse.toLowerCase().trim());
+          return { termin: t, kunde, adresse, bereitsErfasst };
+        })
+        .filter(Boolean);
+
+      // Deduplizieren nach Kunde (falls mehrere Termine beim selben Kunden)
+      const gesehen = new Set();
+      const eindeutig = terminMitKunde.filter(item => {
+        if (gesehen.has(item.kunde.id)) return false;
+        gesehen.add(item.kunde.id);
+        return true;
+      });
+
+      if (eindeutig.length > 0) {
+        const eintraege = eindeutig.map(item => {
+          const btnDisabled = item.bereitsErfasst ? 'disabled style="opacity:0.5;"' : '';
+          const btnLabel = item.bereitsErfasst ? '✓ erfasst' : '→ Fahrt';
+          return `
+            <div style="padding:6px 0;display:flex;justify-content:space-between;align-items:center;">
+              <div>
+                <div style="font-weight:500;">${KundenModule.escapeHtml(App.kundenName(item.kunde))}</div>
+                <div class="text-xs text-muted">${KundenModule.escapeHtml(item.adresse)}</div>
+              </div>
+              <button class="btn btn-sm btn-primary" ${btnDisabled}
+                      onclick="FahrtenModule.neueFahrtAusTermin(${item.kunde.id})">${btnLabel}</button>
+            </div>`;
+        }).join('');
+
+        heutigeTermineHtml = `
+          <div class="card" style="background:#e3f2fd;">
+            <div style="font-weight:600;margin-bottom:8px;">📅 Heutige Kunden</div>
+            ${eintraege}
+          </div>`;
+      }
+    } catch (err) {
+      console.warn('Heutige Termine konnten nicht geladen werden:', err);
+    }
+
     // Aktueller Monat für Monats-PDF
     const jetzt = new Date();
     const aktMonat = jetzt.getMonth() + 1;
     const aktJahr = jetzt.getFullYear();
 
     container.innerHTML = `
+      ${heutigeTermineHtml}
+
       <!-- GPS Quick-Start -->
       <div class="card" style="background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; text-align: center;">
         <button class="btn btn-lg" style="background: white; color: var(--primary); width: 100%;"
@@ -621,6 +686,117 @@ const FahrtenModule = {
           }
         }, () => {}, { timeout: 5000 });
       }
+    }, 100);
+  },
+
+  async neueFahrtAusTermin(kundeId) {
+    const kunden = await DB.alleKunden();
+    const kunde = kunden.find(k => k.id === kundeId);
+    if (!kunde) { App.toast('Kunde nicht gefunden', 'error'); return; }
+
+    const adresse = [kunde.strasse, kunde.plz, kunde.ort].filter(Boolean).join(', ');
+    if (!adresse) { App.toast('Keine Adresse beim Kunden hinterlegt', 'error'); return; }
+
+    const datum = App.heute();
+    const startAdresse = (FIRMA || {}).startAdresse || 'Kreisstraße 12, 45525 Hattingen';
+
+    // Kassen rausfiltern (wie in neueFahrt)
+    const kassenKw = ['aok','barmer','dak','techniker','knappschaft','bkk','novitas','energie','lbv','landesamt','krankenkasse','ersatzkasse','pflegekasse'];
+    const echteKunden = kunden.filter(k => !kassenKw.some(kw => (k.name||'').toLowerCase().includes(kw)) && k.kundentyp !== 'inaktiv');
+
+    const container = document.getElementById('fahrtenContent');
+
+    container.innerHTML = `
+      <div class="card">
+        <h3 class="card-title mb-2">Neue Fahrt - ${App.wochentagName(datum)}, ${App.formatDatum(datum)}</h3>
+
+        <div class="form-group">
+          <label>Start</label>
+          <input type="text" id="fahrtStart" class="form-control"
+                 value="${KundenModule.escapeHtml(startAdresse)}" placeholder="Startadresse eingeben">
+        </div>
+
+        <div class="form-group">
+          <label>Ziel</label>
+          <div id="zieleListe">
+            <div class="ziel-entry mb-1">
+              ${this.zielEingabeRendern(echteKunden)}
+            </div>
+          </div>
+          <button type="button" class="btn btn-sm btn-secondary mt-1" onclick="FahrtenModule.zielHinzufuegen()">
+            + Weiteres Ziel
+          </button>
+        </div>
+
+        <div class="form-group">
+          <label for="fahrtNotiz">Notiz</label>
+          <input type="text" id="fahrtNotiz" class="form-control" placeholder="z.B. Einkauf, Arztbesuch">
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="fahrtKm">Kilometer</label>
+            <input type="number" id="fahrtKm" class="form-control" step="0.1" min="0"
+                   placeholder="0.0" oninput="FahrtenModule.kmAktualisieren()">
+          </div>
+          <div class="form-group">
+            <label>Betrag</label>
+            <div id="fahrtBetrag" class="form-control" style="background: var(--gray-100); display: flex; align-items: center;">
+              0,00 &euro;
+            </div>
+          </div>
+        </div>
+
+        <div class="btn-group mb-2">
+          <button type="button" class="btn btn-sm btn-outline" onclick="FahrtenModule.routeBerechnen()">
+            &#x1F5FA;&#xFE0F; Route berechnen &amp; km ermitteln
+          </button>
+        </div>
+
+        <div class="map-container" style="height: 250px;">
+          <div id="routeMap" style="height: 100%; width: 100%;"></div>
+        </div>
+      </div>
+
+      <div class="btn-group mt-2">
+        <button class="btn btn-primary btn-block" onclick="FahrtenModule.fahrtSpeichern('${datum}')">
+          Speichern
+        </button>
+        <button class="btn btn-secondary" onclick="FahrtenModule.wocheAnzeigen()">
+          Abbrechen
+        </button>
+      </div>
+    `;
+
+    setTimeout(() => {
+      if (this.map) this.map.remove();
+      this.map = L.map('routeMap').setView([51.3993, 7.1859], 13);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap', maxZoom: 19
+      }).addTo(this.map);
+
+      // Zieladresse vorausfüllen
+      const zielInput = document.querySelector('.ziel-adresse');
+      if (zielInput) zielInput.value = adresse;
+
+      // Kunden-Dropdown vorauswählen
+      const kundeSelect = document.querySelector('.ziel-kunde');
+      if (kundeSelect) {
+        kundeSelect.value = kundeId;
+        // Suchfeld mit Kundenname füllen
+        const sucheInput = document.querySelector('.ziel-suche');
+        if (sucheInput) {
+          const option = kundeSelect.querySelector(`option[value="${kundeId}"]`);
+          if (option) sucheInput.value = option.textContent;
+        }
+      }
+
+      // Autocomplete für Start- und Ziel-Felder
+      this.setupAutocomplete(document.getElementById('fahrtStart'));
+      document.querySelectorAll('.ziel-adresse').forEach(el => this.setupAutocomplete(el));
+
+      // Route direkt berechnen
+      this.routeBerechnen();
     }, 100);
   },
 

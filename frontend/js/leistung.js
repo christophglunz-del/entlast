@@ -32,8 +32,57 @@ const LeistungModule = {
 
     const leistungen = await DB.alleLeistungen();
 
+    // Kunden laden (wird auch für Termine-Box benötigt)
+    const kunden = await DB.alleKunden();
+    const kundenMap = {};
+    kunden.forEach(k => kundenMap[k.id] = k);
+
+    // Heutige Termine laden und als Leistungs-Vorschläge rendern
+    const heute = App.heute();
+    let termineBoxHtml = '';
+    try {
+      const heuteTermine = await DB.termineFuerDatum(heute);
+      if (heuteTermine && heuteTermine.length > 0) {
+        // Prüfe welche Kunden heute schon eine Leistung haben
+        const heuteLeistungen = leistungen.filter(l => l.datum === heute);
+        const heuteKundenIds = new Set(heuteLeistungen.map(l => l.kundeId));
+
+        let terminZeilen = '';
+        for (const t of heuteTermine) {
+          if (t._geburtstag) continue; // Geburtstage überspringen
+          const zeitStr = `${App.formatZeit(t.startzeit)}${t.endzeit ? '-' + App.formatZeit(t.endzeit) : ''}`;
+          const kunde = t.kundeId ? kundenMap[t.kundeId] : null;
+          const name = kunde ? this.escapeHtml(App.kundenName(kunde)) : (t.titel ? this.escapeHtml(t.titel) : 'Termin');
+          const bereitsErfasst = t.kundeId && heuteKundenIds.has(t.kundeId);
+
+          terminZeilen += `
+            <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(0,0,0,0.06);">
+              <span style="font-size:0.85rem;color:#555;min-width:90px;">${zeitStr}</span>
+              <span style="font-weight:500;flex:1;">${name}</span>
+              ${bereitsErfasst
+                ? '<span style="color:#2e7d32;font-size:0.85rem;white-space:nowrap;">✓ erfasst</span>'
+                : (t.kundeId
+                  ? `<button class="btn btn-sm btn-primary" style="white-space:nowrap;" onclick="LeistungModule.neueLeistungAusTermin(${t.id})">→ Leistung</button>`
+                  : '')
+              }
+            </div>`;
+        }
+
+        if (terminZeilen) {
+          termineBoxHtml = `
+            <div class="card" style="background:#e3f2fd;margin-bottom:12px;">
+              <div style="font-weight:600;margin-bottom:8px;">📅 Heute</div>
+              ${terminZeilen}
+            </div>`;
+        }
+      }
+    } catch (e) {
+      console.warn('Heutige Termine laden fehlgeschlagen:', e);
+    }
+
     if (leistungen.length === 0) {
       container.innerHTML = `
+        ${termineBoxHtml}
         <div class="empty-state">
           <div class="empty-icon">📋</div>
           <p>Noch keine Leistungsnachweise</p>
@@ -53,10 +102,6 @@ const LeistungModule = {
       grouped[key].push(l);
     }
 
-    const kunden = await DB.alleKunden();
-    const kundenMap = {};
-    kunden.forEach(k => kundenMap[k.id] = k);
-
     // Lokale Rechnungen laden für "Abgerechnet"-Badge
     const rechnungen = await DB.alleRechnungen();
     const rechnungMap = {};
@@ -71,7 +116,7 @@ const LeistungModule = {
     const aktuellerFilter = this._monatsFilter || monate[0];
     if (!this._monatsFilter) this._monatsFilter = aktuellerFilter;
 
-    let html = `
+    let html = termineBoxHtml + `
       <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
         ${monate.map(m => {
           const [j, mo] = m.split('-');
@@ -197,6 +242,37 @@ const LeistungModule = {
       return;
     }
     this.formAnzeigen(null, kunden);
+  },
+
+  async neueLeistungAusTermin(terminId) {
+    try {
+      const termin = await DB.terminById(terminId);
+      if (!termin) {
+        App.toast('Termin nicht gefunden', 'error');
+        return;
+      }
+      const kunden = await DB.alleKunden();
+      if (kunden.length === 0) {
+        App.toast('Bitte zuerst einen Kunden anlegen', 'error');
+        return;
+      }
+      // Kunde vorauswählen und Formular als "Neuer Eintrag" öffnen
+      this._preselectedKundeId = termin.kundeId ? String(termin.kundeId) : null;
+      this.formAnzeigen(null, kunden);
+      // Datum und Zeiten aus dem Termin übernehmen
+      setTimeout(() => {
+        const datumEl = document.getElementById('leistungDatum');
+        const startEl = document.getElementById('leistungStart');
+        const endeEl = document.getElementById('leistungEnde');
+        if (datumEl && termin.datum) datumEl.value = termin.datum;
+        if (startEl && termin.startzeit) startEl.value = termin.startzeit;
+        if (endeEl && termin.endzeit) endeEl.value = termin.endzeit;
+        this.zeitAktualisieren();
+      }, 50);
+    } catch (e) {
+      console.error('neueLeistungAusTermin:', e);
+      App.toast('Fehler beim Laden des Termins', 'error');
+    }
   },
 
   async detailAnzeigen(id) {
