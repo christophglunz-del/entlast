@@ -71,7 +71,7 @@ const TermineModule = {
       if (gbParts.length < 3) return;
       const gbMD = `${gbParts[1]}-${gbParts[2]}`; // MM-DD
       tage.forEach(tag => {
-        const tagStr = tag.toISOString().split('T')[0];
+        const tagStr = App.localDateStr(tag);
         if (tagStr.substring(5) === gbMD) {
           const alter = tag.getFullYear() - parseInt(gbParts[0]);
           wochenTermine.push({
@@ -98,7 +98,7 @@ const TermineModule = {
       <div class="week-nav">
         <button onclick="TermineModule.vorherigeWoche()">◀</button>
         <span class="week-label">
-          ${App.formatDatum(montag.toISOString())} - ${App.formatDatum(freitag.toISOString())}
+          ${App.formatDatum(App.localDateStr(montag))} - ${App.formatDatum(App.localDateStr(freitag))}
         </span>
         <button onclick="TermineModule.naechsteWoche()">▶</button>
       </div>
@@ -119,7 +119,7 @@ const TermineModule = {
             const istHeute = tagDatum === App.heute();
             const feiertag = wochenTermine.find(te => (te._displayDatum || te.datum) === tagDatum && (te.notiz || '').toLowerCase().includes('feiertag'));
             const bgStyle = feiertag ? 'background:#dc2626;color:#fff;' : istHeute ? 'background: var(--primary-dark);' : '';
-            return `<div style="${bgStyle}">${App.wochentagKurz(t.toISOString())}<br><small>${t.getDate()}.${t.getMonth()+1}.</small>${feiertag ? '<br><small style=\"font-size:0.55rem;\">'+feiertag.titel+'</small>' : ''}</div>`;
+            return `<div style="${bgStyle}">${App.wochentagKurz(App.localDateStr(t))}<br><small>${t.getDate()}.${t.getMonth()+1}.</small>${feiertag ? '<br><small style=\"font-size:0.55rem;\">'+feiertag.titel+'</small>' : ''}</div>`;
           }).join('')}
         </div>
 
@@ -129,7 +129,7 @@ const TermineModule = {
             return `
               <div class="time-slot" style="font-weight: 600;">${zeit}</div>
               ${tage.map(tag => {
-                const datumStr = tag.toISOString().split('T')[0];
+                const datumStr = App.localDateStr(tag);
                 const slotTermine = wochenTermine.filter(t => {
                   const tDatum = t._displayDatum || t.datum;
                   const tStunde = parseInt(t.startzeit);
@@ -195,7 +195,7 @@ const TermineModule = {
 
   termineFiltern(termine, tage) {
     const ergebnis = [];
-    const tagStrings = tage.map(t => t.toISOString().split('T')[0]);
+    const tagStrings = tage.map(t => App.localDateStr(t));
     const wochentage = tage.map(t => t.getDay()); // 0=So, 1=Mo, ...
 
     for (const termin of termine) {
