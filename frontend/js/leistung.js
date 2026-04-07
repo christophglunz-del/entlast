@@ -717,6 +717,16 @@ const LeistungModule = {
       return;
     }
 
+    // Warnung wenn für diesen Kunden/Monat schon eine Rechnung existiert
+    if (!id) {
+      const [j, m] = daten.datum.split('-');
+      const rechnungen = await DB.alleRechnungen();
+      const re = rechnungen.find(r => r.kundeId === kundeId && r.monat === parseInt(m) && r.jahr === parseInt(j));
+      if (re) {
+        if (!await App.confirm(`⚠️ Für diesen Kunden wurde im ${App.monatsName(parseInt(m))} ${j} bereits eine Rechnung erstellt. Trotzdem Leistung hinzufügen?`)) return;
+      }
+    }
+
     try {
       if (id) {
         await DB.leistungAktualisieren(id, daten);
