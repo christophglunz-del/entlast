@@ -14,7 +14,7 @@
 <body>
 
   <header class="app-header">
-    <button class="back-btn" onclick="window.location.href='../index.html'">←</button>
+    <button class="back-btn" onclick="history.back()">←</button>
     <h1>Kilometeraufzeichnung</h1>
     <div class="sync-status">
       <div class="sync-dot"></div>
@@ -32,10 +32,10 @@
 
   <nav class="bottom-nav">
     <a href="../index.html"><span class="nav-icon">🏠</span><span>Start</span></a>
-    <a href="leistung.html" ><span class="nav-icon">📋</span><span>Leistung</span></a>
+    <a href="termine.html"><span class="nav-icon">📅</span><span>Termine</span></a>
+    <a href="leistung.html"><span class="nav-icon">📋</span><span>Leistung</span></a>
     <a href="fahrten.html" class="active"><span class="nav-icon">🚗</span><span>Kilometer</span></a>
-    <a href="rechnung.html" ><span class="nav-icon">📊</span><span>Archiv</span></a>
-    <a href="#" id="navMoreBtn" ><span class="nav-icon">☰</span><span>Mehr</span></a>
+    <a href="#" id="navMoreBtn"><span class="nav-icon">☰</span><span>Mehr</span></a>
   </nav>
 
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
