@@ -171,10 +171,17 @@ async def delete_termin(
     user: dict = Depends(get_current_user),
     db: sqlite3.Connection = Depends(get_db),
 ):
-    """Termin loeschen."""
-    existing = db.execute("SELECT id FROM termine WHERE id = ?", (termin_id,)).fetchone()
+    """Termin loeschen. Google-UIDs werden gemerkt um Re-Import zu verhindern."""
+    existing = db.execute("SELECT id, google_uid FROM termine WHERE id = ?", (termin_id,)).fetchone()
     if not existing:
         raise HTTPException(status_code=404, detail="Termin nicht gefunden")
+
+    # Google-UID merken damit der Sync den Termin nicht wieder anlegt
+    if existing.get("google_uid"):
+        db.execute(
+            "INSERT OR IGNORE INTO google_uid_geloescht (google_uid) VALUES (?)",
+            (existing["google_uid"],),
+        )
 
     db.execute("DELETE FROM termine WHERE id = ?", (termin_id,))
     db.commit()
@@ -200,6 +207,12 @@ async def google_sync(
     ical_text = res.text
     neu = 0
     aktualisiert = 0
+
+    # Gelöschte UIDs laden (werden beim Sync übersprungen)
+    geloeschte_uids = set(
+        row["google_uid"] for row in
+        db.execute("SELECT google_uid FROM google_uid_geloescht").fetchall()
+    )
     rrule_expanded = 0
 
     # Zeitfenster fuer RRULE-Expansion: ab 01.04.2026 (oder heute falls früher) bis +90 Tage
@@ -306,6 +319,9 @@ async def google_sync(
                     datum = occ_date.isoformat()
                     occurrence_uid = f"{uid}_{occ_date.strftime('%Y%m%d')}"
 
+                    if occurrence_uid in geloeschte_uids:
+                        continue
+
                     existing = db.execute(
                         "SELECT id FROM termine WHERE google_uid = ?", (occurrence_uid,)
                     ).fetchone()
@@ -329,6 +345,9 @@ async def google_sync(
                 continue
         else:
             # --- Einzeltermin (wie bisher) ---
+            if uid in geloeschte_uids:
+                continue
+
             datum = f"{dtstart[:4]}-{dtstart[4:6]}-{dtstart[6:8]}"
 
             existing = db.execute(
