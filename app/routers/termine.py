@@ -349,7 +349,7 @@ async def google_sync(
                 neu += 1
 
     # Kundenzuordnung: Titel → kunde_id für alle Termine ohne Kunde
-    kunden = db.execute("SELECT id, name, vorname FROM kunden").fetchall()
+    kunden = db.execute("SELECT id, name, vorname FROM kunden WHERE kundentyp != 'inaktiv'").fetchall()
     zugeordnet = 0
     ohne_kunde = db.execute("SELECT id, titel FROM termine WHERE kunde_id IS NULL AND titel IS NOT NULL").fetchall()
     for t in ohne_kunde:
