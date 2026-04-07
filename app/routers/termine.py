@@ -242,13 +242,13 @@ async def google_sync(
 
         if existing:
             db.execute(
-                "UPDATE termine SET titel=?, datum=?, startzeit=?, endzeit=?, notizen=? WHERE id=?",
+                "UPDATE termine SET titel=?, datum=?, von=?, bis=?, notiz=? WHERE id=?",
                 (summary, datum, startzeit, endzeit, description or location or None, existing["id"]),
             )
             aktualisiert += 1
         else:
             db.execute(
-                "INSERT INTO termine (titel, datum, startzeit, endzeit, notizen, google_uid) VALUES (?, ?, ?, ?, ?, ?)",
+                "INSERT INTO termine (titel, datum, von, bis, notiz, google_uid) VALUES (?, ?, ?, ?, ?, ?)",
                 (summary, datum, startzeit, endzeit, description or location or None, uid),
             )
             neu += 1
