@@ -809,13 +809,23 @@ const FahrtenModule = {
       const kundeSelect = document.querySelector('.ziel-kunde');
       if (kundeSelect) {
         kundeSelect.value = kundeId;
-        // Suchfeld mit Kundenname füllen
         const sucheInput = document.querySelector('.ziel-suche');
         if (sucheInput) {
           const option = kundeSelect.querySelector(`option[value="${kundeId}"]`);
           if (option) sucheInput.value = option.textContent;
         }
       }
+
+      // Rückfahrt zur Firma als zweites Ziel
+      this.zielHinzufuegen();
+      setTimeout(() => {
+        const zielInputs = document.querySelectorAll('.ziel-adresse');
+        if (zielInputs.length >= 2) {
+          zielInputs[zielInputs.length - 1].value = startAdresse;
+        }
+        // Route berechnen
+        this.routeBerechnen();
+      }, 100);
 
       // Autocomplete für Start- und Ziel-Felder
       this.setupAutocomplete(document.getElementById('fahrtStart'));
