@@ -42,11 +42,22 @@ const TermineModule = {
     const freitag = new Date(montag);
     freitag.setDate(freitag.getDate() + 4);
 
-    // Alle Termine laden
+    // Alle Termine + Leistungen + Fahrten laden
     const termine = await DB.alleTermine();
     const kunden = await DB.alleKunden();
+    const leistungen = await DB.alleLeistungen();
+    const fahrten = await DB.alleFahrten();
     const kundenMap = {};
     kunden.forEach(k => kundenMap[k.id] = k);
+
+    // Sets für schnelle Prüfung: "kundeId-datum"
+    const leistungSet = new Set(leistungen.map(l => `${l.kundeId}-${l.datum}`));
+    const fahrtSet = new Set();
+    fahrten.forEach(f => {
+      if (f.zielAdressen && f.datum) {
+        fahrtSet.add(f.datum);
+      }
+    });
 
     // Farben zuweisen
     kunden.forEach((k, i) => {
@@ -142,14 +153,20 @@ const TermineModule = {
                       const kunde = kundenMap[t.kundeId];
                       const farbe = istFeiertag ? '#999' : (this.kundenFarben[t.kundeId] || '#E91E7B');
                       const unterschriftBadge = TermineModule.istLetzterImMonat(t, datumStr) ? ' <span style="background:#ea580c;color:#fff;font-size:0.6rem;padding:1px 3px;border-radius:3px;white-space:nowrap;">\u270D\uFE0F Unterschrift</span>' : '';
+                      const hatLeistung = t.kundeId && leistungSet.has(`${t.kundeId}-${datumStr}`);
+                      const hatFahrt = fahrtSet.has(datumStr);
                       const quickButtons = kunde && t.kundeId ? `
                           <div style="display:flex;gap:2px;margin-top:2px;">
-                            <a href="leistung.html?kundeId=${t.kundeId}&datum=${datumStr}&von=${t.startzeit || ''}&bis=${t.endzeit || ''}"
-                               onclick="event.stopPropagation();"
-                               style="font-size:0.7rem;background:${farbe};color:#fff;padding:4px 8px;border-radius:4px;text-decoration:none;min-height:28px;display:inline-flex;align-items:center;">→L</a>
-                            <a href="fahrten.html?kundeId=${t.kundeId}&datum=${datumStr}"
-                               onclick="event.stopPropagation();"
-                               style="font-size:0.7rem;background:#666;color:#fff;padding:4px 8px;border-radius:4px;text-decoration:none;min-height:28px;display:inline-flex;align-items:center;">→km</a>
+                            ${hatLeistung
+                              ? `<span style="font-size:0.7rem;background:#ccc;color:#fff;padding:4px 8px;border-radius:4px;min-height:28px;display:inline-flex;align-items:center;">✓L</span>`
+                              : `<a href="leistung.html?kundeId=${t.kundeId}&datum=${datumStr}&von=${t.startzeit || ''}&bis=${t.endzeit || ''}"
+                                 onclick="event.stopPropagation();"
+                                 style="font-size:0.7rem;background:${farbe};color:#fff;padding:4px 8px;border-radius:4px;text-decoration:none;min-height:28px;display:inline-flex;align-items:center;">→L</a>`}
+                            ${hatFahrt
+                              ? `<span style="font-size:0.7rem;background:#ccc;color:#fff;padding:4px 8px;border-radius:4px;min-height:28px;display:inline-flex;align-items:center;">✓km</span>`
+                              : `<a href="fahrten.html?kundeId=${t.kundeId}&datum=${datumStr}"
+                                 onclick="event.stopPropagation();"
+                                 style="font-size:0.7rem;background:#666;color:#fff;padding:4px 8px;border-radius:4px;text-decoration:none;min-height:28px;display:inline-flex;align-items:center;">→km</a>`}
                           </div>` : '';
                       return `
                         <div class="calendar-event" style="border-left-color: ${farbe}; background: ${farbe}15;"
