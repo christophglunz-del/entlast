@@ -38,6 +38,11 @@
             <p class="text-sm" style="opacity: 0.8;" id="heuteInfo">Dein Tagesueberblick</p>
         </div>
 
+        <!-- Geburtstage -->
+        <div id="geburtstage" style="display:none;" class="card" style="background:#fffbeb; border-left:4px solid #f59e0b;">
+            <div id="geburtstageInhalt"></div>
+        </div>
+
         <!-- Warnungen -->
         <div id="warnungen" style="display:none; background:#fef2f2; border-left:4px solid #dc2626;" class="card">
             <div id="warnungenInhalt"></div>
@@ -185,6 +190,41 @@
                 document.getElementById('statDieseWoche').textContent = stats.termineDieseWoche;
                 document.getElementById('dashKunden').textContent = aktivePersonen.length + ' Kunden';
                 document.getElementById('statOffeneRechnungen').textContent = stats.offeneRechnungen;
+
+                // Geburtstage diese Woche + nächste 7 Tage
+                const gebKunden = alleKunden.filter(k => k.geburtsdatum && k.kundentyp !== 'inaktiv');
+                const heuteDate = new Date();
+                const gebListe = [];
+                for (const k of gebKunden) {
+                    const [gj, gm, gt] = k.geburtsdatum.split('-').map(Number);
+                    const gebDiesesJahr = new Date(heuteDate.getFullYear(), gm - 1, gt);
+                    const diff = Math.round((gebDiesesJahr - new Date(heuteDate.getFullYear(), heuteDate.getMonth(), heuteDate.getDate())) / 86400000);
+                    // Montag dieser Woche bis +7 Tage
+                    const montag = new Date(heuteDate);
+                    montag.setDate(montag.getDate() - ((montag.getDay() + 6) % 7));
+                    const diffMontag = Math.round((gebDiesesJahr - new Date(montag.getFullYear(), montag.getMonth(), montag.getDate())) / 86400000);
+                    if (diffMontag >= 0 && diffMontag <= 13) {
+                        const alter = heuteDate.getFullYear() - gj;
+                        const name = App.kundenName ? App.kundenName(k) : (k.vorname || '') + ' ' + k.name;
+                        const istHeute = diff === 0;
+                        const tag = gebDiesesJahr.toLocaleDateString('de-DE', {weekday:'short', day:'numeric', month:'numeric'});
+                        gebListe.push({diff, name, alter, istHeute, tag});
+                    }
+                }
+                if (gebListe.length > 0) {
+                    gebListe.sort((a, b) => a.diff - b.diff);
+                    const gebDiv = document.getElementById('geburtstage');
+                    gebDiv.style.display = 'block';
+                    gebDiv.style.background = '#fffbeb';
+                    gebDiv.style.borderLeft = '4px solid #f59e0b';
+                    document.getElementById('geburtstageInhalt').innerHTML =
+                        '<div style="font-weight:600;margin-bottom:4px;">🎂 Geburtstage</div>' +
+                        gebListe.map(g =>
+                            g.istHeute
+                                ? `<div style="padding:3px 0;font-weight:600;color:#d97706;">🎉 Heute: ${g.name} (${g.alter} Jahre)</div>`
+                                : `<div style="padding:3px 0;">${g.tag}: ${g.name}</div>`
+                        ).join('');
+                }
 
                 // Warnungen anzeigen
                 const warnungen = [];
