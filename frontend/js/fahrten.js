@@ -19,6 +19,8 @@ const FahrtenModule = {
   async init() {
     this.currentWeekStart = App.getMontag(new Date());
     await this.wocheAnzeigen();
+    // Google-Kalender im Hintergrund synchronisieren
+    apiFetch('/termine/google-sync', { method: 'POST' }).catch(() => {});
   },
 
   async wocheAnzeigen() {

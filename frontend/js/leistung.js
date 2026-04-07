@@ -17,6 +17,8 @@ const LeistungModule = {
     } else {
       await this.listeAnzeigen();
     }
+    // Google-Kalender im Hintergrund synchronisieren
+    apiFetch('/termine/google-sync', { method: 'POST' }).catch(() => {});
   },
 
   _fabAktualisieren() {

@@ -28,6 +28,10 @@ const TermineModule = {
     } else {
       await this.kalenderAnzeigen();
     }
+    // Google-Kalender im Hintergrund synchronisieren
+    apiFetch('/termine/google-sync', { method: 'POST' }).then(r => {
+      if (r.neu > 0) { App.toast(`${r.neu} neue Termine aus Google importiert`, 'success'); this.kalenderAnzeigen(); }
+    }).catch(() => {});
   },
 
   async kalenderAnzeigen() {
