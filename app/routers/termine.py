@@ -348,11 +348,30 @@ async def google_sync(
                 )
                 neu += 1
 
+    # Kundenzuordnung: Titel → kunde_id für alle Termine ohne Kunde
+    kunden = db.execute("SELECT id, name, vorname FROM kunden").fetchall()
+    zugeordnet = 0
+    ohne_kunde = db.execute("SELECT id, titel FROM termine WHERE kunde_id IS NULL AND titel IS NOT NULL").fetchall()
+    for t in ohne_kunde:
+        titel = (t["titel"] or "").strip().lower()
+        if not titel:
+            continue
+        for k in kunden:
+            nachname = (k["name"] or "").lower()
+            vorname = (k.get("vorname") or "").lower()
+            if not nachname or len(nachname) < 3:
+                continue
+            if nachname in titel or (vorname and f"{vorname[0]}. {nachname}" in titel) or (vorname and f"{vorname[0]}.{nachname}" in titel):
+                db.execute("UPDATE termine SET kunde_id = ? WHERE id = ?", (k["id"], t["id"]))
+                zugeordnet += 1
+                break
+
     db.commit()
-    logger.info(f"Google-Sync: {neu} neu, {aktualisiert} aktualisiert, {rrule_expanded} aus Wiederholungen")
+    logger.info(f"Google-Sync: {neu} neu, {aktualisiert} aktualisiert, {rrule_expanded} aus Wiederholungen, {zugeordnet} Kunden zugeordnet")
     return {
-        "message": f"Google-Sync: {neu} neu, {aktualisiert} aktualisiert, {rrule_expanded} aus Wiederholungen",
+        "message": f"Google-Sync: {neu} neu, {aktualisiert} aktualisiert, {rrule_expanded} aus Wiederholungen, {zugeordnet} Kunden zugeordnet",
         "neu": neu,
         "aktualisiert": aktualisiert,
         "rrule_expanded": rrule_expanded,
+        "zugeordnet": zugeordnet,
     }
