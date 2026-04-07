@@ -24,9 +24,10 @@ const FahrtenModule = {
     // URL-Parameter: ?kundeId=X → Fahrt zu diesem Kunden
     const params = new URLSearchParams(window.location.search);
     const kundeId = params.get('kundeId');
+    const datum = params.get('datum');
     if (kundeId) {
       window.history.replaceState({}, '', window.location.pathname);
-      this.neueFahrtAusTermin(parseInt(kundeId));
+      this.neueFahrtAusTermin(parseInt(kundeId), datum);
     }
   },
 
@@ -715,7 +716,7 @@ const FahrtenModule = {
     }, 100);
   },
 
-  async neueFahrtAusTermin(kundeId) {
+  async neueFahrtAusTermin(kundeId, terminDatum) {
     const kunden = await DB.alleKunden();
     const kunde = kunden.find(k => k.id === kundeId);
     if (!kunde) { App.toast('Kunde nicht gefunden', 'error'); return; }
@@ -723,7 +724,7 @@ const FahrtenModule = {
     const adresse = [kunde.strasse, kunde.plz, kunde.ort].filter(Boolean).join(', ');
     if (!adresse) { App.toast('Keine Adresse beim Kunden hinterlegt', 'error'); return; }
 
-    const datum = App.heute();
+    const datum = terminDatum || App.heute();
     const startAdresse = (FIRMA || {}).startAdresse || 'Kreisstraße 12, 45525 Hattingen';
 
     // Kassen rausfiltern (wie in neueFahrt)

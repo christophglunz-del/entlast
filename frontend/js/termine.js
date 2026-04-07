@@ -147,7 +147,7 @@ const TermineModule = {
                             <a href="leistung.html?kundeId=${t.kundeId}&datum=${datumStr}&von=${t.startzeit || ''}&bis=${t.endzeit || ''}"
                                onclick="event.stopPropagation();"
                                style="font-size:0.7rem;background:${farbe};color:#fff;padding:4px 8px;border-radius:4px;text-decoration:none;min-height:28px;display:inline-flex;align-items:center;">→L</a>
-                            <a href="fahrten.html?kundeId=${t.kundeId}"
+                            <a href="fahrten.html?kundeId=${t.kundeId}&datum=${datumStr}"
                                onclick="event.stopPropagation();"
                                style="font-size:0.7rem;background:#666;color:#fff;padding:4px 8px;border-radius:4px;text-decoration:none;min-height:28px;display:inline-flex;align-items:center;">→km</a>
                           </div>` : '';
