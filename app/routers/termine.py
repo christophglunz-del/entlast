@@ -275,9 +275,11 @@ async def google_sync(
                 continue
 
             try:
-                # rrulestr braucht die DTSTART-Zeile + RRULE-Zeile
-                dtstart_line = lines.get("_DTSTART_full", f"DTSTART:{dtstart}")
-                rrule_text = f"{dtstart_line}\nRRULE:{rrule_val}"
+                import re as regex
+                # Timezone-Info aus DTSTART und RRULE entfernen
+                clean_dtstart = dtstart[:15] if "T" in dtstart else dtstart[:8]
+                clean_rrule = regex.sub(r'UNTIL=\d{8}T\d{6}Z', lambda m: m.group(0).rstrip('Z'), rrule_val)
+                rrule_text = f"DTSTART:{clean_dtstart}\nRRULE:{clean_rrule}"
 
                 # EXDATE als Set von date-Objekten
                 exdate_set = set()
@@ -292,7 +294,7 @@ async def google_sync(
                 # Expansion: alle Vorkommen von heute bis heute + 90 Tage
                 window_start = datetime(today.year, today.month, today.day)
                 window_end = datetime(horizon.year, horizon.month, horizon.day, 23, 59, 59)
-                occurrences = rule.between(window_start, window_end, inc=True)
+                occurrences = list(rule.between(window_start, window_end, inc=True))
 
                 for occ in occurrences:
                     occ_date = occ.date()
