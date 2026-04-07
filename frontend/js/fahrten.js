@@ -1091,9 +1091,13 @@ const FahrtenModule = {
     document.querySelectorAll('.ziel-adresse').forEach(input => {
       if (input.value.trim()) adressen.push(input.value.trim());
     });
-    adressen.push(startAddr); // Rückfahrt
+    // Rückfahrt nur hinzufügen wenn letztes Ziel nicht schon die Startadresse ist
+    const letztesZiel = adressen[adressen.length - 1] || '';
+    if (letztesZiel.toLowerCase() !== startAddr.toLowerCase()) {
+      adressen.push(startAddr);
+    }
 
-    if (adressen.length < 3) {
+    if (adressen.length < 2) {
       App.toast('Bitte mindestens ein Ziel eingeben', 'info');
       return;
     }
@@ -1101,14 +1105,24 @@ const FahrtenModule = {
     App.toast('Route wird berechnet...', 'info');
 
     try {
+      // Geocoding mit Deduplizierung + Rate-Limit (1 req/s für Nominatim)
+      const geocodeCache = {};
       const coords = [];
       for (const addr of adressen) {
+        if (geocodeCache[addr]) {
+          coords.push(geocodeCache[addr]);
+          continue;
+        }
+        await new Promise(r => setTimeout(r, 1100)); // Nominatim Rate-Limit
         const response = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addr)}&limit=1`
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addr)}&limit=1`,
+          { headers: { 'User-Agent': 'entlast.de/1.0' } }
         );
         const results = await response.json();
         if (results.length > 0) {
-          coords.push([parseFloat(results[0].lon), parseFloat(results[0].lat)]);
+          const c = [parseFloat(results[0].lon), parseFloat(results[0].lat)];
+          coords.push(c);
+          geocodeCache[addr] = c;
         }
       }
 
