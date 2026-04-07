@@ -142,11 +142,20 @@ const TermineModule = {
                       const kunde = kundenMap[t.kundeId];
                       const farbe = istFeiertag ? '#999' : (this.kundenFarben[t.kundeId] || '#E91E7B');
                       const unterschriftBadge = TermineModule.istLetzterImMonat(t, datumStr) ? ' <span style="background:#ea580c;color:#fff;font-size:0.6rem;padding:1px 3px;border-radius:3px;white-space:nowrap;">\u270D\uFE0F Unterschrift</span>' : '';
+                      const quickButtons = kunde && t.kundeId ? `
+                          <div style="display:flex;gap:2px;margin-top:2px;">
+                            <a href="leistung.html?kundeId=${t.kundeId}&datum=${datumStr}&von=${t.startzeit || ''}&bis=${t.endzeit || ''}"
+                               onclick="event.stopPropagation();"
+                               style="font-size:0.55rem;background:${farbe};color:#fff;padding:1px 4px;border-radius:3px;text-decoration:none;">→L</a>
+                            <a href="fahrten.html?kundeId=${t.kundeId}"
+                               onclick="event.stopPropagation();"
+                               style="font-size:0.55rem;background:#666;color:#fff;padding:1px 4px;border-radius:3px;text-decoration:none;">→km</a>
+                          </div>` : '';
                       return `
                         <div class="calendar-event" style="border-left-color: ${farbe}; background: ${farbe}15;"
                              onclick="event.stopPropagation(); TermineModule.terminBearbeiten(${t.id})">
                           <div class="event-title" style="color: ${farbe};">${kunde ? App.kundenName(kunde) : (t.titel || 'Termin')}${unterschriftBadge}</div>
-                          <div class="event-time">${App.formatZeit(t.startzeit)}-${App.formatZeit(t.endzeit)}</div>
+                          <div class="event-time">${App.formatZeit(t.startzeit)}-${App.formatZeit(t.endzeit)}${quickButtons}</div>
                         </div>
                       `;
                     }).join('')}

@@ -21,6 +21,13 @@ const FahrtenModule = {
     await this.wocheAnzeigen();
     // Google-Kalender im Hintergrund synchronisieren
     apiFetch('/termine/google-sync', { method: 'POST' }).catch(() => {});
+    // URL-Parameter: ?kundeId=X → Fahrt zu diesem Kunden
+    const params = new URLSearchParams(window.location.search);
+    const kundeId = params.get('kundeId');
+    if (kundeId) {
+      window.history.replaceState({}, '', window.location.pathname);
+      this.neueFahrtAusTermin(parseInt(kundeId));
+    }
   },
 
   async wocheAnzeigen() {

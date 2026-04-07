@@ -10,6 +10,9 @@ const LeistungModule = {
   async init() {
     const params = new URLSearchParams(window.location.search);
     this._preselectedKundeId = params.get('kundeId');
+    this._preselectedDatum = params.get('datum');
+    this._preselectedVon = params.get('von');
+    this._preselectedBis = params.get('bis');
     if (this._preselectedKundeId) {
       // URL-Parameter verbrauchen, damit Reload nicht erneut triggert
       window.history.replaceState({}, '', window.location.pathname);
@@ -244,6 +247,27 @@ const LeistungModule = {
       return;
     }
     this.formAnzeigen(null, kunden);
+    // URL-Parameter: Datum/Zeiten vorausfüllen
+    if (this._preselectedDatum || this._preselectedVon || this._preselectedBis) {
+      setTimeout(() => {
+        if (this._preselectedDatum) {
+          const d = document.getElementById('leistungDatum');
+          if (d) d.value = this._preselectedDatum;
+        }
+        if (this._preselectedVon) {
+          const s = document.getElementById('leistungStart');
+          if (s) s.value = this._preselectedVon;
+        }
+        if (this._preselectedBis) {
+          const e = document.getElementById('leistungEnde');
+          if (e) e.value = this._preselectedBis;
+        }
+        this.zeitAktualisieren();
+        this._preselectedDatum = null;
+        this._preselectedVon = null;
+        this._preselectedBis = null;
+      }, 100);
+    }
   },
 
   async neueLeistungAusTermin(terminId) {
@@ -733,7 +757,14 @@ const LeistungModule = {
         App.toast('Aktualisiert', 'success');
       } else {
         await DB.leistungHinzufuegen(daten);
-        App.toast('Gespeichert', 'success');
+        // Fahrt-Vorschlag nach Speichern
+        const kunde = (await DB.alleKunden()).find(k => k.id === kundeId);
+        if (kunde && kunde.strasse) {
+          const name = App.kundenName ? App.kundenName(kunde) : kunde.name;
+          App.toast(`Gespeichert — <a href="fahrten.html?kundeId=${kundeId}" style="color:#fff;text-decoration:underline;">Fahrt zu ${name}?</a>`, 'success', 8000);
+        } else {
+          App.toast('Gespeichert', 'success');
+        }
       }
       this.zurueckZurListe();
     } catch (err) {
