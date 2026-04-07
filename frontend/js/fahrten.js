@@ -1123,11 +1123,13 @@ const FahrtenModule = {
           const c = [parseFloat(results[0].lon), parseFloat(results[0].lat)];
           coords.push(c);
           geocodeCache[addr] = c;
+        } else {
+          App.toast(`Adresse nicht gefunden: ${addr}`, 'error', 8000);
         }
       }
 
       if (coords.length < 2) {
-        App.toast('Adressen nicht gefunden', 'error');
+        App.toast('Zu wenige Adressen gefunden für Routenberechnung', 'error');
         return;
       }
 
