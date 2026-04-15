@@ -599,7 +599,10 @@ const LeistungModule = {
         ` : `
           <div class="form-group">
             <label><strong>Unterschrift Versicherte/r (oder Bevollm\u00e4chtigte/r)</strong></label>
-            <div class="signature-wrapper">
+            <button class="btn btn-primary btn-block" onclick="LeistungModule.vollbildUnterschrift(${kundeId}, ${monat}, ${jahr})">
+              \u270D Vollbild-Unterschrift \u00f6ffnen
+            </button>
+            <div class="signature-wrapper" style="display:none;" id="sigInlineWrapper">
               <canvas id="sigVersicherterCanvas"></canvas>
               <div class="sig-placeholder">Hier unterschreiben</div>
             </div>
@@ -636,6 +639,79 @@ const LeistungModule = {
         this.sigPadVersicherter = initSignaturePad('sigVersicherterCanvas', 'sigVersicherterActions');
       }, 100);
     }
+  },
+
+  vollbildUnterschrift(kundeId, monat, jahr) {
+    // Fullscreen-Overlay mit großem Canvas im Querformat
+    const overlay = document.createElement('div');
+    overlay.id = 'sigFullscreenOverlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:#fff;z-index:9999;display:flex;flex-direction:column;';
+    overlay.innerHTML = `
+      <div style="padding:8px 16px;display:flex;justify-content:space-between;align-items:center;background:var(--primary);color:#fff;">
+        <span style="font-weight:600;">Unterschrift Versicherte/r</span>
+        <button onclick="LeistungModule.vollbildAbbrechen()" style="background:none;border:none;color:#fff;font-size:1.5rem;cursor:pointer;">✕</button>
+      </div>
+      <div style="flex:1;position:relative;margin:8px;">
+        <canvas id="sigFullscreenCanvas" style="width:100%;height:100%;display:block;border:2px dashed #ccc;border-radius:8px;touch-action:none;"></canvas>
+      </div>
+      <div style="padding:8px 16px;display:flex;gap:8px;">
+        <button class="btn btn-outline" onclick="LeistungModule.vollbildLoeschen()" style="flex:1;">Löschen</button>
+        <button class="btn btn-primary" onclick="LeistungModule.vollbildSpeichern(${kundeId}, ${monat}, ${jahr})" style="flex:2;">✓ Übernehmen</button>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    // Querformat erzwingen (falls unterstützt)
+    try { screen.orientation.lock('landscape').catch(() => {}); } catch(e) {}
+
+    // Canvas initialisieren
+    setTimeout(() => {
+      const canvas = document.getElementById('sigFullscreenCanvas');
+      canvas.width = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight;
+      this._fullscreenSigPad = new SignaturePad(canvas, {
+        backgroundColor: 'rgb(255,255,255)',
+        penColor: 'rgb(0,0,0)',
+      });
+    }, 100);
+  },
+
+  vollbildLoeschen() {
+    if (this._fullscreenSigPad) this._fullscreenSigPad.clear();
+  },
+
+  async vollbildSpeichern(kundeId, monat, jahr) {
+    if (!this._fullscreenSigPad || this._fullscreenSigPad.isEmpty()) {
+      App.toast('Bitte unterschreiben', 'error');
+      return;
+    }
+    const sigData = this._fullscreenSigPad.toDataURL();
+    this._fullscreenSigPad = null;
+
+    // Overlay entfernen
+    const overlay = document.getElementById('sigFullscreenOverlay');
+    if (overlay) overlay.remove();
+    try { screen.orientation.unlock(); } catch(e) {}
+
+    // Unterschrift für alle Leistungen speichern
+    try {
+      const alleLeistungen = await DB.leistungenFuerMonat(monat, jahr);
+      const leistungen = alleLeistungen.filter(l => l.kundeId === kundeId);
+      for (const l of leistungen) {
+        await DB.leistungAktualisieren(l.id, { unterschriftVersicherter: sigData });
+      }
+      App.toast(`Unterschrift für ${leistungen.length} Einträge gespeichert`, 'success');
+      this.unterschriftenAnzeigen(kundeId, monat, jahr);
+    } catch (err) {
+      App.toast('Fehler: ' + err.message, 'error');
+    }
+  },
+
+  vollbildAbbrechen() {
+    this._fullscreenSigPad = null;
+    const overlay = document.getElementById('sigFullscreenOverlay');
+    if (overlay) overlay.remove();
+    try { screen.orientation.unlock(); } catch(e) {}
   },
 
   // Unterschrift für alle Leistungen eines Kunden im Monat speichern
