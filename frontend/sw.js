@@ -1,5 +1,5 @@
 // Service Worker fuer entlast.de - Reines Asset-Caching (kein IndexedDB-Sync)
-const CACHE_NAME = 'entlast-app-v64';
+const CACHE_NAME = 'entlast-app-v65';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
@@ -59,20 +59,18 @@ self.addEventListener('install', event => {
     self.skipWaiting();
 });
 
-// Aktivierung: Alte Caches loeschen
+// Aktivierung: ALLE Caches loeschen (Force-Update)
 self.addEventListener('activate', event => {
-    console.log('[SW] Aktiviert');
+    console.log('[SW] Aktiviert — loesche ALLE Caches');
     event.waitUntil(
         caches.keys().then(cacheNames => {
             return Promise.all(
                 cacheNames.map(name => {
-                    if (name !== CACHE_NAME) {
-                        console.log('[SW] Alter Cache geloescht:', name);
-                        return caches.delete(name);
-                    }
+                    console.log('[SW] Cache geloescht:', name);
+                    return caches.delete(name);
                 })
             );
-        })
+        }).then(() => caches.open(CACHE_NAME))
     );
     self.clients.claim();
 });
