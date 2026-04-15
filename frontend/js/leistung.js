@@ -116,6 +116,22 @@ const LeistungModule = {
       }
     }
 
+    // Fax-Status prüfen wenn wartende Faxe vorhanden
+    const hatWartende = rechnungen.some(r => r.versandArt === 'fax_warteschlange' || r.versandArt === 'faxWarteschlange');
+    if (hatWartende) {
+      apiFetch('/lexoffice/fax-status-pruefen', { method: 'POST' }).then(r => {
+        if (r.aktualisiert > 0) this.listeAnzeigen();
+      }).catch(() => {});
+      // Poll alle 30s
+      if (this._faxPollLeistung) clearInterval(this._faxPollLeistung);
+      this._faxPollLeistung = setInterval(async () => {
+        try {
+          const r = await apiFetch('/lexoffice/fax-status-pruefen', { method: 'POST' });
+          if (r.aktualisiert > 0) { clearInterval(this._faxPollLeistung); this._faxPollLeistung = null; this.listeAnzeigen(); }
+        } catch(e) {}
+      }, 30000);
+    }
+
     // Monatsfilter
     const monate = Object.keys(grouped).sort().reverse();
     const aktuellerFilter = this._monatsFilter || monate[0];
