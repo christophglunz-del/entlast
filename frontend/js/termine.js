@@ -32,6 +32,14 @@ const TermineModule = {
     apiFetch('/termine/google-sync', { method: 'POST' }).then(r => {
       if (r.neu > 0) { App.toast(`${r.neu} neue Termine aus Google importiert`, 'success'); this.kalenderAnzeigen(); }
     }).catch(() => {});
+
+    // Bei Rückkehr zur Seite (Back-Navigation): Daten neu laden
+    window.addEventListener('pageshow', (e) => {
+      if (e.persisted) this.kalenderAnzeigen();
+    });
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) this.kalenderAnzeigen();
+    });
   },
 
   async kalenderAnzeigen() {
