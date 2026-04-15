@@ -155,21 +155,24 @@ const TermineModule = {
                       const unterschriftBadge = TermineModule.istLetzterImMonat(t, datumStr) ? ' <span style="background:#ea580c;color:#fff;font-size:0.6rem;padding:1px 3px;border-radius:3px;white-space:nowrap;">\u270D\uFE0F Unterschrift</span>' : '';
                       const hatLeistung = t.kundeId && leistungSet.has(`${t.kundeId}-${datumStr}`);
                       const hatFahrt = fahrtSet.has(datumStr);
+                      const beidesFertig = hatLeistung && hatFahrt;
                       const quickButtons = kunde && t.kundeId ? `
                           <div style="display:flex;gap:2px;margin-top:2px;">
                             ${hatLeistung
-                              ? `<span style="font-size:0.7rem;background:#ccc;color:#fff;padding:4px 8px;border-radius:4px;min-height:28px;display:inline-flex;align-items:center;">✓L</span>`
+                              ? `<span style="font-size:0.7rem;background:#2e7d32;color:#fff;padding:4px 8px;border-radius:4px;min-height:28px;display:inline-flex;align-items:center;">✓L</span>`
                               : `<a href="leistung.html?kundeId=${t.kundeId}&datum=${datumStr}&von=${t.startzeit || ''}&bis=${t.endzeit || ''}"
                                  onclick="event.stopPropagation();"
                                  style="font-size:0.7rem;background:${farbe};color:#fff;padding:4px 8px;border-radius:4px;text-decoration:none;min-height:28px;display:inline-flex;align-items:center;">→L</a>`}
                             ${hatFahrt
-                              ? `<span style="font-size:0.7rem;background:#ccc;color:#fff;padding:4px 8px;border-radius:4px;min-height:28px;display:inline-flex;align-items:center;">✓km</span>`
+                              ? `<span style="font-size:0.7rem;background:#2e7d32;color:#fff;padding:4px 8px;border-radius:4px;min-height:28px;display:inline-flex;align-items:center;">✓km</span>`
                               : `<a href="fahrten.html?kundeId=${t.kundeId}&datum=${datumStr}"
                                  onclick="event.stopPropagation();"
                                  style="font-size:0.7rem;background:#666;color:#fff;padding:4px 8px;border-radius:4px;text-decoration:none;min-height:28px;display:inline-flex;align-items:center;">→km</a>`}
                           </div>` : '';
+                      const eventOpacity = beidesFertig ? 'opacity:0.4;' : '';
+                      const eventBorder = beidesFertig ? '#ccc' : farbe;
                       return `
-                        <div class="calendar-event" style="border-left-color: ${farbe}; background: ${farbe}15;"
+                        <div class="calendar-event" style="border-left-color: ${eventBorder}; background: ${eventBorder}15;${eventOpacity}"
                              onclick="event.stopPropagation(); TermineModule.terminBearbeiten(${t.id})">
                           <div class="event-title" style="color: ${farbe};">${kunde ? (kunde.vorname || kunde.name) : (t.titel || 'Termin')}${unterschriftBadge}</div>
                           <div class="event-time">${App.formatZeit(t.startzeit)}-${App.formatZeit(t.endzeit)}${quickButtons}</div>
