@@ -843,21 +843,24 @@ textarea.form-control {
 
 .time-slot {
   position: relative;
-  overflow: visible;
+  overflow-x: hidden;
+  overflow-y: visible;
 }
 
 .calendar-event {
   background: var(--primary-bg);
   border-left: 3px solid var(--primary);
-  padding: 6px 8px;
+  padding: 4px 3px;
   border-radius: 4px;
-  font-size: 0.72rem;
-  margin: 2px;
+  font-size: 0.68rem;
+  margin: 1px;
   cursor: pointer;
   max-width: 100%;
   overflow: hidden;
   position: relative;
   z-index: 2;
+  box-sizing: border-box;
+  word-break: break-all;
 }
 
 .calendar-event .event-title {
@@ -874,20 +877,27 @@ textarea.form-control {
 
 @media (max-width: 600px) {
   .week-header, .week-grid {
-    grid-template-columns: 40px repeat(5, 1fr);
+    grid-template-columns: 35px repeat(5, 1fr);
   }
   .week-header > div {
-    padding: 6px 2px;
-    font-size: 0.65rem;
+    padding: 4px 1px;
+    font-size: 0.6rem;
   }
   .calendar-event {
-    padding: 3px 4px;
-    font-size: 0.65rem;
-    margin: 1px;
+    padding: 2px 2px;
+    font-size: 0.58rem;
+    margin: 0;
+    border-left-width: 2px;
+  }
+  .calendar-event .event-title {
+    font-size: 0.58rem;
+  }
+  .calendar-event .event-time {
+    font-size: 0.55rem;
   }
   .time-slot {
-    padding: 4px 2px;
-    min-height: 40px;
+    padding: 2px 1px;
+    min-height: 36px;
   }
 }
 

@@ -181,15 +181,15 @@ const TermineModule = {
                       const quickButtons = kunde && t.kundeId ? `
                           <div style="display:flex;gap:2px;margin-top:2px;">
                             ${hatLeistung
-                              ? `<span style="font-size:0.7rem;background:#2e7d32;color:#fff;padding:4px 8px;border-radius:4px;min-height:28px;display:inline-flex;align-items:center;">✓L</span>`
+                              ? `<span style="font-size:0.6rem;background:#2e7d32;color:#fff;padding:2px 4px;border-radius:3px;min-height:20px;display:inline-flex;align-items:center;">✓L</span>`
                               : `<a href="leistung.html?kundeId=${t.kundeId}&datum=${datumStr}&von=${t.startzeit || ''}&bis=${t.endzeit || ''}"
                                  onclick="event.stopPropagation();"
-                                 style="font-size:0.7rem;background:${farbe};color:#fff;padding:4px 8px;border-radius:4px;text-decoration:none;min-height:28px;display:inline-flex;align-items:center;">→L</a>`}
+                                 style="font-size:0.6rem;background:${farbe};color:#fff;padding:2px 4px;border-radius:3px;text-decoration:none;min-height:20px;display:inline-flex;align-items:center;">→L</a>`}
                             ${hatFahrt
-                              ? `<span style="font-size:0.7rem;background:#2e7d32;color:#fff;padding:4px 8px;border-radius:4px;min-height:28px;display:inline-flex;align-items:center;">✓km</span>`
+                              ? `<span style="font-size:0.6rem;background:#2e7d32;color:#fff;padding:2px 4px;border-radius:3px;min-height:20px;display:inline-flex;align-items:center;">✓km</span>`
                               : `<a href="fahrten.html?kundeId=${t.kundeId}&datum=${datumStr}"
                                  onclick="event.stopPropagation();"
-                                 style="font-size:0.7rem;background:#666;color:#fff;padding:4px 8px;border-radius:4px;text-decoration:none;min-height:28px;display:inline-flex;align-items:center;">→km</a>`}
+                                 style="font-size:0.6rem;background:#666;color:#fff;padding:2px 4px;border-radius:3px;text-decoration:none;min-height:20px;display:inline-flex;align-items:center;">→km</a>`}
                           </div>` : '';
                       const eventOpacity = beidesFertig ? 'opacity:0.4;' : '';
                       const eventBorder = beidesFertig ? '#ccc' : farbe;
