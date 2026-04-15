@@ -97,10 +97,52 @@ const FahrtenModule = {
       });
 
       if (eindeutig.length > 0) {
-        // Tour-Button nur anzeigen wenn >= 2 nicht-erfasste Kunden
+        // Termine nach Uhrzeit sortieren und in Touren gruppieren (≤15 Min. Pause)
         const nichtErfasst = eindeutig.filter(item => !item.bereitsErfasst);
+        const sortiert = [...nichtErfasst].sort((a, b) => (a.termin.startzeit || '').localeCompare(b.termin.startzeit || ''));
+
+        const touren = [];
+        let aktuelleTour = [];
+        for (const item of sortiert) {
+          if (aktuelleTour.length === 0) {
+            aktuelleTour.push(item);
+          } else {
+            // Prüfe ob ≤15 Min. zwischen Ende des letzten und Start des nächsten
+            const letzter = aktuelleTour[aktuelleTour.length - 1];
+            const letzteEnde = letzter.termin.endzeit || letzter.termin.startzeit || '00:00';
+            const naechsterStart = item.termin.startzeit || '00:00';
+            const eP = letzteEnde.split(':'), sP = naechsterStart.split(':');
+            const endMin = parseInt(eP[0]) * 60 + parseInt(eP[1] || 0);
+            const startMin = parseInt(sP[0]) * 60 + parseInt(sP[1] || 0);
+            if (startMin - endMin <= 15) {
+              aktuelleTour.push(item);
+            } else {
+              touren.push(aktuelleTour);
+              aktuelleTour = [item];
+            }
+          }
+        }
+        if (aktuelleTour.length > 0) touren.push(aktuelleTour);
+
+        // Tour-Buttons rendern
         let tourButtonHtml = '';
-        if (nichtErfasst.length >= 2) {
+        for (let ti = 0; ti < touren.length; ti++) {
+          const tour = touren[ti];
+          if (tour.length >= 2) {
+            const kundenNamen = tour.map(item => App.kundenName(item.kunde).split(',')[0].trim()).join(' → ');
+            const kundenIds = tour.map(item => item.kunde.id).join(',');
+            tourButtonHtml += `
+              <div style="margin-bottom:8px;">
+                <button class="btn btn-primary" style="width:100%;padding:10px 12px;font-size:0.9rem;"
+                        onclick="FahrtenModule.tourErstellen([${kundenIds}])">
+                  🚗 Tour ${touren.length > 1 ? (ti + 1) + ': ' : ''}${tour.length} Kunden
+                </button>
+                <div class="text-xs text-muted" style="margin-top:2px;">${kundenNamen}</div>
+              </div>`;
+          }
+        }
+        if (tourButtonHtml === '' && nichtErfasst.length >= 2) {
+          // Fallback: alle als eine Tour wenn keine Gruppen gefunden
           const kundenNamen = nichtErfasst.map(item => App.kundenName(item.kunde).split(',')[0].trim()).join(', ');
           tourButtonHtml = `
             <div style="margin-bottom:8px;">
@@ -839,6 +881,13 @@ const FahrtenModule = {
 
   // ===== TAGESTOUR =====
 
+  async tourErstellen(kundenIds) {
+    // Tour mit bestimmten Kunden-IDs — nutzt tagestourErstellen mit Filter
+    this._tourKundenIds = kundenIds;
+    await this.tagestourErstellen();
+    this._tourKundenIds = null;
+  },
+
   async tagestourErstellen() {
     App.toast('Tagestour wird vorbereitet...', 'info');
 
@@ -859,8 +908,10 @@ const FahrtenModule = {
       });
 
       // Termine mit Kunde + Adresse, sortiert nach Uhrzeit
+      // Optional: nur bestimmte Kunden (für tourErstellen)
+      const filterIds = this._tourKundenIds ? new Set(this._tourKundenIds) : null;
       const terminMitKunde = termine
-        .filter(t => t.kundeId && kundenMap[t.kundeId])
+        .filter(t => t.kundeId && kundenMap[t.kundeId] && (!filterIds || filterIds.has(t.kundeId)))
         .map(t => {
           const kunde = kundenMap[t.kundeId];
           const adresse = [kunde.strasse, kunde.plz, kunde.ort].filter(Boolean).join(', ');
