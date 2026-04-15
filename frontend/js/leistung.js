@@ -13,6 +13,11 @@ const LeistungModule = {
     this._preselectedDatum = params.get('datum');
     this._preselectedVon = params.get('von');
     this._preselectedBis = params.get('bis');
+    if (params.get('filter') === 'offen') {
+      this._monatsFilter = 'alle';
+      this._filterOffen = true;
+      window.history.replaceState({}, '', window.location.pathname);
+    }
     if (this._preselectedKundeId) {
       // URL-Parameter verbrauchen, damit Reload nicht erneut triggert
       window.history.replaceState({}, '', window.location.pathname);
@@ -147,8 +152,11 @@ const LeistungModule = {
             ${App.monatsName(parseInt(mo))} ${j}</button>`;
         }).join('')}
         <button class="btn btn-sm ${!this._monatsFilter || this._monatsFilter === 'alle' ? 'btn-primary' : 'btn-outline'}"
-          onclick="LeistungModule._monatsFilter='alle'; LeistungModule.listeAnzeigen();">
+          onclick="LeistungModule._monatsFilter='alle'; LeistungModule._filterOffen=false; LeistungModule.listeAnzeigen();">
           Alle</button>
+        <button class="btn btn-sm ${this._filterOffen ? 'btn-primary' : 'btn-outline'}" style="background:${this._filterOffen ? '#dc2626' : ''};border-color:${this._filterOffen ? '#dc2626' : ''};"
+          onclick="LeistungModule._monatsFilter='alle'; LeistungModule._filterOffen=!LeistungModule._filterOffen; LeistungModule.listeAnzeigen();">
+          Offen</button>
       </div>
     `;
 
@@ -165,7 +173,14 @@ const LeistungModule = {
       `;
 
       // Pro Kunde in diesem Monat: Karte anzeigen
-      const kundenIds = [...new Set(eintraege.map(l => l.kundeId))];
+      let kundenIds = [...new Set(eintraege.map(l => l.kundeId))];
+      // "Offen"-Filter: nur Kunden ohne Rechnung/Versand
+      if (this._filterOffen) {
+        kundenIds = kundenIds.filter(kid => {
+          const re = rechnungMap[`${kid}-${mi}-${ji}`];
+          return !re || !re.versandArt;
+        });
+      }
       for (const kid of kundenIds) {
         const k = kundenMap[kid];
         if (!k) continue;
