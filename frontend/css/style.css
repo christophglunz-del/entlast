@@ -97,6 +97,9 @@ img {
   border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
+  min-width: 44px;
+  min-height: 44px;
+  justify-content: center;
 }
 
 .app-header .back-btn:active {
@@ -182,7 +185,7 @@ img {
   align-items: center;
   gap: 2px;
   padding: 6px 12px;
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   color: var(--gray-500);
   text-decoration: none;
   transition: var(--transition);
@@ -616,9 +619,8 @@ textarea.form-control {
 .list-item .item-subtitle {
   font-size: 0.8rem;
   color: var(--gray-500);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  word-break: break-word;
 }
 
 .list-item .item-action {
