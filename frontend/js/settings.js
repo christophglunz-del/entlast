@@ -231,10 +231,27 @@ const SettingsModule = {
         <div class="form-hint mt-1">Diese Aktion kann nicht rückgängig gemacht werden!</div>
       </div>
 
+      <!-- Cache leeren -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">App-Cache</span>
+          <span class="card-icon pink">🔄</span>
+        </div>
+        <p class="text-sm text-muted">Falls die App veraltete Daten anzeigt.</p>
+        <button class="btn btn-outline btn-block" onclick="(async()=>{
+          if(navigator.serviceWorker){const r=await navigator.serviceWorker.getRegistration();if(r)await r.unregister();}
+          const keys=await caches.keys();for(const k of keys)await caches.delete(k);
+          App.toast('Cache geleert — Seite wird neu geladen','success');
+          setTimeout(()=>window.location.reload(),1500);
+        })()">
+          🗑️ Cache leeren &amp; neu laden
+        </button>
+      </div>
+
       <!-- App-Info -->
       <div class="card text-center text-sm text-muted">
         <p><strong>Susi's Alltagshilfe</strong></p>
-        <p>Version 1.1.2</p>
+        <p>Version ${App.version}</p>
         <p>PWA für Entlastungsleistungen nach § 45b SGB XI</p>
         <p class="mt-1">Made with ♥ für Susanne</p>
       </div>
