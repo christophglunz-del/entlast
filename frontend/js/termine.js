@@ -207,9 +207,12 @@ const TermineModule = {
                       }
                       return `
                         <div class="calendar-event" style="border-left-color: ${eventBorder}; background: ${eventBorder}15;${eventOpacity}${eventHeightStyle}"
-                             onclick="event.stopPropagation(); TermineModule.terminBearbeiten(${t.id})">
-                          <div class="event-title" style="color: ${farbe};">${kunde ? (kunde.vorname || kunde.name) : (t.titel || 'Termin')}${unterschriftBadge}</div>
-                          <div class="event-time">${App.formatZeit(t.startzeit)}-${App.formatZeit(t.endzeit)}${quickButtons}</div>
+                             onclick="event.stopPropagation();">
+                          <div onclick="TermineModule.terminBearbeiten(${t.id})" style="cursor:pointer;">
+                            <div class="event-title" style="color: ${farbe};">${kunde ? (kunde.vorname || kunde.name) : (t.titel || 'Termin')}${unterschriftBadge}</div>
+                            <div class="event-time">${App.formatZeit(t.startzeit)}-${App.formatZeit(t.endzeit)}</div>
+                          </div>
+                          ${quickButtons}
                         </div>
                       `;
                     }).join('')}
