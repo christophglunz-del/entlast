@@ -877,6 +877,15 @@ const LeistungModule = {
       return;
     }
 
+    // Duplikat-Prüfung: gleicher Kunde + gleiches Datum
+    if (!id) {
+      const alleLeistungen = await DB.alleLeistungen();
+      const duplikat = alleLeistungen.find(l => l.kundeId === kundeId && l.datum === daten.datum);
+      if (duplikat) {
+        if (!await App.confirm(`⚠️ Für diesen Kunden existiert am ${App.formatDatum(daten.datum)} bereits ein Leistungseintrag (${duplikat.von || '?'}-${duplikat.bis || '?'}). Trotzdem anlegen?`)) return;
+      }
+    }
+
     // Warnung wenn für diesen Kunden/Monat schon eine Rechnung existiert
     if (!id) {
       const [j, m] = daten.datum.split('-');
