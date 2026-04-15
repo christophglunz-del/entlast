@@ -841,6 +841,11 @@ textarea.form-control {
   min-height: 50px;
 }
 
+.time-slot {
+  position: relative;
+  overflow: visible;
+}
+
 .calendar-event {
   background: var(--primary-bg);
   border-left: 3px solid var(--primary);
@@ -851,6 +856,8 @@ textarea.form-control {
   cursor: pointer;
   max-width: 100%;
   overflow: hidden;
+  position: relative;
+  z-index: 2;
 }
 
 .calendar-event .event-title {

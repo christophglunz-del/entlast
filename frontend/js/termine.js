@@ -171,8 +171,20 @@ const TermineModule = {
                           </div>` : '';
                       const eventOpacity = beidesFertig ? 'opacity:0.4;' : '';
                       const eventBorder = beidesFertig ? '#ccc' : farbe;
+                      // Höhe berechnen: mehrstündige Termine über mehrere Slots
+                      let eventHeightStyle = '';
+                      if (t.startzeit && t.endzeit) {
+                        const sp = t.startzeit.split(':'), ep = t.endzeit.split(':');
+                        const startMin = parseInt(sp[0]) * 60 + parseInt(sp[1] || 0);
+                        const endMin = parseInt(ep[0]) * 60 + parseInt(ep[1] || 0);
+                        const dauerSlots = Math.max(1, (endMin - startMin) / 60);
+                        if (dauerSlots > 1) {
+                          const h = Math.round(dauerSlots * 50 + (dauerSlots - 1));
+                          eventHeightStyle = `min-height:${h}px;`;
+                        }
+                      }
                       return `
-                        <div class="calendar-event" style="border-left-color: ${eventBorder}; background: ${eventBorder}15;${eventOpacity}"
+                        <div class="calendar-event" style="border-left-color: ${eventBorder}; background: ${eventBorder}15;${eventOpacity}${eventHeightStyle}"
                              onclick="event.stopPropagation(); TermineModule.terminBearbeiten(${t.id})">
                           <div class="event-title" style="color: ${farbe};">${kunde ? (kunde.vorname || kunde.name) : (t.titel || 'Termin')}${unterschriftBadge}</div>
                           <div class="event-time">${App.formatZeit(t.startzeit)}-${App.formatZeit(t.endzeit)}${quickButtons}</div>
