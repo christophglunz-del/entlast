@@ -630,14 +630,14 @@ const LeistungModule = {
         ` : `
           <div class="form-group">
             <label><strong>Unterschrift Versicherte/r (oder Bevollm\u00e4chtigte/r)</strong></label>
-            <button class="btn btn-primary btn-block" onclick="LeistungModule.vollbildUnterschrift(${kundeId}, ${monat}, ${jahr})">
-              \u270D Vollbild-Unterschrift \u00f6ffnen
-            </button>
-            <div class="signature-wrapper" style="display:none;" id="sigInlineWrapper">
+            <div class="signature-wrapper">
               <canvas id="sigVersicherterCanvas"></canvas>
               <div class="sig-placeholder">Hier unterschreiben</div>
             </div>
             <div id="sigVersicherterActions" class="signature-actions"></div>
+            <button class="btn btn-outline btn-sm mt-1" onclick="LeistungModule.vollbildUnterschrift(${kundeId}, ${monat}, ${jahr})">
+              \u21F1 Vollbild
+            </button>
           </div>
         `}
       </div>
@@ -673,7 +673,9 @@ const LeistungModule = {
   },
 
   vollbildUnterschrift(kundeId, monat, jahr) {
-    // Fullscreen-Overlay mit großem Canvas im Querformat
+    // Prüfe ob Querformat oder Hochformat
+    const isPortrait = window.innerHeight > window.innerWidth;
+
     const overlay = document.createElement('div');
     overlay.id = 'sigFullscreenOverlay';
     overlay.style.cssText = 'position:fixed;inset:0;background:#fff;z-index:9999;display:flex;flex-direction:column;';
@@ -682,8 +684,8 @@ const LeistungModule = {
         <span style="font-weight:600;">Unterschrift Versicherte/r</span>
         <button onclick="LeistungModule.vollbildAbbrechen()" style="background:none;border:none;color:#fff;font-size:1.5rem;cursor:pointer;">✕</button>
       </div>
-      <div style="flex:1;position:relative;margin:8px;">
-        <canvas id="sigFullscreenCanvas" style="width:100%;height:100%;display:block;border:2px dashed #ccc;border-radius:8px;touch-action:none;"></canvas>
+      <div style="flex:1;position:relative;margin:8px;overflow:hidden;">
+        <canvas id="sigFullscreenCanvas" style="display:block;border:2px dashed #ccc;border-radius:8px;touch-action:none;${isPortrait ? 'transform:rotate(90deg);transform-origin:top left;position:absolute;top:0;left:0;' : 'width:100%;height:100%;'}"></canvas>
       </div>
       <div style="padding:8px 16px;display:flex;gap:8px;">
         <button class="btn btn-outline" onclick="LeistungModule.vollbildLoeschen()" style="flex:1;">Löschen</button>
@@ -692,14 +694,23 @@ const LeistungModule = {
     `;
     document.body.appendChild(overlay);
 
-    // Querformat erzwingen (falls unterstützt)
-    try { screen.orientation.lock('landscape').catch(() => {}); } catch(e) {}
-
     // Canvas initialisieren
     setTimeout(() => {
       const canvas = document.getElementById('sigFullscreenCanvas');
-      canvas.width = canvas.offsetWidth;
-      canvas.height = canvas.offsetHeight;
+      const container = canvas.parentElement;
+
+      if (isPortrait) {
+        // Hochformat: Canvas rotieren (Breite = Containerhöhe, Höhe = Containerbreite)
+        canvas.width = container.offsetHeight;
+        canvas.height = container.offsetWidth;
+        canvas.style.width = container.offsetHeight + 'px';
+        canvas.style.height = container.offsetWidth + 'px';
+      } else {
+        canvas.width = container.offsetWidth;
+        canvas.height = container.offsetHeight;
+      }
+
+      this._fullscreenIsPortrait = isPortrait;
       this._fullscreenSigPad = new SignaturePad(canvas, {
         backgroundColor: 'rgb(255,255,255)',
         penColor: 'rgb(0,0,0)',
@@ -716,8 +727,26 @@ const LeistungModule = {
       App.toast('Bitte unterschreiben', 'error');
       return;
     }
-    const sigData = this._fullscreenSigPad.toDataURL();
+
+    let sigData;
+    if (this._fullscreenIsPortrait) {
+      // Rotiertes Canvas: zurückdrehen für korrektes Bild
+      const srcCanvas = document.getElementById('sigFullscreenCanvas');
+      const tmpCanvas = document.createElement('canvas');
+      tmpCanvas.width = srcCanvas.height;
+      tmpCanvas.height = srcCanvas.width;
+      const ctx = tmpCanvas.getContext('2d');
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, tmpCanvas.width, tmpCanvas.height);
+      ctx.translate(0, tmpCanvas.height);
+      ctx.rotate(-Math.PI / 2);
+      ctx.drawImage(srcCanvas, 0, 0);
+      sigData = tmpCanvas.toDataURL();
+    } else {
+      sigData = this._fullscreenSigPad.toDataURL();
+    }
     this._fullscreenSigPad = null;
+    this._fullscreenIsPortrait = false;
 
     // Overlay entfernen
     const overlay = document.getElementById('sigFullscreenOverlay');
