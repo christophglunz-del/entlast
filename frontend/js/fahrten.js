@@ -1195,6 +1195,18 @@ const FahrtenModule = {
         const route = routeData.routes[0];
         const distKm = (route.distance / 1000).toFixed(1);
 
+        // Teilstrecken in Notiz schreiben (wenn > 2 Wegpunkte)
+        if (route.legs && route.legs.length > 1) {
+          const adressenKurz = adressen.map(a => a.split(',')[0].trim());
+          const teilstrecken = route.legs.map((leg, i) => {
+            const km = (leg.distance / 1000).toFixed(1);
+            return `${adressenKurz[i]} → ${adressenKurz[i+1]} (${km} km)`;
+          });
+          const tourNotiz = 'Tour: ' + teilstrecken.join(', ');
+          const notizInput = document.getElementById('fahrtNotiz');
+          if (notizInput) notizInput.value = tourNotiz;
+        }
+
         const kmInput = document.getElementById('fahrtKm');
         if (kmInput) { kmInput.value = distKm; this.kmAktualisieren(); }
 
