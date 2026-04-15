@@ -52,10 +52,12 @@ const TermineModule = {
 
     // Sets für schnelle Prüfung: "kundeId-datum"
     const leistungSet = new Set(leistungen.map(l => `${l.kundeId}-${l.datum}`));
-    const fahrtSet = new Set();
+    // Fahrten: Kundenadressen pro Datum sammeln
+    const fahrtAdressenProDatum = {};
     fahrten.forEach(f => {
       if (f.zielAdressen && f.datum) {
-        fahrtSet.add(f.datum);
+        if (!fahrtAdressenProDatum[f.datum]) fahrtAdressenProDatum[f.datum] = new Set();
+        (f.zielAdressen || []).forEach(z => fahrtAdressenProDatum[f.datum].add(z.toLowerCase().trim()));
       }
     });
 
@@ -154,7 +156,19 @@ const TermineModule = {
                       const farbe = istFeiertag ? '#999' : (this.kundenFarben[t.kundeId] || '#E91E7B');
                       const unterschriftBadge = TermineModule.istLetzterImMonat(t, datumStr) ? ' <span style="background:#ea580c;color:#fff;font-size:0.6rem;padding:1px 3px;border-radius:3px;white-space:nowrap;">\u270D\uFE0F Unterschrift</span>' : '';
                       const hatLeistung = t.kundeId && leistungSet.has(`${t.kundeId}-${datumStr}`);
-                      const hatFahrt = fahrtSet.has(datumStr);
+                      // Fahrt prüfen: Kundenadresse in den Zieladressen des Tages?
+                      let hatFahrt = false;
+                      if (kunde && fahrtAdressenProDatum[datumStr]) {
+                        const kundeAddr = [kunde.strasse, kunde.plz, kunde.ort].filter(Boolean).join(', ').toLowerCase().trim();
+                        hatFahrt = kundeAddr && fahrtAdressenProDatum[datumStr].has(kundeAddr);
+                        // Auch ohne exakten Match: prüfe ob Straße vorkommt
+                        if (!hatFahrt && kunde.strasse) {
+                          const str = kunde.strasse.toLowerCase();
+                          for (const z of fahrtAdressenProDatum[datumStr]) {
+                            if (z.includes(str)) { hatFahrt = true; break; }
+                          }
+                        }
+                      }
                       const beidesFertig = hatLeistung && hatFahrt;
                       const quickButtons = kunde && t.kundeId ? `
                           <div style="display:flex;gap:2px;margin-top:2px;">
