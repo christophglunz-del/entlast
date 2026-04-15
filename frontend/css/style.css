@@ -849,15 +849,39 @@ textarea.form-control {
   font-size: 0.72rem;
   margin: 2px;
   cursor: pointer;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .calendar-event .event-title {
   font-weight: 600;
   color: var(--gray-800);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .calendar-event .event-time {
   color: var(--gray-600);
+}
+
+@media (max-width: 600px) {
+  .week-header, .week-grid {
+    grid-template-columns: 40px repeat(5, 1fr);
+  }
+  .week-header > div {
+    padding: 6px 2px;
+    font-size: 0.65rem;
+  }
+  .calendar-event {
+    padding: 3px 4px;
+    font-size: 0.65rem;
+    margin: 1px;
+  }
+  .time-slot {
+    padding: 4px 2px;
+    min-height: 40px;
+  }
 }
 
 /* --- Map --- */

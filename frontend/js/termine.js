@@ -171,7 +171,7 @@ const TermineModule = {
                       return `
                         <div class="calendar-event" style="border-left-color: ${farbe}; background: ${farbe}15;"
                              onclick="event.stopPropagation(); TermineModule.terminBearbeiten(${t.id})">
-                          <div class="event-title" style="color: ${farbe};">${kunde ? App.kundenName(kunde) : (t.titel || 'Termin')}${unterschriftBadge}</div>
+                          <div class="event-title" style="color: ${farbe};">${kunde ? (kunde.vorname || kunde.name) : (t.titel || 'Termin')}${unterschriftBadge}</div>
                           <div class="event-time">${App.formatZeit(t.startzeit)}-${App.formatZeit(t.endzeit)}${quickButtons}</div>
                         </div>
                       `;
