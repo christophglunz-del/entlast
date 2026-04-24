@@ -714,8 +714,11 @@ const FahrtenModule = {
         </div>
 
         <div class="btn-group mb-2">
-          <button type="button" class="btn btn-sm btn-outline" onclick="FahrtenModule.routeBerechnen()">
+          <button type="button" id="btnRouteBerechnen" class="btn btn-sm btn-outline" onclick="FahrtenModule.routeBerechnen()">
             &#x1F5FA;&#xFE0F; Route berechnen &amp; km ermitteln
+          </button>
+          <button type="button" class="btn btn-sm btn-primary" onclick="FahrtenModule.fahrtSpeichern('${datum}')">
+            Speichern
           </button>
         </div>
 
@@ -725,10 +728,7 @@ const FahrtenModule = {
       </div>
 
       <div class="btn-group mt-2">
-        <button class="btn btn-primary btn-block" onclick="FahrtenModule.fahrtSpeichern('${datum}')">
-          Speichern
-        </button>
-        <button class="btn btn-secondary" onclick="FahrtenModule.wocheAnzeigen()">
+        <button class="btn btn-secondary btn-block" onclick="FahrtenModule.wocheAnzeigen()">
           Abbrechen
         </button>
       </div>
@@ -817,8 +817,11 @@ const FahrtenModule = {
         </div>
 
         <div class="btn-group mb-2">
-          <button type="button" class="btn btn-sm btn-outline" onclick="FahrtenModule.routeBerechnen()">
+          <button type="button" id="btnRouteBerechnen" class="btn btn-sm btn-outline" onclick="FahrtenModule.routeBerechnen()" disabled>
             &#x1F5FA;&#xFE0F; Route berechnen &amp; km ermitteln
+          </button>
+          <button type="button" class="btn btn-sm btn-primary" onclick="FahrtenModule.fahrtSpeichern('${datum}')">
+            Speichern
           </button>
         </div>
 
@@ -828,10 +831,7 @@ const FahrtenModule = {
       </div>
 
       <div class="btn-group mt-2">
-        <button class="btn btn-primary btn-block" onclick="FahrtenModule.fahrtSpeichern('${datum}')">
-          Speichern
-        </button>
-        <button class="btn btn-secondary" onclick="FahrtenModule.wocheAnzeigen()">
+        <button class="btn btn-secondary btn-block" onclick="FahrtenModule.wocheAnzeigen()">
           Abbrechen
         </button>
       </div>
@@ -859,8 +859,8 @@ const FahrtenModule = {
         }
       }
 
-      // Rückfahrt zur Firma als zweites Ziel
-      this.zielHinzufuegen();
+      // Rückfahrt zur Firma als zweites Ziel (silent: Route-Button bleibt disabled)
+      this.zielHinzufuegen(true);
       setTimeout(() => {
         const zielInputs = document.querySelectorAll('.ziel-adresse');
         if (zielInputs.length >= 2) {
@@ -1115,13 +1115,16 @@ const FahrtenModule = {
     selectEl.size = 1;
   },
 
-  async zielHinzufuegen() {
+  async zielHinzufuegen(silent = false) {
     const kunden = await DB.alleKunden();
     const zieleListe = document.getElementById('zieleListe');
     const entry = document.createElement('div');
     entry.className = 'ziel-entry mb-1';
     entry.innerHTML = this.zielEingabeRendern(kunden);
     zieleListe.appendChild(entry);
+    if (!silent) {
+      document.getElementById('btnRouteBerechnen')?.removeAttribute('disabled');
+    }
   },
 
   kmAktualisieren() {
