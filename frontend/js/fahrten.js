@@ -837,7 +837,7 @@ const FahrtenModule = {
       </div>
     `;
 
-    setTimeout(() => {
+    setTimeout(async () => {
       if (this.map) this.map.remove();
       this.map = L.map('routeMap').setView([51.3993, 7.1859], 13);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -860,21 +860,17 @@ const FahrtenModule = {
       }
 
       // Rückfahrt zur Firma als zweites Ziel (silent: Route-Button bleibt disabled)
-      this.zielHinzufuegen(true);
-      setTimeout(() => {
-        const zielInputs = document.querySelectorAll('.ziel-adresse');
-        if (zielInputs.length >= 2) {
-          zielInputs[zielInputs.length - 1].value = startAdresse;
-        }
-        // Route berechnen
-        this.routeBerechnen();
-      }, 100);
+      await this.zielHinzufuegen(true);
+      const zielInputs = document.querySelectorAll('.ziel-adresse');
+      if (zielInputs.length >= 2) {
+        zielInputs[zielInputs.length - 1].value = startAdresse;
+      }
 
       // Autocomplete für Start- und Ziel-Felder
       this.setupAutocomplete(document.getElementById('fahrtStart'));
       document.querySelectorAll('.ziel-adresse').forEach(el => this.setupAutocomplete(el));
 
-      // Route direkt berechnen
+      // Route EINMAL berechnen (vorher gab's einen doppelten Aufruf → Nominatim Rate-Limit Hit)
       this.routeBerechnen();
     }, 100);
   },
