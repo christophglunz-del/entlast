@@ -220,17 +220,6 @@ const SettingsModule = {
         </button>
       </div>
 
-      <!-- Gefahrenzone -->
-      <div class="card" style="border: 2px solid var(--danger);">
-        <div class="card-header">
-          <span class="card-title" style="color: var(--danger);">Gefahrenzone</span>
-        </div>
-        <button class="btn btn-danger btn-block" onclick="SettingsModule.alleDatenLoeschen()">
-          🗑️ Alle Daten löschen
-        </button>
-        <div class="form-hint mt-1">Diese Aktion kann nicht rückgängig gemacht werden!</div>
-      </div>
-
       <!-- Cache leeren -->
       <div class="card">
         <div class="card-header">
@@ -412,23 +401,6 @@ const SettingsModule = {
     } catch (err) {
       console.error('Import-Fehler:', err);
       App.toast('Fehler beim Import: ' + err.message, 'error');
-    }
-  },
-
-  async alleDatenLoeschen() {
-    if (!await App.confirm('ALLE Daten unwiderruflich löschen? Diese Aktion kann NICHT rückgängig gemacht werden!')) return;
-    if (!await App.confirm('Wirklich ALLE Daten löschen? Letzte Chance!')) return;
-
-    try {
-      // Daten-Reset ueber den Server (Import mit leeren Daten)
-      await DB.importAlles(JSON.stringify({
-        kunden: [], leistungen: [], fahrten: [],
-        termine: [], abtretungen: [], rechnungen: [], settings: []
-      }));
-      App.toast('Alle Daten gelöscht', 'info');
-      this.anzeigen();
-    } catch (err) {
-      App.toast('Fehler beim Löschen', 'error');
     }
   }
 };

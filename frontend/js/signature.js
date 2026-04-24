@@ -102,6 +102,62 @@ class SignaturePadWrapper {
 }
 
 /**
+ * Unterschrift auf Bounding Box der tatsächlichen Striche zuschneiden.
+ * Verhindert, dass ungenutzte Canvas-Bereiche (z.B. nach Orientierungswechsel
+ * oder Safari-Adressbar-Resize) in der PDF als „halbe Unterschrift" erscheinen.
+ * Padding in Pixeln drumherum, Rückgabe als PNG dataURL.
+ */
+async function trimSignature(dataUrl, padding = 10) {
+  if (!dataUrl) return null;
+  const img = new Image();
+  await new Promise((resolve, reject) => {
+    img.onload = resolve;
+    img.onerror = reject;
+    img.src = dataUrl;
+  });
+  const w = img.naturalWidth, h = img.naturalHeight;
+  if (!w || !h) return dataUrl;
+
+  const src = document.createElement('canvas');
+  src.width = w; src.height = h;
+  const sctx = src.getContext('2d');
+  sctx.fillStyle = '#fff';
+  sctx.fillRect(0, 0, w, h);
+  sctx.drawImage(img, 0, 0);
+  const pixels = sctx.getImageData(0, 0, w, h).data;
+
+  let minX = w, minY = h, maxX = -1, maxY = -1;
+  const threshold = 240;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      if (pixels[i] < threshold || pixels[i+1] < threshold || pixels[i+2] < threshold) {
+        if (x < minX) minX = x;
+        if (y < minY) minY = y;
+        if (x > maxX) maxX = x;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+  if (maxX < 0) return dataUrl;
+
+  minX = Math.max(0, minX - padding);
+  minY = Math.max(0, minY - padding);
+  maxX = Math.min(w - 1, maxX + padding);
+  maxY = Math.min(h - 1, maxY + padding);
+  const cw = maxX - minX + 1;
+  const ch = maxY - minY + 1;
+
+  const out = document.createElement('canvas');
+  out.width = cw; out.height = ch;
+  const octx = out.getContext('2d');
+  octx.fillStyle = '#fff';
+  octx.fillRect(0, 0, cw, ch);
+  octx.drawImage(src, minX, minY, cw, ch, 0, 0, cw, ch);
+  return out.toDataURL('image/png');
+}
+
+/**
  * Einfache Initialisierung für Seiten mit Unterschrift
  * Erstellt automatisch Clear- und Undo-Buttons
  */

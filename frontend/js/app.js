@@ -39,7 +39,7 @@ const App = {
   async registerServiceWorker() {
     if ('serviceWorker' in navigator) {
       try {
-        const registration = await navigator.serviceWorker.register('/sw.js?v=73', { updateViaCache: 'none' });
+        const registration = await navigator.serviceWorker.register('/sw.js?v=76', { updateViaCache: 'none' });
         console.log('Service Worker registriert:', registration.scope);
 
         // Auf Updates prüfen

@@ -336,11 +336,12 @@ const AbtretungModule = {
   },
 
   async speichern(id, kundeId) {
+    const rawSig = this.signaturePad ? this.signaturePad.toDataURL() : null;
     const daten = {
       kundeId,
       datum: document.getElementById('abtretungDatum').value,
       ort: document.getElementById('abtretungOrt').value.trim(),
-      unterschrift: this.signaturePad ? this.signaturePad.toDataURL() : null
+      unterschrift: rawSig ? await trimSignature(rawSig) : null
     };
 
     try {
@@ -364,10 +365,11 @@ const AbtretungModule = {
       if (id) {
         abtretung = await DB.abtretungById(id);
       } else {
+        const rawSig = this.signaturePad ? this.signaturePad.toDataURL() : null;
         abtretung = {
           datum: document.getElementById('abtretungDatum').value,
           ort: document.getElementById('abtretungOrt').value.trim(),
-          unterschrift: this.signaturePad ? this.signaturePad.toDataURL() : null
+          unterschrift: rawSig ? await trimSignature(rawSig) : null
         };
       }
 

@@ -745,6 +745,7 @@ const LeistungModule = {
     } else {
       sigData = this._fullscreenSigPad.toDataURL();
     }
+    sigData = await trimSignature(sigData);
     this._fullscreenSigPad = null;
     this._fullscreenIsPortrait = false;
 
@@ -776,12 +777,14 @@ const LeistungModule = {
 
   // Unterschrift für alle Leistungen eines Kunden im Monat speichern
   async unterschriftenSpeichern(kundeId, monat, jahr) {
-    const sigVersicherter = this.sigPadVersicherter ? this.sigPadVersicherter.toDataURL() : null;
+    const rawSig = this.sigPadVersicherter ? this.sigPadVersicherter.toDataURL() : null;
 
-    if (!sigVersicherter) {
+    if (!rawSig) {
       App.toast('Bitte unterschreiben', 'error');
       return;
     }
+
+    const sigVersicherter = await trimSignature(rawSig);
 
     try {
       const alleLeistungen = await DB.leistungenFuerMonat(monat, jahr);
@@ -877,12 +880,28 @@ const LeistungModule = {
       return;
     }
 
-    // Duplikat-Prüfung: gleicher Kunde + gleiches Datum
-    if (!id) {
+    // Duplikat-Prüfung: gleiches Datum + identische Zeiten = HART BLOCKIEREN.
+    // Gleiches Datum + andere Zeiten = weicher Confirm (zwei Einsätze/Tag erlaubt).
+    {
       const alleLeistungen = await DB.alleLeistungen();
-      const duplikat = alleLeistungen.find(l => l.kundeId === kundeId && l.datum === daten.datum);
-      if (duplikat) {
-        if (!await App.confirm(`⚠️ Für diesen Kunden existiert am ${App.formatDatum(daten.datum)} bereits ein Leistungseintrag (${duplikat.von || '?'}-${duplikat.bis || '?'}). Trotzdem anlegen?`)) return;
+      const sameTag = alleLeistungen.filter(
+        l => l.kundeId === kundeId && l.datum === daten.datum && l.id !== id
+      );
+      const exakt = sameTag.find(
+        l => l.startzeit === daten.startzeit && l.endzeit === daten.endzeit
+      );
+      if (exakt) {
+        App.toast(
+          `Für diesen Kunden existiert am ${App.formatDatum(daten.datum)} bereits ein Eintrag mit exakt ${daten.startzeit}–${daten.endzeit} Uhr. Doppelter Eintrag blockiert.`,
+          'error'
+        );
+        return;
+      }
+      if (!id && sameTag.length > 0) {
+        const d = sameTag[0];
+        if (!await App.confirm(
+          `⚠️ Am ${App.formatDatum(daten.datum)} existiert bereits ein Eintrag (${d.startzeit || '?'}–${d.endzeit || '?'}). Trotzdem anlegen?`
+        )) return;
       }
     }
 
