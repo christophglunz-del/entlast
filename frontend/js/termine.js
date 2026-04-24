@@ -193,16 +193,19 @@ const TermineModule = {
                           </div>` : '';
                       const eventOpacity = beidesFertig ? 'opacity:0.4;' : '';
                       const eventBorder = beidesFertig ? '#ccc' : farbe;
-                      // Höhe berechnen: mehrstündige Termine über mehrere Slots
+                      // Höhe berechnen: mehrstündige Termine visuell über mehrere Slots
+                      // via position:absolute (Grid-Cells haben feste Row-Höhe, min-height auf
+                      // Kind-Element erweitert nur die Start-Row, nicht die Folge-Rows).
                       let eventHeightStyle = '';
                       if (t.startzeit && t.endzeit) {
                         const sp = t.startzeit.split(':'), ep = t.endzeit.split(':');
                         const startMin = parseInt(sp[0]) * 60 + parseInt(sp[1] || 0);
                         const endMin = parseInt(ep[0]) * 60 + parseInt(ep[1] || 0);
-                        const dauerSlots = Math.max(1, (endMin - startMin) / 60);
+                        const dauerSlots = Math.max(1, Math.ceil((endMin - startMin) / 60));
                         if (dauerSlots > 1) {
-                          const h = Math.round(dauerSlots * 50 + (dauerSlots - 1));
-                          eventHeightStyle = `min-height:${h}px;`;
+                          const slotH = window.matchMedia('(max-width: 600px)').matches ? 36 : 50;
+                          const h = slotH * dauerSlots + (dauerSlots - 1);
+                          eventHeightStyle = `position:absolute;top:1px;left:1px;right:1px;height:${h}px;z-index:3;margin:0;`;
                         }
                       }
                       return `
