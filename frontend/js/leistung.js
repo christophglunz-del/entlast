@@ -673,9 +673,6 @@ const LeistungModule = {
   },
 
   vollbildUnterschrift(kundeId, monat, jahr) {
-    // Prüfe ob Querformat oder Hochformat
-    const isPortrait = window.innerHeight > window.innerWidth;
-
     const overlay = document.createElement('div');
     overlay.id = 'sigFullscreenOverlay';
     overlay.style.cssText = 'position:fixed;inset:0;background:#fff;z-index:9999;display:flex;flex-direction:column;';
@@ -684,8 +681,9 @@ const LeistungModule = {
         <span style="font-weight:600;">Unterschrift Versicherte/r</span>
         <button onclick="LeistungModule.vollbildAbbrechen()" style="background:none;border:none;color:#fff;font-size:1.5rem;cursor:pointer;">✕</button>
       </div>
-      <div style="flex:1;position:relative;margin:8px;overflow:hidden;">
-        <canvas id="sigFullscreenCanvas" style="display:block;border:2px dashed #ccc;border-radius:8px;touch-action:none;${isPortrait ? 'transform:rotate(90deg);transform-origin:top left;position:absolute;top:0;left:0;' : 'width:100%;height:100%;'}"></canvas>
+      <div style="padding:6px 16px;font-size:0.8rem;color:#666;text-align:center;">💡 Handy quer drehen für mehr Zeichenfläche</div>
+      <div style="flex:1;position:relative;margin:8px;">
+        <canvas id="sigFullscreenCanvas" style="display:block;width:100%;height:100%;border:2px dashed #ccc;border-radius:8px;touch-action:none;background:#fff;"></canvas>
       </div>
       <div style="padding:8px 16px;display:flex;gap:8px;">
         <button class="btn btn-outline" onclick="LeistungModule.vollbildLoeschen()" style="flex:1;">Löschen</button>
@@ -694,27 +692,31 @@ const LeistungModule = {
     `;
     document.body.appendChild(overlay);
 
-    // Canvas initialisieren
+    // Canvas initialisieren — DPR-Skalierung für scharfe Striche auf HiDPI
     setTimeout(() => {
       const canvas = document.getElementById('sigFullscreenCanvas');
-      const container = canvas.parentElement;
+      const ratio = Math.max(window.devicePixelRatio || 1, 1);
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * ratio;
+      canvas.height = rect.height * ratio;
+      canvas.getContext('2d').scale(ratio, ratio);
 
-      if (isPortrait) {
-        // Hochformat: Canvas rotieren (Breite = Containerhöhe, Höhe = Containerbreite)
-        canvas.width = container.offsetHeight;
-        canvas.height = container.offsetWidth;
-        canvas.style.width = container.offsetHeight + 'px';
-        canvas.style.height = container.offsetWidth + 'px';
-      } else {
-        canvas.width = container.offsetWidth;
-        canvas.height = container.offsetHeight;
-      }
-
-      this._fullscreenIsPortrait = isPortrait;
       this._fullscreenSigPad = new SignaturePad(canvas, {
         backgroundColor: 'rgb(255,255,255)',
         penColor: 'rgb(0,0,0)',
       });
+
+      // Bei Orientierungswechsel Canvas neu dimensionieren (Daten gehen verloren —
+      // bewusste Vereinfachung statt fragile fromData-Replays bei rotierter Geometrie)
+      this._fullscreenResize = () => {
+        if (!this._fullscreenSigPad) return;
+        const r = canvas.getBoundingClientRect();
+        canvas.width = r.width * ratio;
+        canvas.height = r.height * ratio;
+        canvas.getContext('2d').scale(ratio, ratio);
+        this._fullscreenSigPad.clear();
+      };
+      window.addEventListener('resize', this._fullscreenResize);
     }, 100);
   },
 
@@ -728,30 +730,16 @@ const LeistungModule = {
       return;
     }
 
-    let sigData;
-    if (this._fullscreenIsPortrait) {
-      // Rotiertes Canvas: zurückdrehen für korrektes Bild
-      const srcCanvas = document.getElementById('sigFullscreenCanvas');
-      const tmpCanvas = document.createElement('canvas');
-      tmpCanvas.width = srcCanvas.height;
-      tmpCanvas.height = srcCanvas.width;
-      const ctx = tmpCanvas.getContext('2d');
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(0, 0, tmpCanvas.width, tmpCanvas.height);
-      ctx.translate(0, tmpCanvas.height);
-      ctx.rotate(-Math.PI / 2);
-      ctx.drawImage(srcCanvas, 0, 0);
-      sigData = tmpCanvas.toDataURL();
-    } else {
-      sigData = this._fullscreenSigPad.toDataURL();
-    }
+    let sigData = this._fullscreenSigPad.toDataURL();
     this._fullscreenSigPad = null;
-    this._fullscreenIsPortrait = false;
+    if (this._fullscreenResize) {
+      window.removeEventListener('resize', this._fullscreenResize);
+      this._fullscreenResize = null;
+    }
 
     // Overlay entfernen
     const overlay = document.getElementById('sigFullscreenOverlay');
     if (overlay) overlay.remove();
-    try { screen.orientation.unlock(); } catch(e) {}
 
     // Unterschrift für alle Leistungen speichern (trimSignature im try, damit
     // ein etwaiger Fehler einen Toast erzeugt statt stillzuschweigen)
@@ -772,9 +760,12 @@ const LeistungModule = {
 
   vollbildAbbrechen() {
     this._fullscreenSigPad = null;
+    if (this._fullscreenResize) {
+      window.removeEventListener('resize', this._fullscreenResize);
+      this._fullscreenResize = null;
+    }
     const overlay = document.getElementById('sigFullscreenOverlay');
     if (overlay) overlay.remove();
-    try { screen.orientation.unlock(); } catch(e) {}
   },
 
   // Unterschrift für alle Leistungen eines Kunden im Monat speichern
