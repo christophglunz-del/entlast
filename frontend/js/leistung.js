@@ -745,7 +745,6 @@ const LeistungModule = {
     } else {
       sigData = this._fullscreenSigPad.toDataURL();
     }
-    sigData = await trimSignature(sigData);
     this._fullscreenSigPad = null;
     this._fullscreenIsPortrait = false;
 
@@ -754,8 +753,10 @@ const LeistungModule = {
     if (overlay) overlay.remove();
     try { screen.orientation.unlock(); } catch(e) {}
 
-    // Unterschrift für alle Leistungen speichern
+    // Unterschrift für alle Leistungen speichern (trimSignature im try, damit
+    // ein etwaiger Fehler einen Toast erzeugt statt stillzuschweigen)
     try {
+      sigData = await trimSignature(sigData);
       const alleLeistungen = await DB.leistungenFuerMonat(monat, jahr);
       const leistungen = alleLeistungen.filter(l => l.kundeId === kundeId);
       for (const l of leistungen) {
@@ -764,7 +765,8 @@ const LeistungModule = {
       App.toast(`Unterschrift für ${leistungen.length} Einträge gespeichert`, 'success');
       this.unterschriftenAnzeigen(kundeId, monat, jahr);
     } catch (err) {
-      App.toast('Fehler: ' + err.message, 'error');
+      console.error('vollbildSpeichern Fehler:', err);
+      App.toast('Fehler: ' + (err && err.message ? err.message : 'unbekannt'), 'error');
     }
   },
 
@@ -784,9 +786,8 @@ const LeistungModule = {
       return;
     }
 
-    const sigVersicherter = await trimSignature(rawSig);
-
     try {
+      const sigVersicherter = await trimSignature(rawSig);
       const alleLeistungen = await DB.leistungenFuerMonat(monat, jahr);
       const leistungen = alleLeistungen.filter(l => l.kundeId === kundeId);
 
@@ -797,8 +798,8 @@ const LeistungModule = {
       App.toast('Unterschrift gespeichert', 'success');
       await this.unterschriftenAnzeigen(kundeId, monat, jahr);
     } catch (err) {
-      console.error('Fehler:', err);
-      App.toast('Fehler beim Speichern', 'error');
+      console.error('unterschriftenSpeichern Fehler:', err);
+      App.toast('Fehler beim Speichern: ' + (err && err.message ? err.message : 'unbekannt'), 'error');
     }
   },
 

@@ -108,53 +108,64 @@ class SignaturePadWrapper {
  * Padding in Pixeln drumherum, Rückgabe als PNG dataURL.
  */
 async function trimSignature(dataUrl, padding = 10) {
-  if (!dataUrl) return null;
-  const img = new Image();
-  await new Promise((resolve, reject) => {
-    img.onload = resolve;
-    img.onerror = reject;
-    img.src = dataUrl;
-  });
-  const w = img.naturalWidth, h = img.naturalHeight;
-  if (!w || !h) return dataUrl;
+  // Defensiv: bei jedem Fehler (Image lädt nicht, getImageData/toDataURL wirft,
+  // iOS Memory-Limit etc.) Original-dataURL zurückgeben. Niemals werfen, sonst
+  // bleibt der unfangene Reject in unterschriftenSpeichern stecken und der
+  // Speichern-Knopf macht „nichts".
+  if (!dataUrl || typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image')) {
+    return dataUrl;
+  }
+  try {
+    const img = new Image();
+    await new Promise((resolve, reject) => {
+      img.onload = resolve;
+      img.onerror = () => reject(new Error('Image-Load fehlgeschlagen'));
+      img.src = dataUrl;
+    });
+    const w = img.naturalWidth, h = img.naturalHeight;
+    if (!w || !h) return dataUrl;
 
-  const src = document.createElement('canvas');
-  src.width = w; src.height = h;
-  const sctx = src.getContext('2d');
-  sctx.fillStyle = '#fff';
-  sctx.fillRect(0, 0, w, h);
-  sctx.drawImage(img, 0, 0);
-  const pixels = sctx.getImageData(0, 0, w, h).data;
+    const src = document.createElement('canvas');
+    src.width = w; src.height = h;
+    const sctx = src.getContext('2d');
+    sctx.fillStyle = '#fff';
+    sctx.fillRect(0, 0, w, h);
+    sctx.drawImage(img, 0, 0);
+    const pixels = sctx.getImageData(0, 0, w, h).data;
 
-  let minX = w, minY = h, maxX = -1, maxY = -1;
-  const threshold = 240;
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const i = (y * w + x) * 4;
-      if (pixels[i] < threshold || pixels[i+1] < threshold || pixels[i+2] < threshold) {
-        if (x < minX) minX = x;
-        if (y < minY) minY = y;
-        if (x > maxX) maxX = x;
-        if (y > maxY) maxY = y;
+    let minX = w, minY = h, maxX = -1, maxY = -1;
+    const threshold = 240;
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const i = (y * w + x) * 4;
+        if (pixels[i] < threshold || pixels[i+1] < threshold || pixels[i+2] < threshold) {
+          if (x < minX) minX = x;
+          if (y < minY) minY = y;
+          if (x > maxX) maxX = x;
+          if (y > maxY) maxY = y;
+        }
       }
     }
+    if (maxX < 0) return dataUrl;
+
+    minX = Math.max(0, minX - padding);
+    minY = Math.max(0, minY - padding);
+    maxX = Math.min(w - 1, maxX + padding);
+    maxY = Math.min(h - 1, maxY + padding);
+    const cw = maxX - minX + 1;
+    const ch = maxY - minY + 1;
+
+    const out = document.createElement('canvas');
+    out.width = cw; out.height = ch;
+    const octx = out.getContext('2d');
+    octx.fillStyle = '#fff';
+    octx.fillRect(0, 0, cw, ch);
+    octx.drawImage(src, minX, minY, cw, ch, 0, 0, cw, ch);
+    return out.toDataURL('image/png');
+  } catch (e) {
+    console.warn('trimSignature: Fallback auf Original-dataURL', e);
+    return dataUrl;
   }
-  if (maxX < 0) return dataUrl;
-
-  minX = Math.max(0, minX - padding);
-  minY = Math.max(0, minY - padding);
-  maxX = Math.min(w - 1, maxX + padding);
-  maxY = Math.min(h - 1, maxY + padding);
-  const cw = maxX - minX + 1;
-  const ch = maxY - minY + 1;
-
-  const out = document.createElement('canvas');
-  out.width = cw; out.height = ch;
-  const octx = out.getContext('2d');
-  octx.fillStyle = '#fff';
-  octx.fillRect(0, 0, cw, ch);
-  octx.drawImage(src, minX, minY, cw, ch, 0, 0, cw, ch);
-  return out.toDataURL('image/png');
 }
 
 /**

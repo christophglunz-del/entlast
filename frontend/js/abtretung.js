@@ -337,14 +337,15 @@ const AbtretungModule = {
 
   async speichern(id, kundeId) {
     const rawSig = this.signaturePad ? this.signaturePad.toDataURL() : null;
-    const daten = {
-      kundeId,
-      datum: document.getElementById('abtretungDatum').value,
-      ort: document.getElementById('abtretungOrt').value.trim(),
-      unterschrift: rawSig ? await trimSignature(rawSig) : null
-    };
 
     try {
+      const daten = {
+        kundeId,
+        datum: document.getElementById('abtretungDatum').value,
+        ort: document.getElementById('abtretungOrt').value.trim(),
+        unterschrift: rawSig ? await trimSignature(rawSig) : null
+      };
+
       if (id) {
         await DB.abtretungAktualisieren(id, daten);
         App.toast('Abtretungserklärung aktualisiert', 'success');
@@ -354,8 +355,8 @@ const AbtretungModule = {
       }
       this.listeAnzeigen();
     } catch (err) {
-      console.error('Fehler:', err);
-      App.toast('Fehler beim Speichern', 'error');
+      console.error('Abtretung speichern Fehler:', err);
+      App.toast('Fehler beim Speichern: ' + (err && err.message ? err.message : 'unbekannt'), 'error');
     }
   },
 
