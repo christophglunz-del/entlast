@@ -635,9 +635,6 @@ const LeistungModule = {
               <div class="sig-placeholder">Hier unterschreiben</div>
             </div>
             <div id="sigVersicherterActions" class="signature-actions"></div>
-            <button class="btn btn-outline btn-sm mt-1" onclick="LeistungModule.vollbildUnterschrift(${kundeId}, ${monat}, ${jahr})">
-              \u21F1 Vollbild
-            </button>
           </div>
         `}
       </div>

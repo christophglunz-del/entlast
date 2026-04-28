@@ -1,5 +1,5 @@
 // Service Worker fuer entlast.de - Reines Asset-Caching (kein IndexedDB-Sync)
-const CACHE_NAME = 'entlast-app-v81';
+const CACHE_NAME = 'entlast-app-v82';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
