@@ -1429,9 +1429,21 @@ const RechnungModule = {
 
       content.innerHTML = `
         <div class="card" style="background:white;">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:8px;">
             <h3 style="margin:0;font-size:1.1rem;">Rechnungsdetail</h3>
-            <button class="btn btn-sm" onclick="RechnungModule.detailSchliessen()" style="font-size:1.3rem;background:none;border:none;">✕</button>
+            <div style="display:flex;align-items:center;gap:8px;">
+              ${!istStorniert ? `
+                <button class="btn btn-sm" style="color:#dc2626;border:1px solid #dc2626;background:white;padding:4px 10px;font-size:0.85rem;"
+                        onclick="RechnungModule.stornoAusfuehren('${lexofficeId}', '${(rechnung.voucherNumber || '').replace(/'/g, '')}')">
+                  🚫 Stornieren
+                </button>
+              ` : `
+                <span style="background:#fef2f2;color:#dc2626;padding:4px 8px;border-radius:4px;font-size:0.75rem;font-weight:600;white-space:nowrap;">
+                  🚫 Storniert
+                </span>
+              `}
+              <button class="btn btn-sm" onclick="RechnungModule.detailSchliessen()" style="font-size:1.3rem;background:none;border:none;">✕</button>
+            </div>
           </div>
 
           <table style="width:100%;font-size:0.9rem;border-collapse:collapse;">
@@ -1516,13 +1528,7 @@ const RechnungModule = {
             <button class="btn btn-sm btn-outline" onclick="RechnungModule.versandMarkieren('${lexofficeId}', 'manuell', '✋ Als manuell erstellt und versendet markieren?')">
               ✋ Manuell
             </button>
-            ${!istStorniert ? `
-              <button class="btn btn-sm btn-outline" style="color:#dc2626;border-color:#dc2626;"
-                      onclick="RechnungModule.stornoAusfuehren('${lexofficeId}', '${(rechnung.voucherNumber || '').replace(/'/g, '')}')">
-                🚫 Stornieren
-              </button>
-            ` : ''}
-            ${istStorniert ? `
+            ${istStorniert && (stornoDatum || stornoNr) ? `
               <span class="badge" style="background:#fef2f2;color:#dc2626;padding:6px 10px;border-radius:4px;font-size:0.85rem;">
                 🚫 Storniert${stornoDatum ? ' am ' + stornoDatum : ''}${stornoNr ? ' · Gutschrift ' + stornoNr : ''}
               </span>
