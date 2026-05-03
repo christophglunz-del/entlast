@@ -137,9 +137,13 @@ const LeistungModule = {
       }, 30000);
     }
 
-    // Monatsfilter
-    const monate = Object.keys(grouped).sort().reverse();
-    const aktuellerFilter = this._monatsFilter || monate[0];
+    // Monatsfilter — aktuellen Monat immer zeigen, auch wenn (noch) leer
+    const heuteKey = (() => {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    })();
+    const monate = Array.from(new Set([heuteKey, ...Object.keys(grouped)])).sort().reverse();
+    const aktuellerFilter = this._monatsFilter || heuteKey;
     if (!this._monatsFilter) this._monatsFilter = aktuellerFilter;
 
     let html = termineBoxHtml + `
@@ -159,6 +163,17 @@ const LeistungModule = {
           Offen</button>
       </div>
     `;
+
+    // Hinweis wenn aktiver Monat noch keine Einträge hat
+    if (aktuellerFilter !== 'alle' && !grouped[aktuellerFilter]) {
+      const [jj, mm] = aktuellerFilter.split('-');
+      html += `
+        <div style="text-align:center;padding:24px 12px;color:var(--gray-600);">
+          <p>Keine Leistungen im ${App.monatsName(parseInt(mm))} ${jj}.</p>
+          <button class="btn btn-primary mt-2" onclick="LeistungModule.neueLeistung()">+ Neuer Eintrag</button>
+        </div>
+      `;
+    }
 
     for (const [monat, eintraege] of Object.entries(grouped)) {
       if (aktuellerFilter !== 'alle' && monat !== aktuellerFilter) continue;
