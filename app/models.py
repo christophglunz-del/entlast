@@ -377,6 +377,10 @@ class RechnungResponse(BaseModel):
     lexoffice_id: str | None = None
     versand_art: str | None = None
     versand_datum: str | None = None
+    storno_lexoffice_id: str | None = None
+    storno_voucher_number: str | None = None
+    storno_datum: str | None = None
+    storno_grund: str | None = None
     created_at: str | None = None
     updated_at: str | None = None
 

@@ -122,6 +122,12 @@ const LexofficeAPI = {
         return apiFetch(`/lexoffice/proxy/${endpoint}`);
     },
 
+    async cancelInvoice(rechnungId, grund) {
+        // Storno via /credit-notes (Backend-Endpoint)
+        const qs = grund ? `?grund=${encodeURIComponent(grund)}` : '';
+        return apiFetch(`/rechnungen/${rechnungId}/storno${qs}`, { method: 'POST' });
+    },
+
     generateLBVAnschreiben() {
         console.warn('LexofficeAPI.generateLBVAnschreiben: Wird serverseitig abgewickelt');
         return null;

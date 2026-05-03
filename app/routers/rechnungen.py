@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from app.auth import get_current_user, get_db
 from app.models import RechnungCreate, RechnungUpdate, RechnungResponse
 from app.services.sipgate import send_fax, normalize_fax_number
-from app.services.lexoffice import _get_api_key, LEXOFFICE_BASE
+from app.services.lexoffice import _get_api_key, LEXOFFICE_BASE, cancel_invoice
 from app.services import letterxpress as lxp_service
 
 logger = logging.getLogger("entlast.rechnungen")
@@ -32,6 +32,10 @@ def _row_to_response(row: dict) -> RechnungResponse:
         lexoffice_id=row.get("lexoffice_id"),
         versand_art=row.get("versand_art"),
         versand_datum=row.get("versand_datum"),
+        storno_lexoffice_id=row.get("storno_lexoffice_id"),
+        storno_voucher_number=row.get("storno_voucher_number"),
+        storno_datum=row.get("storno_datum"),
+        storno_grund=row.get("storno_grund"),
         created_at=row.get("created_at"),
         updated_at=row.get("updated_at"),
     )
@@ -386,3 +390,67 @@ async def rechnung_lexoffice(
     if not existing:
         raise HTTPException(status_code=404, detail="Rechnung nicht gefunden")
     raise HTTPException(status_code=501, detail="Noch nicht implementiert")
+
+
+@router.post("/{rechnung_id}/storno")
+async def rechnung_storno(
+    rechnung_id: int,
+    grund: str | None = Query(default=None),
+    user: dict = Depends(get_current_user),
+    db: sqlite3.Connection = Depends(get_db),
+):
+    """Rechnung stornieren — erzeugt Lex-Gutschrift mit Verweis aufs Original.
+
+    Schritte:
+    1. Rechnung laden, Lex-ID prüfen, nicht schon storniert
+    2. cancel_invoice() ruft GET Original + POST /credit-notes?finalize=true
+    3. Lokale Felder storno_lexoffice_id / storno_voucher_number / storno_datum setzen
+    """
+    rechnung = db.execute(
+        "SELECT * FROM rechnungen WHERE id = ?", (rechnung_id,)
+    ).fetchone()
+    if not rechnung:
+        raise HTTPException(status_code=404, detail="Rechnung nicht gefunden")
+
+    lexoffice_id = rechnung.get("lexoffice_id")
+    if not lexoffice_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Rechnung hat keine Lexoffice-ID — Storno via Lex nicht moeglich.",
+        )
+
+    if rechnung.get("storno_lexoffice_id"):
+        raise HTTPException(
+            status_code=409,
+            detail=f"Rechnung ist bereits storniert (Gutschrift {rechnung.get('storno_voucher_number') or rechnung['storno_lexoffice_id']}).",
+        )
+
+    # Storno in Lex erzeugen
+    result = await cancel_invoice(db, lexoffice_id, grund=grund)
+
+    # Lokal markieren
+    db.execute(
+        """UPDATE rechnungen
+           SET storno_lexoffice_id = ?,
+               storno_voucher_number = ?,
+               storno_datum = datetime('now'),
+               storno_grund = ?,
+               status = 'storniert',
+               updated_at = datetime('now')
+           WHERE id = ?""",
+        (result["id"], result.get("voucherNumber", ""), grund, rechnung_id),
+    )
+    db.commit()
+
+    logger.info(
+        "Rechnung %s storniert via Lex-Gutschrift %s (%s)",
+        rechnung_id, result["id"], result.get("voucherNumber", ""),
+    )
+
+    return {
+        "ok": True,
+        "rechnung_id": rechnung_id,
+        "gutschrift_id": result["id"],
+        "gutschrift_nummer": result.get("voucherNumber", ""),
+        "storno_datum": result.get("voucherDate", ""),
+    }

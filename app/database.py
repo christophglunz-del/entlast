@@ -274,6 +274,19 @@ def init_mandant_db(db_datei: str):
             conn.execute("ALTER TABLE termine ADD COLUMN wiederholungs_muster TEXT")
         conn.commit()
 
+        # Neue Spalten in rechnungen (Storno via Lex-Gutschrift)
+        rechnungen_cols = {row["name"] for row in conn.execute("PRAGMA table_info(rechnungen)").fetchall()}
+        rechnungen_migrations = {
+            "storno_lexoffice_id": "ALTER TABLE rechnungen ADD COLUMN storno_lexoffice_id TEXT",
+            "storno_voucher_number": "ALTER TABLE rechnungen ADD COLUMN storno_voucher_number TEXT",
+            "storno_datum": "ALTER TABLE rechnungen ADD COLUMN storno_datum TEXT",
+            "storno_grund": "ALTER TABLE rechnungen ADD COLUMN storno_grund TEXT",
+        }
+        for col, sql in rechnungen_migrations.items():
+            if col not in rechnungen_cols:
+                conn.execute(sql)
+        conn.commit()
+
         # Neue Spalten in fahrten (GPS-Tracking, Adressen, etc.)
         fahrten_cols = {row["name"] for row in conn.execute("PRAGMA table_info(fahrten)").fetchall()}
         fahrten_migrations = {

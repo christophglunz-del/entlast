@@ -436,6 +436,25 @@ const RechnungModule = {
     }
   },
 
+  async stornoAusfuehren(rechnungId, voucherNr) {
+    const ok = await App.confirm(
+      `Rechnung ${voucherNr || ''} wirklich stornieren?\n\nEs wird in Lexoffice eine Gutschrift mit Verweis auf diese Rechnung erzeugt. Beide Belege bleiben in Lex sichtbar und werden gegengebucht.`
+    );
+    if (!ok) return;
+    try {
+      App.toast('Storno wird erzeugt …', 'info');
+      const res = await LexofficeAPI.cancelInvoice(rechnungId);
+      const nr = res && res.gutschrift_nummer ? ` (Gutschrift ${res.gutschrift_nummer})` : '';
+      App.toast('Rechnung storniert' + nr, 'success');
+      this.detailSchliessen();
+      this.listeAnzeigen();
+    } catch (err) {
+      console.error('Storno-Fehler:', err);
+      const msg = err && err.message ? err.message : 'unbekannt';
+      App.toast('Storno fehlgeschlagen: ' + msg, 'error');
+    }
+  },
+
   statusInfo(status) {
     const map = {
       'offen': { label: 'Offen', badgeClass: 'badge-warning' },
@@ -1343,7 +1362,14 @@ const RechnungModule = {
 
       // Prüfen ob via App erstellt + lokalen Kunden finden
       const lokale = await DB.alleRechnungen();
-      const viaApp = lokale.some(r => r.lexofficeInvoiceId === lexofficeId);
+      // DB-Spalte heißt lexoffice_id → snakeToCamel ergibt lexofficeId. Wir prüfen
+      // beide Schreibweisen für Robustheit gegen die bestehende Inkonsistenz im Code.
+      const lokaleRechnung = lokale.find(r => r.lexofficeId === lexofficeId || r.lexofficeInvoiceId === lexofficeId);
+      const viaApp = !!lokaleRechnung;
+      const istStorniert = !!(lokaleRechnung && lokaleRechnung.stornoLexofficeId);
+      const stornoNr = lokaleRechnung && (lokaleRechnung.stornoVoucherNumber || '');
+      const stornoDatum = lokaleRechnung && lokaleRechnung.stornoDatum
+        ? new Date(lokaleRechnung.stornoDatum).toLocaleDateString('de-DE') : '';
 
       // Lokalen Kunden über contactId finden (für Fax/E-Mail)
       const alleKunden = await DB.alleKunden();
@@ -1489,6 +1515,17 @@ const RechnungModule = {
             <button class="btn btn-sm btn-outline" onclick="RechnungModule.versandMarkieren('${lexofficeId}', 'manuell', '✋ Als manuell erstellt und versendet markieren?')">
               ✋ Manuell
             </button>
+            ${lokaleRechnung && !istStorniert ? `
+              <button class="btn btn-sm btn-outline" style="color:#dc2626;border-color:#dc2626;"
+                      onclick="RechnungModule.stornoAusfuehren(${lokaleRechnung.id}, '${(rechnung.voucherNumber || '').replace(/'/g, '')}')">
+                🚫 Stornieren
+              </button>
+            ` : ''}
+            ${istStorniert ? `
+              <span class="badge" style="background:#fef2f2;color:#dc2626;padding:6px 10px;border-radius:4px;font-size:0.85rem;">
+                🚫 Storniert${stornoDatum ? ' am ' + stornoDatum : ''}${stornoNr ? ' · Gutschrift ' + stornoNr : ''}
+              </span>
+            ` : ''}
           </div>
           ${(this._versandMap || {})[lexofficeId]?.art ? '</details>' : ''}
         </div>

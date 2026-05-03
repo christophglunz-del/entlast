@@ -73,6 +73,103 @@ async def fetch_profile(db: sqlite3.Connection) -> dict:
     return firma
 
 
+async def cancel_invoice(
+    db: sqlite3.Connection,
+    lexoffice_invoice_id: str,
+    grund: str | None = None,
+) -> dict:
+    """Rechnung in Lex stornieren — über Gutschrift (POST /credit-notes?finalize=true).
+
+    GoBD-konformer Weg: Original-Rechnung bleibt unverändert, eine Gutschrift mit
+    Verweis auf die Original-UUID wird erzeugt. Lex bucht beide gegen.
+
+    Returns dict mit credit-note-id, voucherNumber, voucherDate.
+    """
+    api_key = _get_api_key(db)
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+    }
+
+    async with httpx.AsyncClient(timeout=30) as client:
+        # Original holen (Adresse, Posten, Steuer-/Versandbedingungen)
+        orig_res = await client.get(
+            f"{LEXOFFICE_BASE}/invoices/{lexoffice_invoice_id}",
+            headers={"Authorization": f"Bearer {api_key}", "Accept": "application/json"},
+        )
+        if orig_res.status_code == 401:
+            raise HTTPException(401, "Lexoffice API-Key ungueltig")
+        if orig_res.status_code == 404:
+            raise HTTPException(404, "Rechnung in Lexoffice nicht gefunden")
+        if orig_res.status_code != 200:
+            raise HTTPException(502, f"Lexoffice: Original nicht abrufbar ({orig_res.status_code})")
+        orig = orig_res.json()
+
+        orig_voucher_nr = orig.get("voucherNumber") or lexoffice_invoice_id
+        introduction = f"Stornogutschrift zur Rechnung {orig_voucher_nr}"
+        if grund:
+            introduction += f". Grund: {grund}"
+
+        # Gutschrift-Body — Posten und Konditionen 1:1 vom Original übernehmen
+        from datetime import datetime, timezone
+        voucher_date = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000+02:00")
+
+        body = {
+            "voucherDate": voucher_date,
+            "address": orig.get("address", {}),
+            "lineItems": orig.get("lineItems", []),
+            "totalPrice": {"currency": (orig.get("totalPrice") or {}).get("currency", "EUR")},
+            "taxConditions": orig.get("taxConditions", {"taxType": "net"}),
+            "shippingConditions": orig.get("shippingConditions"),
+            "title": "Stornorechnung",
+            "introduction": introduction,
+            "remark": orig.get("remark", ""),
+            "relatedVouchers": [
+                {"id": lexoffice_invoice_id, "voucherType": "invoice"}
+            ],
+        }
+        # None-Werte raus (Lex meckert sonst)
+        body = {k: v for k, v in body.items() if v is not None}
+
+        res = await client.post(
+            f"{LEXOFFICE_BASE}/credit-notes?finalize=true",
+            headers=headers,
+            json=body,
+        )
+
+        if res.status_code == 401:
+            raise HTTPException(401, "Lexoffice API-Key ungueltig")
+        if res.status_code == 429:
+            raise HTTPException(429, "Lexoffice Rate-Limit, bitte kurz warten")
+        if res.status_code not in (200, 201):
+            try:
+                detail = res.json()
+            except Exception:
+                detail = res.text[:500]
+            raise HTTPException(502, f"Lexoffice-Storno fehlgeschlagen ({res.status_code}): {detail}")
+
+        created = res.json()  # {"id":"...","resourceUri":"...","createdDate":"...","updatedDate":"...","version":0}
+        credit_id = created.get("id")
+        if not credit_id:
+            raise HTTPException(502, "Lexoffice: Keine credit-note-ID in Antwort")
+
+        # Voucher-Number nachladen (Lex liefert sie erst nach Finalisierung)
+        nr_res = await client.get(
+            f"{LEXOFFICE_BASE}/credit-notes/{credit_id}",
+            headers={"Authorization": f"Bearer {api_key}", "Accept": "application/json"},
+        )
+        voucher_number = ""
+        if nr_res.status_code == 200:
+            voucher_number = nr_res.json().get("voucherNumber", "")
+
+    return {
+        "id": credit_id,
+        "voucherNumber": voucher_number,
+        "voucherDate": voucher_date,
+    }
+
+
 async def fetch_contacts(db: sqlite3.Connection) -> list[dict]:
     """Alle Kontakte von Lexoffice abrufen (GET /v1/contacts, paginiert)."""
     api_key = _get_api_key(db)
