@@ -6,7 +6,7 @@
 const App = {
   isOnline: navigator.onLine,
 
-  version: '1.5.0',
+  version: '1.6.0',
 
   // App initialisieren
   init() {
@@ -17,29 +17,40 @@ const App = {
     console.log("Susi's Alltagshilfe v" + this.version + " gestartet");
   },
 
-  // Versionsnummer im Header anzeigen
-  showVersion() {
-    const el = document.getElementById('appVersion');
-    if (el) {
-      el.textContent = 'v' + this.version;
-    } else {
-      // Automatisch ans sync-status div anhängen
+  // Versionsnummer im Header anzeigen — kombiniert App.version + SW-Build aus
+  // dem aktiven Cache-Namen (entlast-app-vXX), damit nach jedem Deploy automatisch
+  // die aktuelle Build-Nummer erscheint.
+  async showVersion() {
+    let txt = 'v' + this.version;
+    try {
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        const match = keys.find(k => k.startsWith('entlast-app-'));
+        if (match) {
+          const build = match.replace('entlast-app-', ''); // z.B. "v84"
+          txt = 'v' + this.version + ' (' + build + ')';
+        }
+      }
+    } catch (e) { /* fallback bleibt App.version */ }
+
+    let el = document.getElementById('appVersion');
+    if (!el) {
       const syncDiv = document.querySelector('.sync-status');
       if (syncDiv) {
-        const span = document.createElement('span');
-        span.id = 'appVersion';
-        span.style.cssText = 'font-size: 0.6rem; opacity: 0.6; margin-left: 6px;';
-        span.textContent = 'v' + this.version;
-        syncDiv.appendChild(span);
+        el = document.createElement('span');
+        el.id = 'appVersion';
+        el.style.cssText = 'font-size: 0.6rem; opacity: 0.6; margin-left: 6px;';
+        syncDiv.appendChild(el);
       }
     }
+    if (el) el.textContent = txt;
   },
 
   // Service Worker registrieren
   async registerServiceWorker() {
     if ('serviceWorker' in navigator) {
       try {
-        const registration = await navigator.serviceWorker.register('/sw.js?v=84', { updateViaCache: 'none' });
+        const registration = await navigator.serviceWorker.register('/sw.js?v=85', { updateViaCache: 'none' });
         console.log('Service Worker registriert:', registration.scope);
 
         // Auf Updates prüfen

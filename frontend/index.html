@@ -174,7 +174,7 @@
             const optionen = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
             document.getElementById('datumHeute').textContent = heute.toLocaleDateString('de-DE', optionen);
 
-            document.getElementById('appVersion').textContent = 'v' + App.version;
+            App.showVersion();
 
             // Statistiken laden
             try {

@@ -122,10 +122,10 @@ const LexofficeAPI = {
         return apiFetch(`/lexoffice/proxy/${endpoint}`);
     },
 
-    async cancelInvoice(rechnungId, grund) {
-        // Storno via /credit-notes (Backend-Endpoint)
+    async cancelInvoice(lexofficeId, grund) {
+        // Storno via /credit-notes (Backend-Endpoint, mit Lex-UUID)
         const qs = grund ? `?grund=${encodeURIComponent(grund)}` : '';
-        return apiFetch(`/rechnungen/${rechnungId}/storno${qs}`, { method: 'POST' });
+        return apiFetch(`/lexoffice/invoices/${lexofficeId}/storno${qs}`, { method: 'POST' });
     },
 
     generateLBVAnschreiben() {

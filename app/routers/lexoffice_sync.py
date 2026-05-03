@@ -492,6 +492,59 @@ async def get_invoice(
     return res.json()
 
 
+@router.post("/invoices/{invoice_id}/storno")
+async def storno_invoice(
+    invoice_id: str,
+    grund: str | None = None,
+    user: dict = Depends(get_current_user),
+    db: sqlite3.Connection = Depends(get_db),
+):
+    """Rechnung in Lex stornieren — direkt per Lex-UUID, ohne lokale DB-ID nötig.
+
+    Sucht intern die lokale Rechnungs-Zeile (falls vorhanden) zum Markieren.
+    Wenn keine lokale Zeile existiert (z.B. Rechnung war direkt in Lex angelegt
+    und nicht synced), läuft das Storno trotzdem durch — dann nur Lex-Resultat.
+    """
+    from app.services.lexoffice import cancel_invoice
+
+    # Lokale Zeile suchen (nicht zwingend vorhanden)
+    lokal = db.execute(
+        "SELECT id, storno_lexoffice_id, storno_voucher_number FROM rechnungen WHERE lexoffice_id = ?",
+        (invoice_id,),
+    ).fetchone()
+    if lokal and lokal.get("storno_lexoffice_id"):
+        raise HTTPException(
+            409,
+            f"Rechnung ist bereits storniert (Gutschrift {lokal.get('storno_voucher_number') or lokal['storno_lexoffice_id']}).",
+        )
+
+    result = await cancel_invoice(db, invoice_id, grund=grund)
+
+    if lokal:
+        db.execute(
+            """UPDATE rechnungen
+               SET storno_lexoffice_id = ?, storno_voucher_number = ?,
+                   storno_datum = datetime('now'), storno_grund = ?,
+                   status = 'storniert', updated_at = datetime('now')
+               WHERE id = ?""",
+            (result["id"], result.get("voucherNumber", ""), grund, lokal["id"]),
+        )
+        db.commit()
+        logger.info("Rechnung %s (lokal #%s) storniert via Gutschrift %s",
+                    invoice_id, lokal["id"], result["id"])
+    else:
+        logger.info("Rechnung %s (kein lokaler Eintrag) storniert via Gutschrift %s",
+                    invoice_id, result["id"])
+
+    return {
+        "ok": True,
+        "lexoffice_id": invoice_id,
+        "gutschrift_id": result["id"],
+        "gutschrift_nummer": result.get("voucherNumber", ""),
+        "lokal_markiert": lokal is not None,
+    }
+
+
 @router.get("/alle-rechnungen")
 async def alle_rechnungen(
     user: dict = Depends(get_current_user),
