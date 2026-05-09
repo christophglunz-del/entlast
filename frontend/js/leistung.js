@@ -177,25 +177,25 @@ const LeistungModule = {
 
     for (const [monat, eintraege] of Object.entries(grouped)) {
       if (aktuellerFilter !== 'alle' && monat !== aktuellerFilter) continue;
+      // "Offen"-Filter zeigt nur abgelaufene Monate (analog Backend-Statistik)
+      if (this._filterOffen && monat >= heuteKey) continue;
       const [j, m] = monat.split('-');
       const mi = parseInt(m);
       const ji = parseInt(j);
+
+      // Pro Kunde in diesem Monat: Karte anzeigen
+      let kundenIds = [...new Set(eintraege.map(l => l.kundeId))];
+      // "Offen"-Filter: exakt was die Startseite zählt — Kunden ohne Rechnungs-Eintrag
+      if (this._filterOffen) {
+        kundenIds = kundenIds.filter(kid => !rechnungMap[`${kid}-${mi}-${ji}`]);
+        if (kundenIds.length === 0) continue;
+      }
 
       html += `
         <div class="section-title">
           <span class="icon">📅</span> ${App.monatsName(mi)} ${j}
         </div>
       `;
-
-      // Pro Kunde in diesem Monat: Karte anzeigen
-      let kundenIds = [...new Set(eintraege.map(l => l.kundeId))];
-      // "Offen"-Filter: nur Kunden ohne Rechnung/Versand
-      if (this._filterOffen) {
-        kundenIds = kundenIds.filter(kid => {
-          const re = rechnungMap[`${kid}-${mi}-${ji}`];
-          return !re || !re.versandArt;
-        });
-      }
       for (const kid of kundenIds) {
         const k = kundenMap[kid];
         if (!k) continue;
@@ -257,6 +257,16 @@ const LeistungModule = {
           </div>
         `;
       }
+    }
+
+    // Filter "Offen": Empty-State wenn alles abgerechnet
+    if (this._filterOffen && !html.includes('section-title')) {
+      html += `
+        <div style="text-align:center;padding:32px 12px;color:var(--gray-600);">
+          <div style="font-size:2rem;margin-bottom:8px;">✅</div>
+          <p>Alles abgerechnet — keine offenen Leistungen aus vergangenen Monaten.</p>
+        </div>
+      `;
     }
 
     container.innerHTML = html;
