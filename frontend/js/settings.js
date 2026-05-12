@@ -195,6 +195,24 @@ const SettingsModule = {
         </div>
       </div>
 
+      <!-- Google Kalender Rückwärts-Sync (OAuth) -->
+      <div class="card" id="gcalOAuthCard">
+        <div class="card-header">
+          <span class="card-title">Google Kalender — Rückwärts-Sync</span>
+          <span class="card-icon pink">📤</span>
+        </div>
+        <p class="text-sm text-muted">
+          Wenn aktiviert: In entlast erstellte/geänderte/gelöschte Termine werden in den Google Kalender übertragen.
+          Setup erfordert einmalig Client-ID und Client-Secret aus der
+          <a href="https://console.cloud.google.com/" target="_blank">Google Cloud Console</a>
+          (Calendar API aktivieren · OAuth-Client „Web application" · Redirect-URI:
+          <code style="font-size:0.7rem;background:#f5f5f5;padding:2px 4px;border-radius:3px;">https://entlast.de/api/v1/gcal/oauth/callback</code>).
+        </p>
+        <div id="gcalOAuthInhalt" style="margin-top:8px;">
+          <div class="loading-spinner"><div class="spinner"></div></div>
+        </div>
+      </div>
+
       <!-- Datensicherung -->
       <div class="card">
         <div class="card-header">
@@ -251,6 +269,158 @@ const SettingsModule = {
       const gcalCard = await GCalSync.renderSettingsCard();
       const placeholder = document.getElementById('gcalSettingsPlaceholder');
       if (placeholder) placeholder.innerHTML = gcalCard;
+    }
+
+    // Google OAuth Rückwärts-Sync laden
+    await this.gcalOAuthRender();
+
+    // Query-Param-Feedback aus OAuth-Callback
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('gcal_ok')) {
+      App.toast('✓ Google Kalender verbunden', 'success');
+      history.replaceState({}, '', window.location.pathname);
+    } else if (params.get('gcal_error')) {
+      App.toast('Google: ' + params.get('gcal_error'), 'error');
+      history.replaceState({}, '', window.location.pathname);
+    }
+  },
+
+  async gcalOAuthRender() {
+    const c = document.getElementById('gcalOAuthInhalt');
+    if (!c) return;
+    let status;
+    try {
+      const r = await fetch('/api/v1/gcal/status', { credentials: 'include' });
+      status = await r.json();
+    } catch (e) {
+      c.innerHTML = '<div class="form-hint">Status konnte nicht geladen werden.</div>';
+      return;
+    }
+
+    if (!status.client_id_gesetzt) {
+      // Phase 1: Client-ID/Secret eintragen
+      c.innerHTML = `
+        <div class="form-group">
+          <label>Client-ID</label>
+          <input type="text" id="gcalClientId" class="form-control" placeholder="123...apps.googleusercontent.com" style="font-size:0.8rem;">
+        </div>
+        <div class="form-group">
+          <label>Client-Secret</label>
+          <input type="password" id="gcalClientSecret" class="form-control" placeholder="GOCSPX-..." style="font-size:0.8rem;">
+        </div>
+        <button class="btn btn-primary btn-block" onclick="SettingsModule.gcalCredentialsSpeichern()">
+          Credentials speichern
+        </button>
+      `;
+      return;
+    }
+
+    if (!status.verbunden) {
+      // Phase 2: Verbinden
+      c.innerHTML = `
+        <div class="form-hint mb-1">Client-ID gespeichert. Jetzt mit Google verbinden:</div>
+        <button class="btn btn-primary btn-block" onclick="SettingsModule.gcalVerbinden()">
+          🔗 Mit Google verbinden
+        </button>
+        <button class="btn btn-outline btn-sm mt-1" onclick="SettingsModule.gcalCredentialsReset()">
+          Client-ID/Secret ändern
+        </button>
+      `;
+      return;
+    }
+
+    // Phase 3: Verbunden — Kalender-Auswahl + Trennen
+    let calendarsHtml = '';
+    try {
+      const r = await fetch('/api/v1/gcal/calendars', { credentials: 'include' });
+      if (r.ok) {
+        const cals = await r.json();
+        const opts = cals.map(cal =>
+          `<option value="${cal.id}" ${cal.id === status.calendar_id ? 'selected' : ''}>
+            ${cal.summary}${cal.primary ? ' (Hauptkalender)' : ''}
+          </option>`
+        ).join('');
+        calendarsHtml = `
+          <div class="form-group">
+            <label>Ziel-Kalender</label>
+            <select id="gcalCalSelect" class="form-control" onchange="SettingsModule.gcalCalendarWaehlen(this.value)">
+              ${opts}
+            </select>
+          </div>
+        `;
+      }
+    } catch (e) {}
+
+    c.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;color:#2e7d32;font-weight:600;margin-bottom:12px;">
+        <span style="font-size:1.3rem;">✓</span> Verbunden
+      </div>
+      ${calendarsHtml}
+      <button class="btn btn-outline btn-block" style="color:#dc2626;border-color:#dc2626;" onclick="SettingsModule.gcalTrennen()">
+        Verbindung trennen
+      </button>
+    `;
+  },
+
+  async gcalCredentialsSpeichern() {
+    const id = document.getElementById('gcalClientId').value.trim();
+    const secret = document.getElementById('gcalClientSecret').value.trim();
+    if (!id || !secret) { App.toast('Beide Felder ausfüllen', 'error'); return; }
+    try {
+      const r = await fetch('/api/v1/gcal/credentials', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ client_id: id, client_secret: secret }),
+      });
+      if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
+      App.toast('Credentials gespeichert', 'success');
+      await this.gcalOAuthRender();
+    } catch (e) {
+      App.toast('Fehler: ' + e.message, 'error');
+    }
+  },
+
+  gcalVerbinden() {
+    // Browser-Redirect zu Google Consent
+    const returnTo = '/pages/settings.html';
+    window.location.href = `/api/v1/gcal/oauth/start?return_to=${encodeURIComponent(returnTo)}`;
+  },
+
+  async gcalCredentialsReset() {
+    if (!confirm('Client-ID/Secret löschen?')) return;
+    try {
+      await fetch('/api/v1/gcal/credentials', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ client_id: '', client_secret: '' }),
+      });
+    } catch (e) {}
+    // Trick: leerer POST schlägt fehl wegen 400, also direkt disconnect + manuelle Eingabe
+    await fetch('/api/v1/gcal/disconnect', { method: 'POST', credentials: 'include' });
+    await this.gcalOAuthRender();
+  },
+
+  async gcalCalendarWaehlen(calendarId) {
+    try {
+      await fetch('/api/v1/gcal/calendar', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ calendar_id: calendarId }),
+      });
+      App.toast('Kalender ausgewählt', 'success');
+    } catch (e) {
+      App.toast('Fehler: ' + e.message, 'error');
+    }
+  },
+
+  async gcalTrennen() {
+    if (!confirm('Verbindung zu Google trennen? Bestehende synchronisierte Termine bleiben in beiden Kalendern, aber neue werden nicht mehr gepusht.')) return;
+    try {
+      await fetch('/api/v1/gcal/disconnect', { method: 'POST', credentials: 'include' });
+      App.toast('Verbindung getrennt', 'success');
+      await this.gcalOAuthRender();
+    } catch (e) {
+      App.toast('Fehler: ' + e.message, 'error');
     }
   },
 

@@ -9,6 +9,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from dateutil.rrule import rrulestr
 from app.auth import get_current_user, get_db
 from app.models import TerminCreate, TerminUpdate, TerminResponse
+from app.services import google_calendar
+from app.services.google_calendar import EventRecreated
 
 logger = logging.getLogger("entlast.termine")
 
@@ -124,8 +126,38 @@ async def create_termin(
         ),
     )
     db.commit()
-    row = db.execute("SELECT * FROM termine WHERE id = ?", (cursor.lastrowid,)).fetchone()
+    termin_id = cursor.lastrowid
+
+    # Push nach Google Calendar (best-effort, fail-soft)
+    if google_calendar.ist_verbunden(db):
+        try:
+            kunde_name = _kunde_name(db, termin.kunde_id)
+            termin_dict = {
+                "datum": termin.datum, "von": termin.von, "bis": termin.bis,
+                "titel": termin.titel, "notiz": termin.notiz,
+                "wiederkehrend": termin.wiederkehrend or 0,
+                "wiederholungs_muster": muster,
+            }
+            google_uid = await google_calendar.create_event(db, termin_dict, kunde_name)
+            db.execute("UPDATE termine SET google_uid = ? WHERE id = ?",
+                       (google_uid, termin_id))
+            db.commit()
+        except Exception as e:
+            logger.warning("Google-Push (create) fehlgeschlagen für Termin %s: %s",
+                           termin_id, e)
+
+    row = db.execute("SELECT * FROM termine WHERE id = ?", (termin_id,)).fetchone()
     return _row_to_response(row)
+
+
+def _kunde_name(db: sqlite3.Connection, kunde_id: int | None) -> str | None:
+    if not kunde_id:
+        return None
+    k = db.execute("SELECT name, vorname FROM kunden WHERE id = ?", (kunde_id,)).fetchone()
+    if not k:
+        return None
+    parts = [k.get("vorname"), k.get("name")]
+    return " ".join(p for p in parts if p) or None
 
 
 @router.put("/{termin_id}", response_model=TerminResponse)
@@ -162,6 +194,37 @@ async def update_termin(
     db.commit()
 
     row = db.execute("SELECT * FROM termine WHERE id = ?", (termin_id,)).fetchone()
+
+    # Push nach Google Calendar (Update oder Re-Create wenn UID weg)
+    if google_calendar.ist_verbunden(db):
+        full = dict(row)
+        kunde_name = _kunde_name(db, full.get("kunde_id"))
+        termin_dict = {
+            "datum": full.get("datum"), "von": full.get("von"), "bis": full.get("bis"),
+            "titel": full.get("titel"), "notiz": full.get("notiz"),
+            "wiederkehrend": full.get("wiederkehrend") or 0,
+            "wiederholungs_muster": full.get("wiederholungs_muster"),
+        }
+        google_uid = full.get("google_uid")
+        try:
+            if google_uid:
+                try:
+                    await google_calendar.update_event(db, google_uid, termin_dict, kunde_name)
+                except EventRecreated as e:
+                    db.execute("UPDATE termine SET google_uid = ? WHERE id = ?",
+                               (e.new_uid, termin_id))
+                    db.commit()
+            else:
+                # Termin hatte vorher keine google_uid (lokal-only) → jetzt neu anlegen
+                new_uid = await google_calendar.create_event(db, termin_dict, kunde_name)
+                db.execute("UPDATE termine SET google_uid = ? WHERE id = ?",
+                           (new_uid, termin_id))
+                db.commit()
+        except Exception as e:
+            logger.warning("Google-Push (update) fehlgeschlagen für Termin %s: %s",
+                           termin_id, e)
+        row = db.execute("SELECT * FROM termine WHERE id = ?", (termin_id,)).fetchone()
+
     return _row_to_response(row)
 
 
@@ -171,16 +234,27 @@ async def delete_termin(
     user: dict = Depends(get_current_user),
     db: sqlite3.Connection = Depends(get_db),
 ):
-    """Termin loeschen. Google-UIDs werden gemerkt um Re-Import zu verhindern."""
+    """Termin loeschen. Wenn Google verbunden: dort auch löschen.
+    Sonst: UID in geloescht-Liste, damit iCal-Sync ihn nicht wieder anlegt."""
     existing = db.execute("SELECT id, google_uid FROM termine WHERE id = ?", (termin_id,)).fetchone()
     if not existing:
         raise HTTPException(status_code=404, detail="Termin nicht gefunden")
 
-    # Google-UID merken damit der Sync den Termin nicht wieder anlegt
-    if existing.get("google_uid"):
+    google_uid = existing.get("google_uid")
+    google_delete_ok = False
+    if google_uid and google_calendar.ist_verbunden(db):
+        try:
+            await google_calendar.delete_event(db, google_uid)
+            google_delete_ok = True
+        except Exception as e:
+            logger.warning("Google-Delete fehlgeschlagen für %s: %s", google_uid, e)
+
+    # Fallback: wenn Google-Delete nicht klappte oder gar nicht verbunden,
+    # in die geloescht-Liste, damit iCal-Sync den Termin nicht wieder anlegt
+    if google_uid and not google_delete_ok:
         db.execute(
             "INSERT OR IGNORE INTO google_uid_geloescht (google_uid) VALUES (?)",
-            (existing["google_uid"],),
+            (google_uid,),
         )
 
     db.execute("DELETE FROM termine WHERE id = ?", (termin_id,))
