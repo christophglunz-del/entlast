@@ -64,11 +64,21 @@ const TermineModule = {
     const freitag = new Date(montag);
     freitag.setDate(freitag.getDate() + 4);
 
-    // Alle Termine + Leistungen + Fahrten laden
-    const termine = await DB.alleTermine();
-    const kunden = await DB.alleKunden();
-    const leistungen = await DB.alleLeistungen();
-    const fahrten = await DB.alleFahrten();
+    // Helper: API-Call mit Timeout (verhindert ewiges Hängen bei schlechtem Netz)
+    const withTimeout = (promise, ms, fallback) =>
+      Promise.race([
+        promise.catch(() => fallback),
+        new Promise(r => setTimeout(() => r(fallback), ms))
+      ]);
+
+    // Termine + Kunden + Fahrten parallel mit 8s-Timeout
+    // Leistungen separat (groß!) mit kürzerem 5s-Timeout, optional für UI
+    const [termine, kunden, fahrten, leistungen] = await Promise.all([
+      withTimeout(DB.alleTermine(), 8000, []),
+      withTimeout(DB.alleKunden(), 8000, []),
+      withTimeout(DB.alleFahrten(), 8000, []),
+      withTimeout(DB.alleLeistungen(), 5000, []),
+    ]);
     const kundenMap = {};
     kunden.forEach(k => kundenMap[k.id] = k);
 
