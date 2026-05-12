@@ -232,9 +232,11 @@ const TermineModule = {
       ${wochenTermine.length === 0
         ? '<div class="card text-center text-muted">Keine Termine in dieser Woche</div>'
         : wochenTermine.sort((a, b) => {
-            const dA = a._displayDatum || a.datum;
-            const dB = b._displayDatum || b.datum;
-            return dA.localeCompare(dB) || a.startzeit.localeCompare(b.startzeit);
+            const dA = a._displayDatum || a.datum || '';
+            const dB = b._displayDatum || b.datum || '';
+            const zA = a.startzeit || '';
+            const zB = b.startzeit || '';
+            return dA.localeCompare(dB) || zA.localeCompare(zB);
           }).map(t => {
             const kunde = kundenMap[t.kundeId];
             const istFeiertagTermin = (t.notiz || '').toLowerCase().includes('feiertag');
