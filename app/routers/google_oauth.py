@@ -159,3 +159,55 @@ async def disconnect(
     """Refresh-Token löschen — Verbindung trennen."""
     google_calendar.disconnect(db)
     return {"ok": True}
+
+
+@router.post("/sync-fehlende")
+async def sync_fehlende(
+    user: dict = Depends(get_current_user),
+    db: sqlite3.Connection = Depends(get_db),
+):
+    """Alle entlast-Termine ab heute, die keine google_uid haben,
+    nachträglich nach Google pushen. Best-effort, fail-soft."""
+    if not google_calendar.ist_verbunden(db):
+        raise HTTPException(400, "Nicht verbunden")
+
+    rows = db.execute(
+        """SELECT id, kunde_id, datum, von, bis, titel, notiz,
+                  wiederkehrend, wiederholungs_muster
+           FROM termine
+           WHERE (google_uid IS NULL OR google_uid = '')
+             AND datum >= date('now')
+           ORDER BY datum, von""",
+    ).fetchall()
+
+    erfolg = 0
+    fehler = 0
+    for row in rows:
+        row_dict = dict(row)
+        # Kundenname holen
+        kunde_name = None
+        if row_dict.get("kunde_id"):
+            k = db.execute(
+                "SELECT name, vorname FROM kunden WHERE id = ?",
+                (row_dict["kunde_id"],),
+            ).fetchone()
+            if k:
+                kunde_name = " ".join(p for p in [k.get("vorname"), k.get("name")] if p) or None
+
+        try:
+            google_uid = await google_calendar.create_event(db, row_dict, kunde_name)
+            db.execute("UPDATE termine SET google_uid = ? WHERE id = ?",
+                       (google_uid, row_dict["id"]))
+            db.commit()
+            erfolg += 1
+        except Exception as e:
+            logger.warning("Sync-Fehlende: Termin %s fehlgeschlagen: %s",
+                           row_dict["id"], e)
+            fehler += 1
+
+    return {
+        "ok": True,
+        "geprüft": len(rows),
+        "erfolg": erfolg,
+        "fehler": fehler,
+    }

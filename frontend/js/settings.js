@@ -356,10 +356,34 @@ const SettingsModule = {
         <span style="font-size:1.3rem;">✓</span> Verbunden
       </div>
       ${calendarsHtml}
-      <button class="btn btn-outline btn-block" style="color:#dc2626;border-color:#dc2626;" onclick="SettingsModule.gcalTrennen()">
+      <button class="btn btn-outline btn-block mt-1" onclick="SettingsModule.gcalSyncFehlende()" id="gcalSyncFehlendeBtn">
+        ↻ Alle alten Termine zu Google pushen
+      </button>
+      <button class="btn btn-outline btn-block mt-1" style="color:#dc2626;border-color:#dc2626;" onclick="SettingsModule.gcalTrennen()">
         Verbindung trennen
       </button>
     `;
+  },
+
+  async gcalSyncFehlende() {
+    const btn = document.getElementById('gcalSyncFehlendeBtn');
+    if (!btn) return;
+    const orig = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Synchronisiere…';
+    try {
+      const r = await fetch('/api/v1/gcal/sync-fehlende', {
+        method: 'POST', credentials: 'include',
+      });
+      if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
+      const d = await r.json();
+      App.toast(`${d.erfolg} von ${d.geprüft} Terminen gepusht${d.fehler ? ` (${d.fehler} Fehler)` : ''}`, d.fehler ? 'error' : 'success');
+    } catch (e) {
+      App.toast('Fehler: ' + e.message, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = orig;
+    }
   },
 
   async gcalCredentialsSpeichern() {
