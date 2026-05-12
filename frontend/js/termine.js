@@ -45,7 +45,21 @@ const TermineModule = {
   async kalenderAnzeigen() {
     const container = document.getElementById('termineContent');
     if (!container) return;
+    try {
+      await this._kalenderAnzeigenInner(container);
+    } catch (err) {
+      console.error('Kalender-Render-Fehler:', err);
+      container.innerHTML = `
+        <div class="card text-center" style="padding:24px;">
+          <p style="color:#dc2626;font-weight:600;">Termine konnten nicht angezeigt werden</p>
+          <p class="text-sm text-muted" style="margin:8px 0;">${(err && err.message ? err.message : err) || 'Unbekannter Fehler'}</p>
+          <button class="btn btn-primary mt-2" onclick="location.reload()">🔄 Seite neu laden</button>
+        </div>
+      `;
+    }
+  },
 
+  async _kalenderAnzeigenInner(container) {
     const montag = new Date(this.currentWeekStart);
     const freitag = new Date(montag);
     freitag.setDate(freitag.getDate() + 4);

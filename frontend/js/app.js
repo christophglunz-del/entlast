@@ -50,23 +50,42 @@ const App = {
   async registerServiceWorker() {
     if ('serviceWorker' in navigator) {
       try {
-        const registration = await navigator.serviceWorker.register('/sw.js?v=88', { updateViaCache: 'none' });
+        const registration = await navigator.serviceWorker.register('/sw.js?v=89', { updateViaCache: 'none' });
         console.log('Service Worker registriert:', registration.scope);
+
+        // Sofort prüfen: Steht schon ein neuer SW im "waiting"? Dann aktivieren.
+        if (registration.waiting) {
+          registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+        }
+
+        // Beim Page-Load proaktiv Update-Check (statt erst nach 60s)
+        registration.update().catch(() => {});
 
         // Auf Updates prüfen
         registration.addEventListener('updatefound', () => {
           const newWorker = registration.installing;
           newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              // Neuer SW installiert, alter noch aktiv → SKIP_WAITING triggern
+              newWorker.postMessage({ type: 'SKIP_WAITING' });
+            }
             if (newWorker.state === 'activated') {
-              // Neuer SW aktiv → Seite automatisch neu laden
               console.log('Neuer Service Worker aktiv — Seite wird aktualisiert');
               window.location.reload();
             }
           });
         });
 
+        // ControllerChange (anderer Tab hat geupdated) → reload
+        let reloading = false;
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          if (reloading) return;
+          reloading = true;
+          window.location.reload();
+        });
+
         // Regelmäßig auf Updates prüfen (alle 60s)
-        setInterval(() => registration.update(), 60000);
+        setInterval(() => registration.update().catch(() => {}), 60000);
       } catch (err) {
         console.warn('Service Worker Registrierung fehlgeschlagen:', err);
       }

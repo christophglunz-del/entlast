@@ -1,5 +1,5 @@
 // Service Worker fuer entlast.de - Reines Asset-Caching (kein IndexedDB-Sync)
-const CACHE_NAME = 'entlast-app-v88';
+const CACHE_NAME = 'entlast-app-v89';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
@@ -39,6 +39,13 @@ const CDN_ASSETS = [
     'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
     'https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js'
 ];
+
+// Nachricht-Handler: SKIP_WAITING aus dem Client → sofort aktivieren
+self.addEventListener('message', event => {
+    if (event.data && event.data.type === 'SKIP_WAITING') {
+        self.skipWaiting();
+    }
+});
 
 // Installation: Alle Assets cachen
 self.addEventListener('install', event => {
