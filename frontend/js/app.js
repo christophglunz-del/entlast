@@ -50,7 +50,7 @@ const App = {
   async registerServiceWorker() {
     if ('serviceWorker' in navigator) {
       try {
-        const registration = await navigator.serviceWorker.register('/sw.js?v=91', { updateViaCache: 'none' });
+        const registration = await navigator.serviceWorker.register('/sw.js?v=92', { updateViaCache: 'none' });
         console.log('Service Worker registriert:', registration.scope);
 
         // Sofort prüfen: Steht schon ein neuer SW im "waiting"? Dann aktivieren.

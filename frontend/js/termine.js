@@ -181,8 +181,28 @@ const TermineModule = {
                   const tStunde = parseInt(t.startzeit);
                   return tDatum === datumStr && tStunde === stunde;
                 });
+                // Fortsetzungs-Termine: starteten in früherer Stunde, enden in dieser oder später
+                const fortsetzungsTermine = wochenTermine.filter(t => {
+                  const tDatum = t._displayDatum || t.datum;
+                  if (tDatum !== datumStr) return false;
+                  if (!t.startzeit || !t.endzeit) return false;
+                  const sH = parseInt(t.startzeit);
+                  const eMin = parseInt(t.endzeit.split(':')[0]) * 60 + parseInt(t.endzeit.split(':')[1] || 0);
+                  // Endet NACH dem Start dieser Stunde, aber startet VOR dieser Stunde
+                  return sH < stunde && eMin > stunde * 60;
+                });
                 return `
                   <div class="time-slot" style="${istFeiertag ? 'background:#fef2f2;opacity:0.5;' : ''}" onclick="TermineModule.neuerTermin('${datumStr}', '${zeit}')">
+                    ${fortsetzungsTermine.map(t => {
+                      const kunde = kundenMap[t.kundeId];
+                      const farbe = istFeiertag ? '#999' : (this.kundenFarben[t.kundeId] || '#E91E7B');
+                      return `
+                        <div class="calendar-event" style="border-left-color:${farbe};background:${farbe}15;opacity:0.85;"
+                             onclick="event.stopPropagation();TermineModule.terminBearbeiten(${t.id})">
+                          <div class="event-title" style="color:${farbe};font-style:italic;">↳ ${kunde ? (kunde.vorname || kunde.name) : (t.titel || 'Termin')}</div>
+                        </div>
+                      `;
+                    }).join('')}
                     ${slotTermine.map(t => {
                       const kunde = kundenMap[t.kundeId];
                       const farbe = istFeiertag ? '#999' : (this.kundenFarben[t.kundeId] || '#E91E7B');
@@ -217,23 +237,8 @@ const TermineModule = {
                           </div>` : '';
                       const eventOpacity = beidesFertig ? 'opacity:0.4;' : '';
                       const eventBorder = beidesFertig ? '#ccc' : farbe;
-                      // Höhe berechnen: mehrstündige Termine visuell über mehrere Slots
-                      // via position:absolute (Grid-Cells haben feste Row-Höhe, min-height auf
-                      // Kind-Element erweitert nur die Start-Row, nicht die Folge-Rows).
-                      let eventHeightStyle = '';
-                      if (t.startzeit && t.endzeit) {
-                        const sp = t.startzeit.split(':'), ep = t.endzeit.split(':');
-                        const startMin = parseInt(sp[0]) * 60 + parseInt(sp[1] || 0);
-                        const endMin = parseInt(ep[0]) * 60 + parseInt(ep[1] || 0);
-                        const dauerSlots = Math.max(1, Math.ceil((endMin - startMin) / 60));
-                        if (dauerSlots > 1) {
-                          const slotH = window.matchMedia('(max-width: 600px)').matches ? 36 : 50;
-                          const h = slotH * dauerSlots + (dauerSlots - 1);
-                          eventHeightStyle = `position:absolute;top:1px;left:1px;right:1px;height:${h}px;z-index:3;margin:0;`;
-                        }
-                      }
                       return `
-                        <div class="calendar-event" style="border-left-color: ${eventBorder}; background: ${eventBorder}15;${eventOpacity}${eventHeightStyle}"
+                        <div class="calendar-event" style="border-left-color: ${eventBorder}; background: ${eventBorder}15;${eventOpacity}"
                              onclick="event.stopPropagation();">
                           <div onclick="TermineModule.terminBearbeiten(${t.id})" style="cursor:pointer;">
                             <div class="event-title" style="color: ${farbe};">${kunde ? (kunde.vorname || kunde.name) : (t.titel || 'Termin')}${unterschriftBadge}</div>
