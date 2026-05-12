@@ -18,8 +18,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
-from app.auth import get_current_user
-from app.database import get_db
+from app.auth import get_current_user, get_db
 from app.services import google_calendar
 
 logger = logging.getLogger(__name__)
