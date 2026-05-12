@@ -23,7 +23,34 @@
 
   <div class="page-content" id="termineContent">
     <div class="loading-spinner"><div class="spinner"></div></div>
+    <div id="terminDiag" style="display:none;text-align:center;padding:20px;font-size:0.85rem;color:#666;font-family:monospace;"></div>
   </div>
+
+  <script>
+    // Selbstdiagnose: Spinner > 12s → Status zeigen + Notfall-Reset-Buttons
+    setTimeout(() => {
+      const c = document.getElementById('termineContent');
+      if (!c || !c.querySelector('.spinner')) return;
+      const diag = document.getElementById('terminDiag');
+      const status = {
+        _entlastReady: !!window._entlastReady,
+        FIRMA: !!window.FIRMA,
+        TermineModule: typeof TermineModule !== 'undefined',
+        DB: typeof DB !== 'undefined',
+        sw_controller: !!(navigator.serviceWorker && navigator.serviceWorker.controller),
+        online: navigator.onLine,
+      };
+      diag.innerHTML =
+        '<p style="color:#dc2626;font-weight:600;font-size:1rem;">Termine lädt nicht — Diagnose:</p>' +
+        '<pre style="text-align:left;background:#f5f5f5;padding:10px;border-radius:4px;white-space:pre-wrap;font-size:0.75rem;">' +
+        JSON.stringify(status, null, 2) + '</pre>' +
+        '<button onclick="location.reload()" style="margin-top:12px;padding:10px 20px;background:#E91E7B;color:white;border:none;border-radius:6px;font-size:1rem;display:block;width:100%;">🔄 Hard-Reload</button>' +
+        '<button onclick="caches.keys().then(ks=>Promise.all(ks.map(k=>caches.delete(k)))).then(()=>navigator.serviceWorker.getRegistrations().then(rs=>Promise.all(rs.map(r=>r.unregister())))).then(()=>location.reload())" style="margin-top:8px;padding:10px 20px;background:#dc2626;color:white;border:none;border-radius:6px;font-size:1rem;display:block;width:100%;">🧹 Cache+SW löschen &amp; neu laden</button>';
+      diag.style.display = 'block';
+      const sp = c.querySelector('.loading-spinner');
+      if (sp) sp.remove();
+    }, 12000);
+  </script>
 
   <button class="btn-fab" onclick="TermineModule.neuerTermin(App.heute(), '09:00')" title="Neuer Termin">+</button>
 
