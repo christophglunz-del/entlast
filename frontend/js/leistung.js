@@ -1178,7 +1178,6 @@ const LeistungModule = {
       }
 
       const empfName = variante === 'privat' ? App.kundenName(kunde) : (kunde.pflegekasse || 'Pflegekasse');
-      const empfAdresse = this._empfaengerAnschrift(kunde, variante);
 
       // Empfänger-Auswahl bei Pflegekunden
       const empfaengerWahl = (kunde.pflegekasse && istPflegekunde) ? `
@@ -1204,7 +1203,7 @@ const LeistungModule = {
 
           <table style="width:100%;font-size:0.9rem;border-collapse:collapse;">
             <tr><td style="padding:4px 8px;color:var(--gray-600);">Empfänger</td><td id="overlayEmpfName" style="padding:4px 8px;font-weight:600;">${empfName}</td></tr>
-            <tr><td style="padding:4px 8px;color:var(--gray-600);vertical-align:top;">Anschrift</td><td id="overlayEmpfAdresse" style="padding:4px 8px;">${this.escapeHtml(empfAdresse) || '—'}</td></tr>
+            <tr><td style="padding:4px 8px;color:var(--gray-600);vertical-align:top;">Anschrift</td><td id="overlayEmpfAdresse" style="padding:4px 8px;color:var(--gray-500);">lädt …</td></tr>
             ${variante !== 'privat' ? `<tr><td style="padding:4px 8px;color:var(--gray-600);">Versicherte/r</td><td style="padding:4px 8px;">${App.kundenName(kunde)}</td></tr>` : ''}
             <tr><td style="padding:4px 8px;color:var(--gray-600);">Variante</td><td id="overlayVariante" style="padding:4px 8px;">${variante === 'kasse' ? 'Pflegekasse (§45b)' : variante === 'lbv' ? 'LBV-Splitting' : 'Privatrechnung'}</td></tr>
             <tr><td style="padding:4px 8px;color:var(--gray-600);">Zeitraum</td><td style="padding:4px 8px;">${App.monatsName(monat)} ${jahr}</td></tr>
@@ -1234,14 +1233,59 @@ const LeistungModule = {
       // Daten zwischenspeichern
       this._pendingRechnung = { kundeId, monat, jahr, betrag, kunde, kundeLeistungen, variante };
 
+      // Empfänger-Anschrift asynchron aus Lexoffice nachladen
+      this._anschriftLaden(kunde, variante);
+
     } catch (err) {
       console.error('Fehler:', err);
       content.innerHTML = `<div class="card" style="background:white;"><p style="color:var(--danger);">Fehler: ${err.message}</p><button class="btn btn-outline" onclick="LeistungModule.rechnungOverlaySchliessen()">Schließen</button></div>`;
     }
   },
 
-  // Empfänger-Anschrift bestimmen: Privatkunde → Kundenadresse,
-  // Kasse → Adresse aus den Pflegekassen-Stammdaten (per Name gematcht)
+  // Empfänger-Anschrift aus dem Lexoffice-Kontakt laden — das ist die Adresse,
+  // an die tatsächlich gerechnet/gefaxt wird. Privatkunde → eigener Kontakt
+  // (per lexofficeId), Kasse → Kontakt per Kassenname.
+  async _lexofficeAnschrift(kunde, variante) {
+    const fmt = a => a
+      ? [a.street, [a.zip, a.city].filter(Boolean).join(' ')].filter(Boolean).join(', ')
+      : '';
+    let kontakt = null;
+    if (variante === 'privat' && kunde.lexofficeId) {
+      kontakt = await apiFetch('/lexoffice/proxy/contacts/' + kunde.lexofficeId);
+    } else {
+      const name = variante === 'privat' ? App.kundenName(kunde) : kunde.pflegekasse;
+      if (!name) return '';
+      const res = await apiFetch('/lexoffice/proxy/contacts?name=' + encodeURIComponent(name));
+      const liste = (res && res.content) ? res.content : (Array.isArray(res) ? res : []);
+      kontakt = liste[0] || null;
+    }
+    if (!kontakt) return '';
+    const adr = kontakt.addresses || {};
+    const a = (adr.billing && adr.billing[0]) || (adr.shipping && adr.shipping[0]) || null;
+    return fmt(a);
+  },
+
+  // Anschrift-Zelle der Vorschau befüllen: Lexoffice zuerst, sonst lokale Stammdaten.
+  // Generations-Token verhindert, dass ein älterer Abruf einen neueren überschreibt.
+  async _anschriftLaden(kunde, variante) {
+    const el = document.getElementById('overlayEmpfAdresse');
+    if (!el) return;
+    const gen = (this._anschriftGen = (this._anschriftGen || 0) + 1);
+    el.style.color = 'var(--gray-500)';
+    el.textContent = 'lädt …';
+    let adr = '';
+    try {
+      adr = await this._lexofficeAnschrift(kunde, variante);
+    } catch (e) {
+      console.warn('Lexoffice-Anschrift laden fehlgeschlagen:', e);
+    }
+    if (!adr) adr = this._empfaengerAnschrift(kunde, variante);  // Fallback: App-Stammdaten
+    if (gen !== this._anschriftGen) return;  // ein neuerer Aufruf hat übernommen
+    const ziel = document.getElementById('overlayEmpfAdresse');
+    if (ziel) { ziel.style.color = ''; ziel.textContent = adr || '—'; }
+  },
+
+  // Lokaler Fallback: Privatkunde → Kundenadresse, Kasse → Pflegekassen-Stammdaten
   _empfaengerAnschrift(kunde, variante) {
     const formatiere = q =>
       [q.strasse, [q.plz, q.ort].filter(Boolean).join(' ')].filter(Boolean).join(', ');
@@ -1255,21 +1299,20 @@ const LeistungModule = {
   _empfaengerOverlayGeaendert(wert, kundeId) {
     // Empfänger-Name, Anschrift und Variante im Overlay aktualisieren
     const empfNameEl = document.getElementById('overlayEmpfName');
-    const empfAdrEl = document.getElementById('overlayEmpfAdresse');
     const varianteEl = document.getElementById('overlayVariante');
     if (!this._pendingRechnung) return;
     const kunde = this._pendingRechnung.kunde;
     if (wert === 'kasse' && kunde.pflegekasse) {
       if (empfNameEl) empfNameEl.textContent = kunde.pflegekasse;
       this._pendingRechnung.variante = LexofficeAPI.varianteErmitteln(kunde);
-      if (empfAdrEl) empfAdrEl.textContent = this._empfaengerAnschrift(kunde, this._pendingRechnung.variante) || '—';
       if (varianteEl) varianteEl.textContent = this._pendingRechnung.variante === 'kasse' ? 'Pflegekasse (§45b)' : this._pendingRechnung.variante === 'lbv' ? 'LBV-Splitting' : 'Privatrechnung';
     } else {
       if (empfNameEl) empfNameEl.textContent = App.kundenName(kunde);
       this._pendingRechnung.variante = 'privat';
-      if (empfAdrEl) empfAdrEl.textContent = this._empfaengerAnschrift(kunde, 'privat') || '—';
       if (varianteEl) varianteEl.textContent = 'Privatrechnung';
     }
+    // Anschrift passend zum neuen Empfänger aus Lexoffice nachladen
+    this._anschriftLaden(kunde, this._pendingRechnung.variante);
   },
 
   async _rechnungAbsenden() {
