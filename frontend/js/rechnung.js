@@ -6,6 +6,18 @@ const RechnungModule = {
   // Cache für Lexoffice-Rechnungsdetails
   _rechnungsDetails: {},
 
+  // Whitelist: prüft, ob `name` zu einer bekannten Pflegekasse aus den Stammdaten
+  // passt (Schreibweisen-tolerant). Gibt den EXAKTEN Stammdaten-Namen zurück, sonst
+  // null. Verhindert, dass freie Lexoffice-Empfängernamen (z.B. "energie BKK")
+  // ungeprüft als Kundenkasse gespeichert werden.
+  _bekannteKasse(name) {
+    if (!name) return null;
+    const norm = s => (s || '').toLowerCase().replace(/[\s\-.]/g, '');
+    const ziel = norm(name);
+    const pk = (window.PFLEGEKASSEN || []).find(k => norm(k.name) === ziel);
+    return pk ? pk.name : null;
+  },
+
   async init() {
     await this.listeAnzeigen();
     // URL-Parameter: ?kunde=ID&monat=M&jahr=J → Felder vorauswählen
@@ -1295,9 +1307,14 @@ const RechnungModule = {
             } catch(e) {}
           }
 
-          // Pflegekasse aus Empfänger
+          // Pflegekasse aus Empfänger — nur wenn bekannte Kasse (Whitelist)
           if (!matchKunde.pflegekasse && addr.name) {
-            updates.pflegekasse = addr.name;
+            const bekannt = RechnungModule._bekannteKasse(addr.name);
+            if (bekannt) {
+              updates.pflegekasse = bekannt;
+            } else {
+              console.warn(`Empfänger "${addr.name}" ist keine bekannte Pflegekasse — nicht bei ${matchKunde.name} eingetragen`);
+            }
           }
 
           // Faxnummer der Kasse
@@ -1407,8 +1424,13 @@ const RechnungModule = {
                   console.log(`Vers.-Nr. ${artikel.articleNumber} bei ${matchKunde.name} nachgetragen`);
                 }
                 if (!matchKunde.pflegekasse && pflegekasseName) {
-                  updates.pflegekasse = pflegekasseName;
-                  console.log(`Pflegekasse "${pflegekasseName}" bei ${matchKunde.name} nachgetragen`);
+                  const bekannt = RechnungModule._bekannteKasse(pflegekasseName);
+                  if (bekannt) {
+                    updates.pflegekasse = bekannt;
+                    console.log(`Pflegekasse "${bekannt}" bei ${matchKunde.name} nachgetragen`);
+                  } else {
+                    console.warn(`Empfänger "${pflegekasseName}" ist keine bekannte Pflegekasse — nicht bei ${matchKunde.name} nachgetragen`);
+                  }
                 }
                 if (!matchKunde.faxKasse && faxKasseAusLexoffice) {
                   updates.faxKasse = faxKasseAusLexoffice;

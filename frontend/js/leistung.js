@@ -671,7 +671,7 @@ const LeistungModule = {
 
       <div class="btn-group mt-2">
         ${!alleUnterschrieben ? `
-          <button class="btn btn-primary btn-block" onclick="LeistungModule.unterschriftenSpeichern(${kundeId}, ${monat}, ${jahr})">
+          <button id="sigSaveBtn" class="btn btn-primary btn-block" onclick="LeistungModule.unterschriftenSpeichern(${kundeId}, ${monat}, ${jahr})">
             Unterschrift speichern
           </button>
         ` : ''}
@@ -774,9 +774,12 @@ const LeistungModule = {
       sigData = await trimSignature(sigData);
       const alleLeistungen = await DB.leistungenFuerMonat(monat, jahr);
       const leistungen = alleLeistungen.filter(l => l.kundeId === kundeId);
-      for (const l of leistungen) {
-        await DB.leistungAktualisieren(l.id, { unterschriftVersicherter: sigData });
-      }
+      // Parallel statt sequenziell — spart die seriellen Netzwerk-Round-Trips
+      await Promise.all(
+        leistungen.map(l =>
+          DB.leistungAktualisieren(l.id, { unterschriftVersicherter: sigData })
+        )
+      );
       App.toast(`Unterschrift für ${leistungen.length} Einträge gespeichert`, 'success');
       this.unterschriftenAnzeigen(kundeId, monat, jahr);
     } catch (err) {
@@ -797,27 +800,42 @@ const LeistungModule = {
 
   // Unterschrift für alle Leistungen eines Kunden im Monat speichern
   async unterschriftenSpeichern(kundeId, monat, jahr) {
-    const rawSig = this.sigPadVersicherter ? this.sigPadVersicherter.toDataURL() : null;
+    // Doppel-Submit verhindern (mehrfaches Tippen auf "Speichern")
+    if (this._sigSaving) return;
 
-    if (!rawSig) {
+    if (!this.sigPadVersicherter || this.sigPadVersicherter.isEmpty()) {
       App.toast('Bitte unterschreiben', 'error');
       return;
     }
+    const rawSig = this.sigPadVersicherter.toDataURL();
+
+    // Sofortiges Feedback: Button sperren + Text ändern
+    this._sigSaving = true;
+    const btn = document.getElementById('sigSaveBtn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Speichere …'; }
 
     try {
       const sigVersicherter = await trimSignature(rawSig);
       const alleLeistungen = await DB.leistungenFuerMonat(monat, jahr);
       const leistungen = alleLeistungen.filter(l => l.kundeId === kundeId);
 
-      for (const l of leistungen) {
-        await DB.leistungAktualisieren(l.id, { unterschriftVersicherter: sigVersicherter });
-      }
+      // Parallel statt sequenziell — spart die seriellen Netzwerk-Round-Trips
+      // (DB läuft im WAL-Modus mit busy_timeout, parallele Writes sind sicher)
+      await Promise.all(
+        leistungen.map(l =>
+          DB.leistungAktualisieren(l.id, { unterschriftVersicherter: sigVersicherter })
+        )
+      );
 
       App.toast('Unterschrift gespeichert', 'success');
       await this.unterschriftenAnzeigen(kundeId, monat, jahr);
     } catch (err) {
       console.error('unterschriftenSpeichern Fehler:', err);
       App.toast('Fehler beim Speichern: ' + (err && err.message ? err.message : 'unbekannt'), 'error');
+      // Bei Fehler Button wieder freigeben (im Erfolgsfall rendert die Ansicht neu)
+      if (btn) { btn.disabled = false; btn.textContent = 'Unterschrift speichern'; }
+    } finally {
+      this._sigSaving = false;
     }
   },
 
@@ -829,9 +847,11 @@ const LeistungModule = {
       const alleLeistungen = await DB.leistungenFuerMonat(monat, jahr);
       const leistungen = alleLeistungen.filter(l => l.kundeId === kundeId);
 
-      for (const l of leistungen) {
-        await DB.leistungAktualisieren(l.id, { unterschriftVersicherter: null });
-      }
+      await Promise.all(
+        leistungen.map(l =>
+          DB.leistungAktualisieren(l.id, { unterschriftVersicherter: null })
+        )
+      );
 
       App.toast('Bitte neu unterschreiben', 'info');
       await this.unterschriftenAnzeigen(kundeId, monat, jahr);
@@ -854,9 +874,9 @@ const LeistungModule = {
       if (typ === 'betreuer') update.unterschriftBetreuer = null;
       else update.unterschriftVersicherter = null;
 
-      for (const l of leistungen) {
-        await DB.leistungAktualisieren(l.id, update);
-      }
+      await Promise.all(
+        leistungen.map(l => DB.leistungAktualisieren(l.id, update))
+      );
 
       App.toast(`${label} gelöscht`, 'success');
       await this.monatsUebersichtAnzeigen(kundeId, monat, jahr);
@@ -1158,6 +1178,7 @@ const LeistungModule = {
       }
 
       const empfName = variante === 'privat' ? App.kundenName(kunde) : (kunde.pflegekasse || 'Pflegekasse');
+      const empfAdresse = this._empfaengerAnschrift(kunde, variante);
 
       // Empfänger-Auswahl bei Pflegekunden
       const empfaengerWahl = (kunde.pflegekasse && istPflegekunde) ? `
@@ -1183,6 +1204,7 @@ const LeistungModule = {
 
           <table style="width:100%;font-size:0.9rem;border-collapse:collapse;">
             <tr><td style="padding:4px 8px;color:var(--gray-600);">Empfänger</td><td id="overlayEmpfName" style="padding:4px 8px;font-weight:600;">${empfName}</td></tr>
+            <tr><td style="padding:4px 8px;color:var(--gray-600);vertical-align:top;">Anschrift</td><td id="overlayEmpfAdresse" style="padding:4px 8px;">${this.escapeHtml(empfAdresse) || '—'}</td></tr>
             ${variante !== 'privat' ? `<tr><td style="padding:4px 8px;color:var(--gray-600);">Versicherte/r</td><td style="padding:4px 8px;">${App.kundenName(kunde)}</td></tr>` : ''}
             <tr><td style="padding:4px 8px;color:var(--gray-600);">Variante</td><td id="overlayVariante" style="padding:4px 8px;">${variante === 'kasse' ? 'Pflegekasse (§45b)' : variante === 'lbv' ? 'LBV-Splitting' : 'Privatrechnung'}</td></tr>
             <tr><td style="padding:4px 8px;color:var(--gray-600);">Zeitraum</td><td style="padding:4px 8px;">${App.monatsName(monat)} ${jahr}</td></tr>
@@ -1218,19 +1240,34 @@ const LeistungModule = {
     }
   },
 
+  // Empfänger-Anschrift bestimmen: Privatkunde → Kundenadresse,
+  // Kasse → Adresse aus den Pflegekassen-Stammdaten (per Name gematcht)
+  _empfaengerAnschrift(kunde, variante) {
+    const formatiere = q =>
+      [q.strasse, [q.plz, q.ort].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+    if (variante === 'privat') {
+      return formatiere(kunde);
+    }
+    const pk = (window.PFLEGEKASSEN || []).find(k => k.name === kunde.pflegekasse);
+    return pk ? formatiere(pk) : '';
+  },
+
   _empfaengerOverlayGeaendert(wert, kundeId) {
-    // Empfänger-Name und Variante im Overlay aktualisieren
+    // Empfänger-Name, Anschrift und Variante im Overlay aktualisieren
     const empfNameEl = document.getElementById('overlayEmpfName');
+    const empfAdrEl = document.getElementById('overlayEmpfAdresse');
     const varianteEl = document.getElementById('overlayVariante');
     if (!this._pendingRechnung) return;
     const kunde = this._pendingRechnung.kunde;
     if (wert === 'kasse' && kunde.pflegekasse) {
       if (empfNameEl) empfNameEl.textContent = kunde.pflegekasse;
       this._pendingRechnung.variante = LexofficeAPI.varianteErmitteln(kunde);
+      if (empfAdrEl) empfAdrEl.textContent = this._empfaengerAnschrift(kunde, this._pendingRechnung.variante) || '—';
       if (varianteEl) varianteEl.textContent = this._pendingRechnung.variante === 'kasse' ? 'Pflegekasse (§45b)' : this._pendingRechnung.variante === 'lbv' ? 'LBV-Splitting' : 'Privatrechnung';
     } else {
       if (empfNameEl) empfNameEl.textContent = App.kundenName(kunde);
       this._pendingRechnung.variante = 'privat';
+      if (empfAdrEl) empfAdrEl.textContent = this._empfaengerAnschrift(kunde, 'privat') || '—';
       if (varianteEl) varianteEl.textContent = 'Privatrechnung';
     }
   },

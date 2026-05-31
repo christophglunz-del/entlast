@@ -50,7 +50,7 @@ const App = {
   async registerServiceWorker() {
     if ('serviceWorker' in navigator) {
       try {
-        const registration = await navigator.serviceWorker.register('/sw.js?v=95', { updateViaCache: 'none' });
+        const registration = await navigator.serviceWorker.register('/sw.js?v=96', { updateViaCache: 'none' });
         console.log('Service Worker registriert:', registration.scope);
 
         // Sofort prüfen: Steht schon ein neuer SW im "waiting"? Dann aktivieren.
@@ -432,6 +432,7 @@ const App = {
     overlay.innerHTML = `
       <div class="more-menu-backdrop" id="moreMenuBackdrop"></div>
       <div class="more-menu-panel" id="moreMenuPanel">
+        <a href="${prefix}kunden.html" class="more-menu-item"><span class="more-menu-icon">\uD83D\uDC65</span> Kunden</a>
         <a href="${prefix}termine.html" class="more-menu-item"><span class="more-menu-icon">\uD83D\uDCC5</span> Termine</a>
         <a href="${prefix}fahrten.html" class="more-menu-item"><span class="more-menu-icon">\uD83D\uDE97</span> Fahrten</a>
         <a href="${prefix}entlastung.html" class="more-menu-item"><span class="more-menu-icon">\u23F3</span> \u00A745b Budget</a>
