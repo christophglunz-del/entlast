@@ -208,7 +208,12 @@ const LeistungModule = {
           gesamtStunden += std;
           gesamtBetrag += App.betragBerechnen(std);
         }
-        const alleUnterschrieben = kundeEintraege.every(
+        // Monatsblatt gilt als unterschrieben, sobald eine Unterschrift vorliegt.
+        // PDF (pdf.js) und Detailansicht drucken/zeigen genau diese eine Unterschrift
+        // fürs ganze Monatsblatt — daher hier 'some' statt 'every'. Sonst meldet die
+        // Übersicht "Unterschrift fehlt", wenn nach dem Unterschreiben ein weiterer
+        // Eintrag dazukommt, obwohl das Monatsblatt unterschrieben ist.
+        const monatUnterschrieben = kundeEintraege.some(
           l => l.unterschriftVersicherter
         );
 
@@ -234,7 +239,7 @@ const LeistungModule = {
               </div>
             </div>
             <div class="item-action" style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
-              ${alleUnterschrieben
+              ${monatUnterschrieben
                 ? '<span class="text-xs" style="color:#2e7d32;">✓ Unterschrieben</span>'
                 : '<span class="text-xs" style="color:#f59e0b;">✍ Unterschrift fehlt</span>'
               }
