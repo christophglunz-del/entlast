@@ -4,6 +4,16 @@ Multi-Mandant Web-App fuer Alltagshilfe-Betriebe.
 Start: uvicorn app.main:app --reload
 """
 
+import os
+import time
+
+# Prozess-Zeitzone fest auf Deutschland setzen, BEVOR datetime/SQLite genutzt
+# werden. Der VPS läuft in UTC — ohne dies liefern datetime.now() und
+# SQLite date('now','localtime') kurz nach Mitternacht noch den Vortag
+# (z.B. falsches Fax-Versanddatum 31.05. statt 01.06.).
+os.environ["TZ"] = "Europe/Berlin"
+time.tzset()
+
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path

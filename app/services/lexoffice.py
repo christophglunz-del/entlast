@@ -112,8 +112,11 @@ async def cancel_invoice(
             introduction += f". Grund: {grund}"
 
         # Gutschrift-Body — Posten und Konditionen 1:1 vom Original übernehmen
-        from datetime import datetime, timezone
-        voucher_date = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000+02:00")
+        from datetime import datetime
+        # Lokale Zeit (TZ=Europe/Berlin) mit korrektem DST-Offset statt UTC fest als +02:00
+        _now = datetime.now().astimezone()
+        voucher_date = _now.strftime("%Y-%m-%dT%H:%M:%S.000%z")
+        voucher_date = voucher_date[:-2] + ":" + voucher_date[-2:]  # +0200 -> +02:00
 
         body = {
             "voucherDate": voucher_date,

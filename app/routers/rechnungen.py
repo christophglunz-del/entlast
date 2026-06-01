@@ -139,7 +139,7 @@ async def update_rechnung(
 
     # updated_at automatisch setzen
     set_parts = [f"{k} = ?" for k in data]
-    set_parts.append("updated_at = datetime('now')")
+    set_parts.append("updated_at = datetime('now', 'localtime')")
     set_clause = ", ".join(set_parts)
     values = list(data.values())
     values.append(rechnung_id)
@@ -271,7 +271,7 @@ async def rechnung_fax(
     # Versand-Status in DB aktualisieren
     db.execute(
         """UPDATE rechnungen
-           SET versand_art = 'fax', versand_datum = datetime('now'), updated_at = datetime('now')
+           SET versand_art = 'fax', versand_datum = datetime('now', 'localtime'), updated_at = datetime('now', 'localtime')
            WHERE id = ?""",
         (rechnung_id,),
     )
@@ -364,8 +364,8 @@ async def rechnung_brief(
     # Versand-Status in DB aktualisieren
     db.execute(
         """UPDATE rechnungen
-           SET versand_art = 'brief', versand_datum = datetime('now'),
-               status = 'versendet', updated_at = datetime('now')
+           SET versand_art = 'brief', versand_datum = datetime('now', 'localtime'),
+               status = 'versendet', updated_at = datetime('now', 'localtime')
            WHERE id = ?""",
         (rechnung_id,),
     )
@@ -433,10 +433,10 @@ async def rechnung_storno(
         """UPDATE rechnungen
            SET storno_lexoffice_id = ?,
                storno_voucher_number = ?,
-               storno_datum = datetime('now'),
+               storno_datum = datetime('now', 'localtime'),
                storno_grund = ?,
                status = 'storniert',
-               updated_at = datetime('now')
+               updated_at = datetime('now', 'localtime')
            WHERE id = ?""",
         (result["id"], result.get("voucherNumber", ""), grund, rechnung_id),
     )

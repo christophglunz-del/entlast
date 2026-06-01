@@ -60,7 +60,7 @@ async def sync_kunden(
                 db.execute(
                     """UPDATE kunden SET name=?, vorname=?, strasse=?, plz=?, ort=?, telefon=?, email=?,
                        pflegekasse_fax=COALESCE(?, pflegekasse_fax),
-                       updated_at=datetime('now') WHERE lexoffice_id=?""",
+                       updated_at=datetime('now', 'localtime') WHERE lexoffice_id=?""",
                     (c.get("name", ""), c.get("vorname", ""), c.get("strasse", ""),
                      c.get("plz", ""), c.get("ort", ""), c.get("telefon", ""),
                      c.get("email", ""), c.get("pflegekasse_fax"), lex_id),
@@ -315,7 +315,7 @@ async def rechnung_erstellen(
     # 3. Lokal in DB speichern
     db.execute(
         """INSERT INTO rechnungen (kunde_id, monat, jahr, betrag_brutto, status, lexoffice_id, datum)
-           VALUES (?, ?, ?, ?, 'offen', ?, date('now'))""",
+           VALUES (?, ?, ?, ?, 'offen', ?, date('now', 'localtime'))""",
         (req.kunde_id, req.monat, req.jahr, betrag, invoice_id),
     )
     db.commit()
@@ -390,12 +390,12 @@ async def fax_senden(
     ).fetchone()
     if existing:
         db.execute(
-            "UPDATE rechnungen SET versand_art='fax_warteschlange', versand_datum=date('now'), status='versendet', sipgate_session_id=? WHERE id=?",
+            "UPDATE rechnungen SET versand_art='fax_warteschlange', versand_datum=date('now', 'localtime'), status='versendet', sipgate_session_id=? WHERE id=?",
             (session_id, existing["id"]),
         )
     else:
         db.execute(
-            "INSERT INTO rechnungen (lexoffice_id, versand_art, versand_datum, status, sipgate_session_id, datum) VALUES (?, 'fax_warteschlange', date('now'), 'versendet', ?, date('now'))",
+            "INSERT INTO rechnungen (lexoffice_id, versand_art, versand_datum, status, sipgate_session_id, datum) VALUES (?, 'fax_warteschlange', date('now', 'localtime'), 'versendet', ?, date('now', 'localtime'))",
             (req.lexoffice_id, session_id),
         )
     db.commit()
@@ -427,12 +427,12 @@ async def versand_markieren(
     ).fetchone()
     if existing:
         db.execute(
-            "UPDATE rechnungen SET versand_art=?, versand_datum=date('now'), status='versendet' WHERE id=?",
+            "UPDATE rechnungen SET versand_art=?, versand_datum=date('now', 'localtime'), status='versendet' WHERE id=?",
             (req.versand_art, existing["id"]),
         )
     else:
         db.execute(
-            "INSERT INTO rechnungen (kunde_id, lexoffice_id, versand_art, versand_datum, status, datum) VALUES (?, ?, ?, date('now'), 'versendet', date('now'))",
+            "INSERT INTO rechnungen (kunde_id, lexoffice_id, versand_art, versand_datum, status, datum) VALUES (?, ?, ?, date('now', 'localtime'), 'versendet', date('now', 'localtime'))",
             (req.kunde_id or 0, req.lexoffice_id, req.versand_art),
         )
     db.commit()
@@ -524,8 +524,8 @@ async def storno_invoice(
         db.execute(
             """UPDATE rechnungen
                SET storno_lexoffice_id = ?, storno_voucher_number = ?,
-                   storno_datum = datetime('now'), storno_grund = ?,
-                   status = 'storniert', updated_at = datetime('now')
+                   storno_datum = datetime('now', 'localtime'), storno_grund = ?,
+                   status = 'storniert', updated_at = datetime('now', 'localtime')
                WHERE id = ?""",
             (result["id"], result.get("voucherNumber", ""), grund, lokal["id"]),
         )
