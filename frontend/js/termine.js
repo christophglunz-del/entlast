@@ -40,6 +40,7 @@ const TermineModule = {
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden) this.kalenderAnzeigen();
     });
+    window.addEventListener('tagesabschluss-fertig', () => this.kalenderAnzeigen());
   },
 
   async kalenderAnzeigen() {
@@ -136,6 +137,34 @@ const TermineModule = {
     const zeitSlots = [];
     for (let h = 8; h <= 18; h++) {
       zeitSlots.push(`${String(h).padStart(2, '0')}:00`);
+    }
+
+    // Tagesabschluss-Leiste: nur Tage <= heute mit Kunden-Terminen
+    let tagesabschlussLeiste = '';
+    if (typeof TagesabschlussModule !== 'undefined') {
+      const istKundenTermin = (t, ds) => (t._displayDatum || t.datum) === ds && t.kundeId && !t._geburtstag && !(t.notiz || '').toLowerCase().includes('feiertag');
+      const abschlussTage = tage.filter(tag => {
+        const ds = App.localDateStr(tag);
+        return ds <= App.heute() && wochenTermine.some(t => istKundenTermin(t, ds));
+      });
+      if (abschlussTage.length > 0) {
+        tagesabschlussLeiste = '<div class="section-title mt-3"><span class="icon">✅</span> Tag abschließen</div>' +
+          abschlussTage.map(tag => {
+            const ds = App.localDateStr(tag);
+            const kundenIds = new Set(wochenTermine.filter(t => istKundenTermin(t, ds)).map(t => t.kundeId));
+            const offen = [...kundenIds].filter(id => !leistungSet.has(`${id}-${ds}`)).length;
+            return `
+              <div class="list-item" style="cursor:pointer;" onclick="TagesabschlussModule.starten('${ds}')">
+                <div class="item-avatar" style="background:#e8f5e9;color:#2e7d32;">✓</div>
+                <div class="item-content">
+                  <div class="item-title">${App.wochentagKurz(ds)} ${tag.getDate()}.${tag.getMonth() + 1}. abschließen</div>
+                  <div class="item-subtitle">${kundenIds.size} Kunde(n)${offen > 0 ? ' · ' + offen + ' offen' : ' · erledigt'}</div>
+                </div>
+                <div class="item-action">›</div>
+              </div>
+            `;
+          }).join('');
+      }
     }
 
     container.innerHTML = `
@@ -255,6 +284,8 @@ const TermineModule = {
           }).join('')}
         </div>
       </div>
+
+      ${tagesabschlussLeiste}
 
       <!-- Terminliste für schnellen Überblick -->
       <div class="section-title mt-3"><span class="icon">📋</span> Termine diese Woche</div>

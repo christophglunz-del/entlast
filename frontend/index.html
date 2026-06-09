@@ -38,6 +38,16 @@
             <p class="text-sm" style="opacity: 0.8;" id="heuteInfo">Dein Tagesueberblick</p>
         </div>
 
+        <!-- Tagesabschluss -->
+        <div id="tagesabschlussCard" class="card" style="display:none; border-left:4px solid #2e7d32;">
+            <div style="font-weight:600; margin-bottom:6px;">&#x2705; Tagesabschluss</div>
+            <div class="text-sm text-muted" id="tagesabschlussInfo" style="margin-bottom:10px;">&mdash;</div>
+            <div style="display:flex; gap:8px;">
+                <button class="btn btn-primary btn-sm" id="taHeute" style="flex:1;">Heute abschlie&szlig;en</button>
+                <button class="btn btn-secondary btn-sm" id="taGestern" style="flex:1;">Gestern abschlie&szlig;en</button>
+            </div>
+        </div>
+
         <!-- Geburtstage -->
         <div id="geburtstage" style="display:none;" class="card" style="background:#fffbeb; border-left:4px solid #f59e0b;">
             <div id="geburtstageInhalt"></div>
@@ -166,6 +176,8 @@
     <script src="js/app-init.js"></script>
     <script src="js/services-shim.js"></script>
     <script src="js/app.js"></script>
+    <script src="js/geo.js"></script>
+    <script src="js/tagesabschluss.js"></script>
     <script>
         // Dashboard-Daten laden
         document.addEventListener('DOMContentLoaded', async () => {
@@ -357,6 +369,35 @@
             } catch (e) {
                 console.warn('Letzte Eintraege konnten nicht geladen werden:', e);
             }
+
+            // Tagesabschluss-Kachel
+            try {
+                const heuteStr = App.heute();
+                const gestern = App.localDateStr(new Date(Date.now() - 86400000));
+                const card = document.getElementById('tagesabschlussCard');
+                if (card && typeof TagesabschlussModule !== 'undefined') {
+                    const [sHeute, sGestern] = await Promise.all([
+                        TagesabschlussModule._status(heuteStr),
+                        TagesabschlussModule._status(gestern)
+                    ]);
+                    const btnHeute = document.getElementById('taHeute');
+                    const btnGestern = document.getElementById('taGestern');
+                    btnHeute.style.display = sHeute.gesamt > 0 ? '' : 'none';
+                    btnGestern.style.display = sGestern.gesamt > 0 ? '' : 'none';
+                    if (sHeute.gesamt > 0 || sGestern.gesamt > 0) {
+                        card.style.display = 'block';
+                        const teile = [];
+                        if (sHeute.gesamt > 0) teile.push('Heute: ' + sHeute.offen + ' von ' + sHeute.gesamt + ' offen');
+                        if (sGestern.gesamt > 0) teile.push('Gestern: ' + sGestern.offen + ' von ' + sGestern.gesamt + ' offen');
+                        document.getElementById('tagesabschlussInfo').textContent = teile.join(' · ');
+                    }
+                    btnHeute.onclick = () => TagesabschlussModule.starten(heuteStr);
+                    btnGestern.onclick = () => TagesabschlussModule.starten(gestern);
+                }
+            } catch (e) { console.warn('Tagesabschluss-Kachel:', e); }
+
+            // Nach Tagesabschluss: Dashboard neu laden
+            window.addEventListener('tagesabschluss-fertig', () => location.reload());
         });
     </script>
 </body>

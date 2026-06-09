@@ -25,7 +25,12 @@ const FahrtenModule = {
     const params = new URLSearchParams(window.location.search);
     const kundeId = params.get('kundeId');
     const datum = params.get('datum');
-    if (kundeId) {
+    if (kundeId && datum) {
+      // Vom Termin-km-Button: ganze Tagestour fuer DIESEN Tag aufbauen (alle Kunden)
+      window.history.replaceState({}, '', window.location.pathname);
+      this._tourKundenIds = null;
+      this.tagestourErstellen(datum);
+    } else if (kundeId) {
       window.history.replaceState({}, '', window.location.pathname);
       this.neueFahrtAusTermin(parseInt(kundeId), datum);
     }
@@ -884,11 +889,11 @@ const FahrtenModule = {
     this._tourKundenIds = null;
   },
 
-  async tagestourErstellen() {
+  async tagestourErstellen(datumArg) {
     App.toast('Tagestour wird vorbereitet...', 'info');
 
     try {
-      const heute = App.heute();
+      const heute = datumArg || App.heute();
       const [termine, alleKunden] = await Promise.all([
         DB.termineFuerDatum(heute),
         DB.alleKunden()
@@ -932,8 +937,8 @@ const FahrtenModule = {
         return zeitA.localeCompare(zeitB);
       });
 
-      if (eindeutig.length < 2) {
-        App.toast('Mindestens 2 Kunden-Termine noetig', 'info');
+      if (eindeutig.length < 1) {
+        App.toast('Keine Kunden-Termine an diesem Tag', 'info');
         return;
       }
 
