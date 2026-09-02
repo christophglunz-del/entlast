@@ -46,13 +46,13 @@ def _isolate_env(tmp_path):
 
     # Auth-Modul: Session-Store + Brute-Force-Tracker leeren
     import app.auth as auth_mod
-    auth_mod._sessions.clear()
+    if hasattr(auth_mod, "_sessions"): auth_mod._sessions.clear()  # Sessions liegen seit b99abdc in SQLite
     auth_mod._login_attempts.clear()
 
     yield
 
     # Cleanup: Sessions leeren
-    auth_mod._sessions.clear()
+    if hasattr(auth_mod, "_sessions"): auth_mod._sessions.clear()  # Sessions liegen seit b99abdc in SQLite
     auth_mod._login_attempts.clear()
 
 

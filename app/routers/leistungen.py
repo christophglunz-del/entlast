@@ -78,6 +78,20 @@ async def create_leistung(
     if not kunde:
         raise HTTPException(status_code=400, detail="Kunde nicht gefunden")
 
+    # Exakte Dublette (gleicher Kunde, Tag, von, bis) serverseitig abweisen.
+    # Schließt das Doppelklick-Rennen im Frontend (zwei POSTs vor dem ersten Reload).
+    dublette = db.execute(
+        """SELECT id FROM leistungen
+           WHERE kunde_id = ? AND datum = ?
+             AND IFNULL(von, '') = IFNULL(?, '') AND IFNULL(bis, '') = IFNULL(?, '')""",
+        (leistung.kunde_id, leistung.datum, leistung.von, leistung.bis),
+    ).fetchone()
+    if dublette:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Leistung existiert bereits (Nr. {dublette['id']}): gleicher Kunde, Tag und Uhrzeit",
+        )
+
     # dauer_std automatisch berechnen falls nicht gesetzt
     dauer_std = leistung.dauer_std
     if dauer_std is None and leistung.von and leistung.bis:

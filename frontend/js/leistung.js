@@ -899,6 +899,22 @@ const LeistungModule = {
   },
 
   async speichern(id = null) {
+    // Doppelklick-/Doppel-Submit-Sperre: zweiter Aufruf während des laufenden
+    // Speicherns wird verworfen (sonst zwei identische Einträge, Fall Lieck 13.07.2026)
+    if (this._saving) return;
+    this._saving = true;
+    const submitBtn = document.querySelector('#leistungForm button[type="submit"]');
+    const submitText = submitBtn ? submitBtn.textContent : '';
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Speichere …'; }
+    try {
+      await this._speichernIntern(id);
+    } finally {
+      this._saving = false;
+      if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = submitText; }
+    }
+  },
+
+  async _speichernIntern(id = null) {
     const kundeId = parseInt(document.getElementById('leistungKunde').value);
     if (!kundeId) {
       App.toast('Bitte einen Kunden wählen', 'error');
@@ -972,7 +988,7 @@ const LeistungModule = {
       this.zurueckZurListe();
     } catch (err) {
       console.error('Fehler:', err);
-      App.toast('Fehler beim Speichern', 'error');
+      App.toast('Fehler beim Speichern: ' + (err && err.message ? err.message : ''), 'error', 6000);
     }
   },
 

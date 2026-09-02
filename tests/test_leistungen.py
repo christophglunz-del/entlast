@@ -86,7 +86,7 @@ class TestLeistungenCRUD:
         # Unterschriften als base64 (vereinfacht)
         resp = auth_client.post(
             f"/api/v1/leistungen/{leistung_id}/unterschrift",
-            params={
+            json={
                 "unterschrift_betreuer": "data:image/png;base64,iVBOR...",
                 "unterschrift_versicherter": "data:image/png;base64,AAAA...",
             },
