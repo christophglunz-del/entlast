@@ -222,6 +222,23 @@ CREATE INDEX IF NOT EXISTS idx_rechnungen_kunde_id ON rechnungen(kunde_id);
 CREATE INDEX IF NOT EXISTS idx_rechnungen_status ON rechnungen(status);
 CREATE INDEX IF NOT EXISTS idx_rechnungen_monat_jahr ON rechnungen(monat, jahr);
 
+-- Blutdruckwerte (Gesundheitsdaten, Art. 9 DSGVO)
+-- Dokumentation der Messungen waehrend der Betreuung + Entwicklung ueber die Zeit
+CREATE TABLE IF NOT EXISTS blutdruck (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    kunde_id INTEGER NOT NULL REFERENCES kunden(id),
+    datum TEXT NOT NULL,                          -- ISO date
+    zeit TEXT,                                    -- HH:MM (Tageszeit der Messung)
+    systolisch INTEGER NOT NULL,                  -- mmHg (oberer Wert)
+    diastolisch INTEGER NOT NULL,                 -- mmHg (unterer Wert)
+    puls INTEGER,                                 -- Schlaege pro Minute
+    notiz TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_blutdruck_kunde ON blutdruck(kunde_id);
+CREATE INDEX IF NOT EXISTS idx_blutdruck_datum ON blutdruck(datum);
+
 -- Settings (Key-Value Store)
 -- Quelle: Dexie Schema + settings.js
 -- ACHTUNG: API-Keys werden NICHT mehr im Browser gespeichert!

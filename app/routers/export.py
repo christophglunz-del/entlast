@@ -21,6 +21,7 @@ async def export_alles(
     termine = db.execute("SELECT * FROM termine ORDER BY id").fetchall()
     abtretungen = db.execute("SELECT * FROM abtretungen ORDER BY id").fetchall()
     rechnungen = db.execute("SELECT * FROM rechnungen ORDER BY id").fetchall()
+    blutdruck = db.execute("SELECT * FROM blutdruck ORDER BY id").fetchall()
     settings = db.execute("SELECT * FROM settings ORDER BY key").fetchall()
     firma = db.execute("SELECT * FROM firma WHERE id = 1").fetchone()
 
@@ -34,6 +35,7 @@ async def export_alles(
         "termine": termine,
         "abtretungen": abtretungen,
         "rechnungen": rechnungen,
+        "blutdruck": blutdruck,
         "settings": settings,
         "counts": {
             "kunden": len(kunden),
@@ -42,6 +44,7 @@ async def export_alles(
             "termine": len(termine),
             "abtretungen": len(abtretungen),
             "rechnungen": len(rechnungen),
+            "blutdruck": len(blutdruck),
             "settings": len(settings),
         },
     }
@@ -61,7 +64,7 @@ async def import_alles(
 
     try:
         # Reihenfolge beachten wegen Foreign Keys
-        tables = ["rechnungen", "abtretungen", "termine", "fahrten", "leistungen", "kunden"]
+        tables = ["blutdruck", "rechnungen", "abtretungen", "termine", "fahrten", "leistungen", "kunden"]
 
         # Bestehende Daten loeschen (in umgekehrter FK-Reihenfolge)
         for table in tables:
@@ -189,6 +192,21 @@ async def import_alles(
                     ),
                 )
             counts["rechnungen"] = len(data["rechnungen"])
+
+        # Blutdruck importieren
+        if "blutdruck" in data:
+            for row in data["blutdruck"]:
+                db.execute(
+                    """INSERT INTO blutdruck
+                       (id, kunde_id, datum, zeit, systolisch, diastolisch, puls, notiz, created_at)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (
+                        row.get("id"), row.get("kunde_id"), row.get("datum"),
+                        row.get("zeit"), row.get("systolisch"), row.get("diastolisch"),
+                        row.get("puls"), row.get("notiz"), row.get("created_at"),
+                    ),
+                )
+            counts["blutdruck"] = len(data["blutdruck"])
 
         # Settings importieren
         if "settings" in data:

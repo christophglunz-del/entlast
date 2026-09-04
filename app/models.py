@@ -415,6 +415,101 @@ class PflegekasseResponse(BaseModel):
     ik_nummer: str | None = None
 
 
+# --- Blutdruck ---
+
+class BlutdruckCreate(BaseModel):
+    model_config = {"populate_by_name": True}
+    kunde_id: int = Field(..., alias="kundeId")
+    datum: str
+    zeit: str | None = None
+    systolisch: int = Field(..., ge=50, le=300)
+    diastolisch: int = Field(..., ge=20, le=200)
+    puls: int | None = Field(None, ge=20, le=250)
+    notiz: str | None = None
+
+
+class BlutdruckUpdate(BaseModel):
+    model_config = {"populate_by_name": True}
+    kunde_id: int | None = Field(None, alias="kundeId")
+    datum: str | None = None
+    zeit: str | None = None
+    systolisch: int | None = Field(None, ge=50, le=300)
+    diastolisch: int | None = Field(None, ge=20, le=200)
+    puls: int | None = Field(None, ge=20, le=250)
+    notiz: str | None = None
+
+
+class BlutdruckResponse(BaseModel):
+    id: int
+    kunde_id: int
+    datum: str
+    zeit: str | None = None
+    systolisch: int
+    diastolisch: int
+    puls: int | None = None
+    notiz: str | None = None
+    kategorie: str | None = None        # Schluessel, z.B. "hypertonie_1"
+    kategorie_label: str | None = None  # Anzeigetext, z.B. "Hypertonie Grad 1"
+    kategorie_farbe: str | None = None  # Ampelfarbe fuer die Anzeige
+    created_at: str | None = None
+
+
+class BlutdruckDurchschnitt(BaseModel):
+    """Mittelwerte einer Messreihe (None wenn keine Messungen vorliegen)."""
+    systolisch: float | None = None
+    diastolisch: float | None = None
+    puls: float | None = None
+
+
+class BlutdruckPeriode(BaseModel):
+    """Ein Aggregations-Zeitraum der Entwicklung (Woche oder Monat)."""
+    periode: str          # z.B. "2026-08" oder "2026-W32"
+    label: str            # z.B. "Aug 2026"
+    von: str
+    bis: str
+    anzahl: int
+    systolisch: float
+    diastolisch: float
+    puls: float | None = None
+    kategorie: str
+    kategorie_label: str
+
+
+class BlutdruckTrend(BaseModel):
+    """Vergleich der juengeren mit der aelteren Haelfte des Zeitraums."""
+    richtung: str                     # steigend | fallend | stabil | unbekannt
+    label: str
+    delta_systolisch: float | None = None
+    delta_diastolisch: float | None = None
+    sys_pro_monat: float | None = None  # Steigung der Regressionsgeraden
+    dia_pro_monat: float | None = None
+    frueher: BlutdruckDurchschnitt | None = None
+    zuletzt: BlutdruckDurchschnitt | None = None
+
+
+class BlutdruckVerlaufResponse(BaseModel):
+    """Entwicklung der Blutdruckwerte eines Kunden ueber einen Zeitraum."""
+    kunde_id: int
+    kunde_name: str | None = None
+    von: str | None = None
+    bis: str | None = None
+    anzahl: int = 0
+    durchschnitt: BlutdruckDurchschnitt = BlutdruckDurchschnitt()
+    kategorie: str | None = None
+    kategorie_label: str | None = None
+    kategorie_farbe: str | None = None
+    max_systolisch: int | None = None
+    min_systolisch: int | None = None
+    max_diastolisch: int | None = None
+    min_diastolisch: int | None = None
+    verteilung: dict[str, int] = {}
+    anteil_erhoeht: float | None = None  # Prozent der Messungen >= 140/90
+    trend: BlutdruckTrend
+    perioden: list[BlutdruckPeriode] = []
+    messungen: list[BlutdruckResponse] = []
+    warnungen: list[str] = []
+
+
 # --- Audit Log ---
 
 class AuditLogEntry(BaseModel):

@@ -246,6 +246,45 @@ const DB = {
         return apiFetch(`/abtretungen/${id}`, { method: 'DELETE' });
     },
 
+    // === BLUTDRUCK (7 Funktionen) ===
+
+    async alleBlutdruckwerte() {
+        return apiFetch('/blutdruck');
+    },
+
+    async blutdruckById(id) {
+        return apiFetch(`/blutdruck/${id}`);
+    },
+
+    async blutdruckFuerKunde(kundeId, von = null, bis = null) {
+        let url = `/blutdruck?kunde_id=${kundeId}`;
+        if (von) url += `&von=${von}`;
+        if (bis) url += `&bis=${bis}`;
+        return apiFetch(url);
+    },
+
+    async blutdruckVerlauf(kundeId, tage = 90, gruppierung = 'auto') {
+        return apiFetch(`/blutdruck/verlauf?kunde_id=${kundeId}&tage=${tage}&gruppierung=${gruppierung}`);
+    },
+
+    async blutdruckHinzufuegen(messung) {
+        return apiFetch('/blutdruck', {
+            method: 'POST',
+            body: JSON.stringify(messung)
+        });
+    },
+
+    async blutdruckAktualisieren(id, daten) {
+        return apiFetch(`/blutdruck/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify(daten)
+        });
+    },
+
+    async blutdruckLoeschen(id) {
+        return apiFetch(`/blutdruck/${id}`, { method: 'DELETE' });
+    },
+
     // === RECHNUNGEN (6 Funktionen) ===
 
     async alleRechnungen() {

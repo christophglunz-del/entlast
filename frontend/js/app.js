@@ -435,6 +435,7 @@ const App = {
         <a href="${prefix}kunden.html" class="more-menu-item"><span class="more-menu-icon">\uD83D\uDC65</span> Kunden</a>
         <a href="${prefix}termine.html" class="more-menu-item"><span class="more-menu-icon">\uD83D\uDCC5</span> Termine</a>
         <a href="${prefix}fahrten.html" class="more-menu-item"><span class="more-menu-icon">\uD83D\uDE97</span> Fahrten</a>
+        <a href="${prefix}blutdruck.html" class="more-menu-item"><span class="more-menu-icon">\uD83E\uDEC0</span> Blutdruck</a>
         <a href="${prefix}entlastung.html" class="more-menu-item"><span class="more-menu-icon">\u23F3</span> \u00A745b Budget</a>
         <a href="${prefix}abtretung.html" class="more-menu-item"><span class="more-menu-icon">\uD83D\uDCDD</span> Abtretung</a>
         <a href="${prefix}firma.html" class="more-menu-item"><span class="more-menu-icon">\uD83C\uDFE2</span> Firmendaten</a>

@@ -29,7 +29,7 @@ from slowapi.util import get_remote_address
 from app.auth import router as auth_router
 from app.database import init_auth_db, init_mandant_db, get_auth_db, DATA_DIR
 from app.middleware import AuditLogMiddleware, RequestIDMiddleware
-from app.routers import kunden, leistungen, fahrten, termine, abtretungen, rechnungen, firma, entlastung, export, ical, settings, statistiken, pflegekassen, lexoffice_sync, letterxpress, google_oauth
+from app.routers import kunden, leistungen, fahrten, termine, abtretungen, rechnungen, firma, entlastung, export, ical, settings, statistiken, pflegekassen, lexoffice_sync, letterxpress, google_oauth, blutdruck
 
 # Logging
 logging.basicConfig(
@@ -94,6 +94,7 @@ app.include_router(leistungen.router, prefix="/api/v1")
 app.include_router(fahrten.router, prefix="/api/v1")
 app.include_router(termine.router, prefix="/api/v1")
 app.include_router(abtretungen.router, prefix="/api/v1")
+app.include_router(blutdruck.router, prefix="/api/v1")
 app.include_router(rechnungen.router, prefix="/api/v1")
 app.include_router(firma.router, prefix="/api/v1")
 app.include_router(entlastung.router, prefix="/api/v1")

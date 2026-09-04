@@ -29,8 +29,8 @@ Damit wir gut für Sie sorgen und die Leistungen mit Ihrer Pflegekasse
 abrechnen können, müssen wir einige Ihrer persönlichen Daten speichern.
 
 Manche dieser Daten betreffen Ihre **Gesundheit** — zum Beispiel Ihren
-**Pflegegrad**. Solche Daten sind besonders geschützt. Deshalb brauchen
-wir Ihre ausdrückliche Zustimmung.
+**Pflegegrad** oder Ihre **Blutdruckwerte**. Solche Daten sind besonders
+geschützt. Deshalb brauchen wir Ihre ausdrückliche Zustimmung.
 
 &nbsp;
 
@@ -45,6 +45,9 @@ Wir speichern folgende Angaben über Sie:
 - Ihre **Bankverbindung** (IBAN) — falls Sie privat zuzahlen
 - Welche **Leistungen** wir für Sie erbracht haben (Datum, Dauer, Art)
 - Die **Rechnungen** dazu
+- Ihre **Blutdruckwerte** (oberer und unterer Wert, Puls, Datum und
+  Uhrzeit der Messung) — nur, wenn wir den Blutdruck für Sie messen
+  und dokumentieren
 
 &nbsp;
 
@@ -53,6 +56,11 @@ Wir speichern folgende Angaben über Sie:
 - Damit wir unsere Arbeit für Sie planen und durchführen können
 - Damit wir die Leistungen bei Ihrer Pflegekasse abrechnen können
 - Damit wir Ihnen Rechnungen erstellen können
+- Damit wir sehen, wie sich Ihre Blutdruckwerte entwickeln, und
+  auffällige Werte an Sie oder Ihre Angehörigen weitergeben können
+
+**Wichtig:** Die Blutdruckdokumentation ist keine ärztliche Behandlung
+und ersetzt keinen Arztbesuch.
 
 &nbsp;
 
@@ -71,6 +79,8 @@ können Ihre Daten sehen.
 
 - **Rechnungen:** 10 Jahre (das ist gesetzlich vorgeschrieben)
 - **Leistungsnachweise:** 5 Jahre
+- **Blutdruckwerte:** bis zum Ende unserer Zusammenarbeit — auf Wunsch
+  löschen wir sie jederzeit früher
 - **Alle anderen Daten:** Werden gelöscht, wenn unsere Zusammenarbeit
   endet und keine Aufbewahrungspflicht mehr besteht
 
@@ -103,8 +113,9 @@ Ihrer Pflegekasse nicht mehr durchführen können.
 Ich habe die obigen Informationen gelesen und verstanden.
 
 Ich willige **ausdrücklich** ein, dass [FIRMA] meine oben genannten
-Gesundheitsdaten (insbesondere meinen Pflegegrad) zum Zweck der
-Leistungserbringung und Abrechnung nach § 45b SGB XI verarbeitet
+Gesundheitsdaten (insbesondere meinen Pflegegrad und — soweit erhoben —
+meine Blutdruckwerte) zum Zweck der Leistungserbringung, der
+Betreuungsdokumentation und der Abrechnung nach § 45b SGB XI verarbeitet
 und in der Software entlast.de speichert.
 
 Mir ist bekannt, dass ich diese Einwilligung **jederzeit und ohne

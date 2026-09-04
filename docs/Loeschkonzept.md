@@ -23,6 +23,7 @@ Das Konzept gilt für alle Mandanten (Alltagshilfe-Firmen), die entlast.de nutze
 | **Kundenstammdaten** (Name, Adresse, Geburtsdatum) | Bis Vertragsende + Ablauf der längsten Aufbewahrungsfrist | Art. 17 DSGVO | Vertragsende mit dem Kunden |
 | **Versicherungsdaten** (Versichertennr., Pflegekasse, Pflegegrad) | Wie Leistungsnachweise (5 Jahre) bzw. wie Rechnungen (10 Jahre), sofern in Rechnungen enthalten | § 147 AO, §§ 195, 199 BGB | Siehe jeweilige Datenkategorie |
 | **Finanzdaten** (IBAN) | Wie Rechnungen (10 Jahre) | § 147 AO | Ende des Kalenderjahres der letzten Verwendung |
+| **Blutdruckwerte** (systolisch, diastolisch, Puls, Messzeitpunkt) | Bis Vertragsende, bei Widerruf der Einwilligung unverzüglich | Art. 9 Abs. 2 lit. a, Art. 17 Abs. 1 lit. b DSGVO | Vertragsende bzw. Widerruf |
 | **Kontaktdaten Angehöriger** | Bis Vertragsende + 1 Jahr | Art. 17 DSGVO | Vertragsende mit dem Kunden |
 | **Einwilligungserklärungen** | 3 Jahre nach Widerruf bzw. Vertragsende | Art. 7 Abs. 1 DSGVO (Nachweispflicht), §§ 195, 199 BGB | Ende des Kalenderjahres des Widerrufs/Vertragsende |
 | **Audit-Logs** | 7 Jahre | § 147 Abs. 1 Nr. 5 AO (Geschäftskorrespondenz), Nachweispflicht Art. 5 Abs. 2 DSGVO | Ende des Kalenderjahres der Protokollierung |
@@ -34,6 +35,8 @@ Das Konzept gilt für alle Mandanten (Alltagshilfe-Firmen), die entlast.de nutze
 **Rechnungen (10 Jahre):** Steuer- und handelsrechtliche Aufbewahrungspflicht. Die Frist beginnt am Ende des Kalenderjahres, in dem die Rechnung erstellt wurde. Beispiel: Rechnung vom 15. März 2026 muss bis zum 31. Dezember 2036 aufbewahrt werden.
 
 **Leistungsnachweise (5 Jahre):** Die regelmäßige Verjährungsfrist für vertragliche Ansprüche beträgt 3 Jahre (§ 195 BGB), beginnt aber erst am Ende des Jahres der Entstehung (§ 199 BGB). Zur Sicherheit wird ein Puffer von 2 Jahren addiert, um auch verzögert geltend gemachte Ansprüche abzudecken.
+
+**Blutdruckwerte (bis Vertragsende):** Die Messwerte dienen ausschließlich der Betreuungsdokumentation und unterliegen keiner gesetzlichen Aufbewahrungspflicht. Sie werden allein auf Grundlage der Einwilligung nach Art. 9 Abs. 2 lit. a DSGVO verarbeitet. Widerruft die betroffene Person die Einwilligung, entfällt die Rechtsgrundlage und die Werte sind unverzüglich zu löschen (Art. 17 Abs. 1 lit. b DSGVO) — eine Sperrung nach Abschnitt 4 kommt hier nicht in Betracht.
 
 **Audit-Logs (7 Jahre):** Die Logs dienen dem Nachweis der ordnungsgemäßen Datenverarbeitung und der Rechenschaftspflicht nach Art. 5 Abs. 2 DSGVO. Die Frist orientiert sich an den steuerrechtlichen Aufbewahrungspflichten für Geschäftsunterlagen.
 

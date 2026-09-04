@@ -305,6 +305,7 @@ const KundenModule = {
             <a href="leistung.html?kundeId=${kunde.id}" class="btn btn-sm btn-outline">📋 Leistungen</a>
             <a href="termine.html?kundeId=${kunde.id}" class="btn btn-sm btn-outline">📅 Termine</a>
             <a href="abtretung.html?kundeId=${kunde.id}" class="btn btn-sm btn-outline">📝 Abtretung</a>
+            <a href="blutdruck.html?kundeId=${kunde.id}" class="btn btn-sm btn-outline">🫀 Blutdruck</a>
           </div>
         </div>
         ` : ''}

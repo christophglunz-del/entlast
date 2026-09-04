@@ -222,6 +222,19 @@ def init_mandant_db(db_datei: str):
                 FOREIGN KEY (kunde_id) REFERENCES kunden(id)
             );
 
+            CREATE TABLE IF NOT EXISTS blutdruck (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                kunde_id INTEGER NOT NULL,
+                datum TEXT NOT NULL,
+                zeit TEXT,
+                systolisch INTEGER NOT NULL,
+                diastolisch INTEGER NOT NULL,
+                puls INTEGER,
+                notiz TEXT,
+                created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                FOREIGN KEY (kunde_id) REFERENCES kunden(id)
+            );
+
             CREATE TABLE IF NOT EXISTS settings (
                 key TEXT PRIMARY KEY,
                 value TEXT
@@ -258,6 +271,8 @@ def init_mandant_db(db_datei: str):
             CREATE INDEX IF NOT EXISTS idx_fahrten_kunde ON fahrten(kunde_id);
             CREATE INDEX IF NOT EXISTS idx_termine_kunde ON termine(kunde_id);
             CREATE INDEX IF NOT EXISTS idx_termine_datum ON termine(datum);
+            CREATE INDEX IF NOT EXISTS idx_blutdruck_kunde ON blutdruck(kunde_id);
+            CREATE INDEX IF NOT EXISTS idx_blutdruck_datum ON blutdruck(datum);
             CREATE INDEX IF NOT EXISTS idx_rechnungen_kunde ON rechnungen(kunde_id);
             CREATE INDEX IF NOT EXISTS idx_rechnungen_status ON rechnungen(status);
             CREATE INDEX IF NOT EXISTS idx_audit_log_timestamp ON audit_log(timestamp);

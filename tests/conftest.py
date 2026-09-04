@@ -126,6 +126,14 @@ def _ensure_routers(fastapi_app):
     except ImportError:
         pass
 
+    # Blutdruck-Router
+    try:
+        from app.routers.blutdruck import router as blutdruck_router
+        if "/api/v1/blutdruck" not in existing_paths:
+            routers_to_add.append(blutdruck_router)
+    except ImportError:
+        pass
+
     # Rechnungen-Router
     try:
         from app.routers.rechnungen import router as rechnungen_router
@@ -253,6 +261,19 @@ def sample_termin():
         "titel": "Hausbesuch Mustermann",
         "notiz": "Pflegeberatung",
         "erledigt": False,
+    }
+
+
+@pytest.fixture
+def sample_blutdruck():
+    """Test-Blutdruckmessung (kunde_id muss separat gesetzt werden)."""
+    return {
+        "datum": "2026-03-15",
+        "zeit": "08:30",
+        "systolisch": 148,
+        "diastolisch": 92,
+        "puls": 76,
+        "notiz": "vor dem Fruehstueck gemessen",
     }
 
 
