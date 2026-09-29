@@ -3,6 +3,7 @@
 import sqlite3
 import asyncio
 import logging
+import re
 import time
 import httpx
 from datetime import datetime, timedelta
@@ -617,6 +618,8 @@ async def lexoffice_proxy(
 
     api_key = _get_api_key(db)
     params = dict(request.query_params)
+    # Eigener Parameter (nicht an Lexoffice): als Download mit Dateinamen ausliefern
+    dateiname = params.pop("dateiname", None)
     headers = {"Authorization": f"Bearer {api_key}", "Accept": "application/json"}
 
     max_retries = 3
@@ -661,9 +664,18 @@ async def lexoffice_proxy(
                     content = base64.b64decode(content)
                 except Exception:
                     pass
+            antwort_header = {}
+            if dateiname:
+                from urllib.parse import quote
+                sauber = re.sub(r'[^A-Za-z0-9ÄÖÜäöüß_.-]', '_', dateiname)[:120] or "Rechnung.pdf"
+                ascii_name = re.sub(r'[^A-Za-z0-9_.-]', '_', sauber)
+                antwort_header["Content-Disposition"] = (
+                    f'attachment; filename="{ascii_name}"; filename*=UTF-8\'\'{quote(sauber)}'
+                )
             return Response(
                 content=content,
                 media_type="application/pdf" if content[:5] == b'%PDF-' else (content_type or "application/octet-stream"),
+                headers=antwort_header,
             )
 
     raise HTTPException(429, "Lexoffice Rate-Limit nach 3 Versuchen")

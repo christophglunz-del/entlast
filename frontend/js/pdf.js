@@ -895,49 +895,36 @@ const PDFHelper = {
   },
 
   /**
-   * Fertiges PDF (Blob) in einem Overlay anzeigen, mit Speichern-Link.
-   * Kein programmatischer a.click(): manche Browser (z. B. Chrome mit
-   * blockierten automatischen Downloads) unterdrücken den nach einem
-   * await ausgelösten Download stillschweigend. Der Speichern-Link wird
-   * vom Nutzer selbst geklickt und funktioniert daher immer.
+   * Download-Angebot für ein PDF, das der Server unter `url` ausliefert
+   * (mit Content-Disposition: attachment). Kein blob: und kein
+   * programmatischer a.click(): Android-/Huawei-Browser laden blob:-URLs
+   * nicht herunter und unterdrücken Downloads ohne direkten Klick. Der
+   * Nutzer tippt den Link selbst, der Download-Manager holt die Datei.
    */
-  zeigeBlob(blob, dateiname) {
-    const alt = document.getElementById('pdf-blob-overlay');
+  zeigeDownload(url, dateiname) {
+    const alt = document.getElementById('pdf-download-overlay');
     if (alt) alt.remove();
-    const pdfBlob = blob.type === 'application/pdf' ? blob : new Blob([blob], { type: 'application/pdf' });
-    const url = URL.createObjectURL(pdfBlob);
     const overlay = document.createElement('div');
-    overlay.id = 'pdf-blob-overlay';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.6);display:flex;flex-direction:column;padding:12px;gap:8px;';
-    const leiste = document.createElement('div');
-    leiste.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:white;border-radius:8px;padding:8px;';
-    const titel = document.createElement('span');
+    overlay.id = 'pdf-download-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:16px;';
+    const karte = document.createElement('div');
+    karte.style.cssText = 'background:white;border-radius:12px;padding:20px;max-width:420px;width:100%;display:flex;flex-direction:column;gap:12px;text-align:center;';
+    const titel = document.createElement('div');
     titel.textContent = dateiname;
-    titel.style.cssText = 'flex:1;min-width:0;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
-    const speichern = document.createElement('a');
-    speichern.className = 'btn btn-sm btn-primary';
-    speichern.href = url;
-    speichern.download = dateiname;
-    speichern.textContent = '💾 Speichern';
-    const neuerTab = document.createElement('a');
-    neuerTab.className = 'btn btn-sm btn-outline';
-    neuerTab.href = url;
-    neuerTab.target = '_blank';
-    neuerTab.rel = 'noopener';
-    neuerTab.textContent = '↗ In neuem Tab';
+    titel.style.cssText = 'font-weight:600;word-break:break-all;';
+    const laden = document.createElement('a');
+    laden.className = 'btn btn-primary';
+    laden.href = url;
+    laden.download = dateiname;
+    laden.textContent = '💾 PDF herunterladen';
     const schliessen = document.createElement('button');
-    schliessen.className = 'btn btn-sm btn-outline';
-    schliessen.textContent = '✕ Schließen';
-    schliessen.onclick = () => {
-      overlay.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 60000);
-    };
-    leiste.append(titel, speichern, neuerTab, schliessen);
-    const rahmen = document.createElement('iframe');
-    rahmen.src = url;
-    rahmen.title = dateiname;
-    rahmen.style.cssText = 'flex:1;width:100%;border:0;border-radius:8px;background:white;';
-    overlay.append(leiste, rahmen);
+    schliessen.className = 'btn btn-outline';
+    schliessen.textContent = 'Schließen';
+    schliessen.onclick = () => overlay.remove();
+    laden.addEventListener('click', () => setTimeout(() => overlay.remove(), 1500));
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+    karte.append(titel, laden, schliessen);
+    overlay.appendChild(karte);
     document.body.appendChild(overlay);
   },
 

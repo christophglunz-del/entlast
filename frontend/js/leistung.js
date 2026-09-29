@@ -1625,11 +1625,11 @@ const LeistungModule = {
       App.toast('PDF wird geladen...', 'info');
       const dok = await LexofficeAPI.finalizeInvoice(lexofficeId);
       if (!dok || !dok.documentFileId) { App.toast('PDF nicht verfügbar', 'error'); return; }
-      const pdfBlob = await LexofficeAPI.getInvoicePdf(dok.documentFileId);
       const name = (kontaktName || 'Rechnung').replace(/[^a-zA-ZäöüÄÖÜß0-9_-]/g, '_');
       const nr = (rechnungsNr || '').replace(/[^a-zA-Z0-9-]/g, '');
       const dateiname = nr ? `${nr}_${name}.pdf` : `Rechnung_${name}.pdf`;
-      PDFHelper.zeigeBlob(pdfBlob, dateiname);
+      const url = `/api/v1/lexoffice/proxy/files/${encodeURIComponent(dok.documentFileId)}?dateiname=${encodeURIComponent(dateiname)}`;
+      PDFHelper.zeigeDownload(url, dateiname);
     } catch (err) {
       App.toast('PDF-Fehler: ' + err.message, 'error');
     }
