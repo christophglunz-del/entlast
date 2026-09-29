@@ -956,7 +956,10 @@ const PDFHelper = {
     const schliessen = document.createElement('button');
     schliessen.className = 'btn btn-sm btn-primary';
     schliessen.textContent = '✕ Schließen';
-    schliessen.onclick = () => overlay.remove();
+    schliessen.onclick = () => {
+      overlay.remove();
+      document.body.classList.remove('pdf-anzeige-druck');
+    };
     leiste.appendChild(titel);
 
     const pdfBlob = blob.type === 'application/pdf' ? blob : new Blob([blob], { type: 'application/pdf' });
@@ -970,6 +973,31 @@ const PDFHelper = {
         leiste.appendChild(teilen);
       }
     } catch (e) { /* Teilen nicht unterstützt */ }
+    // Drucken: Druckdialog des Geräts; per Druck-CSS nur die PDF-Seiten
+    if (!document.getElementById('pdf-anzeige-druckstil')) {
+      const stil = document.createElement('style');
+      stil.id = 'pdf-anzeige-druckstil';
+      stil.textContent = `@media print {
+        @page { margin: 0; }
+        body.pdf-anzeige-druck > *:not(#pdf-anzeige-overlay) { display: none !important; }
+        body.pdf-anzeige-druck #pdf-anzeige-overlay { position: static !important; background: white !important; display: block !important; }
+        body.pdf-anzeige-druck #pdf-anzeige-overlay > div:first-child { display: none !important; }
+        body.pdf-anzeige-druck #pdf-anzeige-overlay > div:last-child { overflow: visible !important; padding: 0 !important; display: block !important; }
+        body.pdf-anzeige-druck #pdf-anzeige-overlay canvas { display: block; width: 100% !important; height: auto !important; box-shadow: none !important; page-break-after: always; break-after: page; }
+        body.pdf-anzeige-druck #pdf-anzeige-overlay canvas:last-child { page-break-after: auto; break-after: auto; }
+      }`;
+      document.head.appendChild(stil);
+    }
+    const drucken = document.createElement('button');
+    drucken.className = 'btn btn-sm btn-outline';
+    drucken.textContent = '🖨 Drucken';
+    // Klasse bleibt bis zum Schließen: Auf Android kehrt print() sofort
+    // zurück, afterprint käme zu früh. Sie wirkt ohnehin nur im Druck.
+    drucken.onclick = () => {
+      document.body.classList.add('pdf-anzeige-druck');
+      window.print();
+    };
+    leiste.appendChild(drucken);
     leiste.appendChild(schliessen);
 
     const seiten = document.createElement('div');
