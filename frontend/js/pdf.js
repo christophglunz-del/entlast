@@ -879,24 +879,11 @@ const PDFHelper = {
   },
 
   /**
-   * PDF-Blob über den Server als echten Download anbieten
-   * (blob:-Downloads funktionieren auf manchen Tablet-Browsern nicht).
+   * Fertiges PDF (Blob) in der App öffnen. Kein Download: Auf dem
+   * Huawei-Tablet landen Downloads in schwer auffindbaren Ordnern.
    */
   async blobHerunterladen(blob, dateiname) {
-    try {
-      const res = await fetch(`/api/v1/pdf-download?dateiname=${encodeURIComponent(dateiname)}`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/pdf' },
-        body: blob
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const { url } = await res.json();
-      this.zeigeDownload(url, dateiname);
-    } catch (err) {
-      console.error('PDF-Download über Server fehlgeschlagen:', err);
-      App.toast('PDF-Download fehlgeschlagen: ' + err.message, 'error');
-    }
+    return this.zeigePdf(blob, dateiname);
   },
 
   /**
@@ -916,37 +903,107 @@ const PDFHelper = {
   },
 
   /**
-   * Download-Angebot für ein PDF, das der Server unter `url` ausliefert
-   * (mit Content-Disposition: attachment). Kein blob: und kein
-   * programmatischer a.click(): Android-/Huawei-Browser laden blob:-URLs
-   * nicht herunter und unterdrücken Downloads ohne direkten Klick. Der
-   * Nutzer tippt den Link selbst, der Download-Manager holt die Datei.
+   * PDF von einer Server-URL holen und in der App öffnen.
    */
-  zeigeDownload(url, dateiname) {
-    const alt = document.getElementById('pdf-download-overlay');
+  async zeigeDownload(url, dateiname) {
+    try {
+      const res = await fetch(url, { credentials: 'include' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await this.zeigePdf(await res.blob(), dateiname);
+    } catch (err) {
+      console.error('PDF öffnen fehlgeschlagen:', err);
+      App.toast('PDF konnte nicht geöffnet werden: ' + err.message, 'error');
+    }
+  },
+
+  /**
+   * PDF.js einmalig nachladen (für die Anzeige in der App).
+   */
+  _pdfjsLaden() {
+    if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+    if (this._pdfjsPromise) return this._pdfjsPromise;
+    const basis = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
+    this._pdfjsPromise = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = basis + 'pdf.min.js';
+      s.onload = () => {
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = basis + 'pdf.worker.min.js';
+        resolve(window.pdfjsLib);
+      };
+      s.onerror = () => { this._pdfjsPromise = null; reject(new Error('PDF-Anzeige konnte nicht geladen werden')); };
+      document.head.appendChild(s);
+    });
+    return this._pdfjsPromise;
+  },
+
+  /**
+   * PDF (Blob) in einem Vollbild-Fenster der App anzeigen. Die Seiten werden
+   * mit PDF.js gezeichnet – funktioniert auch in Browsern ohne eigenen
+   * PDF-Betrachter (Huawei-Tablet). „Teilen“ öffnet das Android-Teilen-Menü
+   * (Drucken, Mail, Speichern), sofern der Browser das kann.
+   */
+  async zeigePdf(blob, dateiname) {
+    const alt = document.getElementById('pdf-anzeige-overlay');
     if (alt) alt.remove();
     const overlay = document.createElement('div');
-    overlay.id = 'pdf-download-overlay';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:16px;';
-    const karte = document.createElement('div');
-    karte.style.cssText = 'background:white;border-radius:12px;padding:20px;max-width:420px;width:100%;display:flex;flex-direction:column;gap:12px;text-align:center;';
-    const titel = document.createElement('div');
+    overlay.id = 'pdf-anzeige-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:10000;background:#525659;display:flex;flex-direction:column;';
+    const leiste = document.createElement('div');
+    leiste.style.cssText = 'display:flex;gap:8px;align-items:center;background:white;padding:8px 12px;box-shadow:0 1px 4px rgba(0,0,0,0.3);';
+    const titel = document.createElement('span');
     titel.textContent = dateiname;
-    titel.style.cssText = 'font-weight:600;word-break:break-all;';
-    const laden = document.createElement('a');
-    laden.className = 'btn btn-primary';
-    laden.href = url;
-    laden.download = dateiname;
-    laden.textContent = '💾 PDF herunterladen';
+    titel.style.cssText = 'flex:1;min-width:0;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
     const schliessen = document.createElement('button');
-    schliessen.className = 'btn btn-outline';
-    schliessen.textContent = 'Schließen';
+    schliessen.className = 'btn btn-sm btn-primary';
+    schliessen.textContent = '✕ Schließen';
     schliessen.onclick = () => overlay.remove();
-    laden.addEventListener('click', () => setTimeout(() => overlay.remove(), 1500));
-    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
-    karte.append(titel, laden, schliessen);
-    overlay.appendChild(karte);
+    leiste.appendChild(titel);
+
+    const pdfBlob = blob.type === 'application/pdf' ? blob : new Blob([blob], { type: 'application/pdf' });
+    try {
+      const datei = new File([pdfBlob], dateiname, { type: 'application/pdf' });
+      if (navigator.canShare && navigator.canShare({ files: [datei] })) {
+        const teilen = document.createElement('button');
+        teilen.className = 'btn btn-sm btn-outline';
+        teilen.textContent = '↗ Teilen';
+        teilen.onclick = () => navigator.share({ files: [datei], title: dateiname }).catch(() => {});
+        leiste.appendChild(teilen);
+      }
+    } catch (e) { /* Teilen nicht unterstützt */ }
+    leiste.appendChild(schliessen);
+
+    const seiten = document.createElement('div');
+    seiten.style.cssText = 'flex:1;overflow:auto;padding:12px;display:flex;flex-direction:column;align-items:center;gap:12px;-webkit-overflow-scrolling:touch;';
+    seiten.innerHTML = '<div style="color:white;margin-top:40px;">PDF wird geöffnet…</div>';
+    overlay.append(leiste, seiten);
     document.body.appendChild(overlay);
+
+    try {
+      const pdfjs = await this._pdfjsLaden();
+      const pdf = await pdfjs.getDocument({ data: new Uint8Array(await pdfBlob.arrayBuffer()) }).promise;
+      seiten.innerHTML = '';
+      const breite = Math.min(seiten.clientWidth - 24, 1000);
+      const dpr = window.devicePixelRatio || 1;
+      for (let n = 1; n <= pdf.numPages; n++) {
+        if (!overlay.isConnected) return;
+        const seite = await pdf.getPage(n);
+        const basis = seite.getViewport({ scale: 1 });
+        const vp = seite.getViewport({ scale: (breite / basis.width) * dpr });
+        const canvas = document.createElement('canvas');
+        canvas.width = vp.width;
+        canvas.height = vp.height;
+        canvas.style.cssText = `width:${breite}px;height:auto;background:white;box-shadow:0 2px 6px rgba(0,0,0,0.4);`;
+        seiten.appendChild(canvas);
+        await seite.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+      }
+    } catch (err) {
+      console.error('PDF-Anzeige fehlgeschlagen:', err);
+      seiten.innerHTML = '';
+      const fehler = document.createElement('div');
+      fehler.style.cssText = 'color:white;margin-top:40px;text-align:center;';
+      fehler.textContent = 'PDF konnte nicht angezeigt werden: ' + err.message;
+      seiten.appendChild(fehler);
+    }
   },
 
   /**
