@@ -895,6 +895,53 @@ const PDFHelper = {
   },
 
   /**
+   * Fertiges PDF (Blob) in einem Overlay anzeigen, mit Speichern-Link.
+   * Kein programmatischer a.click(): manche Browser (z. B. Chrome mit
+   * blockierten automatischen Downloads) unterdrücken den nach einem
+   * await ausgelösten Download stillschweigend. Der Speichern-Link wird
+   * vom Nutzer selbst geklickt und funktioniert daher immer.
+   */
+  zeigeBlob(blob, dateiname) {
+    const alt = document.getElementById('pdf-blob-overlay');
+    if (alt) alt.remove();
+    const pdfBlob = blob.type === 'application/pdf' ? blob : new Blob([blob], { type: 'application/pdf' });
+    const url = URL.createObjectURL(pdfBlob);
+    const overlay = document.createElement('div');
+    overlay.id = 'pdf-blob-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.6);display:flex;flex-direction:column;padding:12px;gap:8px;';
+    const leiste = document.createElement('div');
+    leiste.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:white;border-radius:8px;padding:8px;';
+    const titel = document.createElement('span');
+    titel.textContent = dateiname;
+    titel.style.cssText = 'flex:1;min-width:0;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+    const speichern = document.createElement('a');
+    speichern.className = 'btn btn-sm btn-primary';
+    speichern.href = url;
+    speichern.download = dateiname;
+    speichern.textContent = '💾 Speichern';
+    const neuerTab = document.createElement('a');
+    neuerTab.className = 'btn btn-sm btn-outline';
+    neuerTab.href = url;
+    neuerTab.target = '_blank';
+    neuerTab.rel = 'noopener';
+    neuerTab.textContent = '↗ In neuem Tab';
+    const schliessen = document.createElement('button');
+    schliessen.className = 'btn btn-sm btn-outline';
+    schliessen.textContent = '✕ Schließen';
+    schliessen.onclick = () => {
+      overlay.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    };
+    leiste.append(titel, speichern, neuerTab, schliessen);
+    const rahmen = document.createElement('iframe');
+    rahmen.src = url;
+    rahmen.title = dateiname;
+    rahmen.style.cssText = 'flex:1;width:100%;border:0;border-radius:8px;background:white;';
+    overlay.append(leiste, rahmen);
+    document.body.appendChild(overlay);
+  },
+
+  /**
    * Logo vorladen (einmalig beim Start)
    */
   async loadLogo() {
