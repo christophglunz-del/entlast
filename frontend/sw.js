@@ -1,5 +1,5 @@
 // Service Worker fuer entlast.de - Reines Asset-Caching (kein IndexedDB-Sync)
-const CACHE_NAME = 'entlast-app-v103';
+const CACHE_NAME = 'entlast-app-v104';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
@@ -54,7 +54,8 @@ self.addEventListener('install', event => {
     console.log('[SW] Installation gestartet');
     event.waitUntil(
         caches.open(CACHE_NAME).then(cache => {
-            const localPromise = cache.addAll(ASSETS_TO_CACHE).catch(err => {
+            // cache:'reload' = am HTTP-Cache vorbei, sonst landen alte JS-Dateien im neuen Cache
+            const localPromise = cache.addAll(ASSETS_TO_CACHE.map(u => new Request(u, { cache: 'reload' }))).catch(err => {
                 console.warn('[SW] Einige lokale Assets konnten nicht gecacht werden:', err);
             });
             const cdnPromises = CDN_ASSETS.map(url =>
@@ -95,8 +96,18 @@ self.addEventListener('fetch', event => {
         return;
     }
 
+    // Eigene Dateien immer beim Server gegenprüfen (cache:'no-cache', ETag → 304).
+    // Ohne Cache-Control-Header hält der Browser alte JS-Dateien sonst tagelang
+    // für frisch, und ein Deploy kommt auf den Geräten nicht an.
+    let netzRequest = event.request;
+    if (url.origin === self.location.origin) {
+        netzRequest = event.request.mode === 'navigate'
+            ? new Request(event.request.url, { cache: 'no-cache', credentials: 'same-origin' })
+            : new Request(event.request, { cache: 'no-cache' });
+    }
+
     event.respondWith(
-        fetch(event.request).then(networkResponse => {
+        fetch(netzRequest).then(networkResponse => {
             if (networkResponse && networkResponse.status === 200) {
                 const responseClone = networkResponse.clone();
                 caches.open(CACHE_NAME).then(cache => {
