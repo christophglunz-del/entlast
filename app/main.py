@@ -29,7 +29,7 @@ from slowapi.util import get_remote_address
 from app.auth import router as auth_router
 from app.database import init_auth_db, init_mandant_db, get_auth_db, DATA_DIR
 from app.middleware import AuditLogMiddleware, RequestIDMiddleware
-from app.routers import kunden, leistungen, fahrten, termine, abtretungen, rechnungen, firma, entlastung, export, ical, settings, statistiken, pflegekassen, lexoffice_sync, letterxpress, google_oauth
+from app.routers import kunden, leistungen, fahrten, termine, abtretungen, rechnungen, firma, entlastung, export, ical, settings, statistiken, pflegekassen, lexoffice_sync, letterxpress, google_oauth, pdf_download
 
 # Logging
 logging.basicConfig(
@@ -105,6 +105,7 @@ app.include_router(pflegekassen.router, prefix="/api/v1")
 app.include_router(lexoffice_sync.router, prefix="/api/v1")
 app.include_router(letterxpress.router, prefix="/api/v1")
 app.include_router(google_oauth.router, prefix="/api/v1")
+app.include_router(pdf_download.router, prefix="/api/v1")
 
 
 # --- Health-Endpoint ---

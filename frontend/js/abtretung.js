@@ -196,14 +196,7 @@ const AbtretungModule = {
       if (abtretung.pdfData) {
         // PDF aus gespeicherten Daten
         const blob = new Blob([Uint8Array.from(atob(abtretung.pdfData), c => c.charCodeAt(0))], {type: 'application/pdf'});
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `Abtretung_${kunde ? kunde.name.replace(/\s+/g, '_') : 'Kunde'}.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(url), 10000);
+        await PDFHelper.blobHerunterladen(blob, `Abtretung_${kunde ? kunde.name.replace(/\s+/g, '_') : 'Kunde'}.pdf`);
       } else if (typeof PDFHelper !== 'undefined' && PDFHelper.generateAbtretung) {
         const doc = await PDFHelper.generateAbtretung(abtretung, kunde);
         PDFHelper.download(doc, `Abtretung_${kunde ? kunde.name.replace(/\s+/g, '_') : 'Kunde'}.pdf`);

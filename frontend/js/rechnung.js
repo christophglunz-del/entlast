@@ -603,14 +603,7 @@ const RechnungModule = {
       ].join('\n');
 
       // PDF als Download anbieten
-      const pdfUrl = URL.createObjectURL(pdfBlob);
-      const a = document.createElement('a');
-      a.href = pdfUrl;
-      a.download = dateiname;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(pdfUrl), 10000);
+      await PDFHelper.blobHerunterladen(pdfBlob, dateiname);
 
       // mailto:-Link öffnen
       const mailtoLink = `mailto:${encodeURIComponent(kunde.email)}?subject=${encodeURIComponent(betreff)}&body=${encodeURIComponent(emailText)}`;
@@ -1779,14 +1772,7 @@ const RechnungModule = {
     try {
       App.toast('PDF wird geladen...', 'info');
       const { pdfBlob } = await this._ladePdfBase64(lexofficeId);
-      const pdfUrl = URL.createObjectURL(pdfBlob);
-      const a = document.createElement('a');
-      a.href = pdfUrl;
-      a.download = 'Rechnung.pdf';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(pdfUrl), 10000);
+      await PDFHelper.blobHerunterladen(pdfBlob, 'Rechnung.pdf');
       App.toast('PDF heruntergeladen', 'success');
     } catch (err) {
       App.toast('Download-Fehler: ' + err.message, 'error');
@@ -1802,14 +1788,7 @@ const RechnungModule = {
       App.toast('PDF wird geladen...', 'info');
       const { pdfBlob } = await this._ladePdfBase64(lexofficeId);
 
-      const pdfUrl = URL.createObjectURL(pdfBlob);
-      const a = document.createElement('a');
-      a.href = pdfUrl;
-      a.download = 'Rechnung.pdf';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(pdfUrl), 10000);
+      await PDFHelper.blobHerunterladen(pdfBlob, 'Rechnung.pdf');
 
       const betreff = `Rechnung - ${(FIRMA || {}).name || 'Alltagshilfe'}`;
       const text = `Sehr geehrte Damen und Herren,\n\nanbei erhalten Sie die Rechnung.\n\nIch bitte um Überweisung innerhalb von 30 Tagen.\n\nMit freundlichen Grüßen\n${(FIRMA || {}).inhaber || ''}\n${(FIRMA || {}).name || 'Alltagshilfe'}`;
@@ -1826,17 +1805,10 @@ const RechnungModule = {
       const dok = await LexofficeAPI.finalizeInvoice(lexofficeId);
       if (!dok || !dok.documentFileId) { App.toast('PDF nicht verfügbar', 'error'); return; }
       const pdfBlob = await LexofficeAPI.getInvoicePdf(dok.documentFileId);
-      const pdfUrl = URL.createObjectURL(pdfBlob);
       const name = (kontaktName || 'Rechnung').replace(/[^a-zA-ZäöüÄÖÜß0-9_-]/g, '_');
       const nr = (rechnungsNr || '').replace(/[^a-zA-Z0-9-]/g, '');
       const dateiname = nr ? `${nr}_${name}.pdf` : `Rechnung_${name}.pdf`;
-      const a = document.createElement('a');
-      a.href = pdfUrl;
-      a.download = dateiname;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(pdfUrl), 5000);
+      await PDFHelper.blobHerunterladen(pdfBlob, dateiname);
     } catch (err) {
       App.toast('PDF-Fehler: ' + err.message, 'error');
     }
@@ -1991,21 +1963,11 @@ const RechnungModule = {
   async _lexofficePdfAnzeigen(documentFileId, rechnung, kunde) {
     try {
       const pdfBlob = await LexofficeAPI.getInvoicePdf(documentFileId);
-      const pdfUrl = URL.createObjectURL(pdfBlob);
-
       // PDF direkt herunterladen
       const kundenName = (kunde && kunde.name) ? kunde.name.replace(/\s+/g, '_') : 'Kunde';
       const dateiname = `Rechnung_Lexoffice_${kundenName}_${App.monatsName(rechnung.monat)}_${rechnung.jahr}.pdf`;
 
-      const a = document.createElement('a');
-      a.href = pdfUrl;
-      a.download = dateiname;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-
-      // URL nach kurzer Zeit freigeben
-      setTimeout(() => URL.revokeObjectURL(pdfUrl), 10000);
+      await PDFHelper.blobHerunterladen(pdfBlob, dateiname);
 
       App.toast('Lexoffice-PDF geladen', 'success');
     } catch (err) {

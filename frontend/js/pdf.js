@@ -875,7 +875,28 @@ const PDFHelper = {
    * PDF herunterladen
    */
   download(doc, filename) {
-    doc.save(filename);
+    return this.blobHerunterladen(doc.output('blob'), filename);
+  },
+
+  /**
+   * PDF-Blob über den Server als echten Download anbieten
+   * (blob:-Downloads funktionieren auf manchen Tablet-Browsern nicht).
+   */
+  async blobHerunterladen(blob, dateiname) {
+    try {
+      const res = await fetch(`/api/v1/pdf-download?dateiname=${encodeURIComponent(dateiname)}`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/pdf' },
+        body: blob
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const { url } = await res.json();
+      this.zeigeDownload(url, dateiname);
+    } catch (err) {
+      console.error('PDF-Download über Server fehlgeschlagen:', err);
+      App.toast('PDF-Download fehlgeschlagen: ' + err.message, 'error');
+    }
   },
 
   /**
