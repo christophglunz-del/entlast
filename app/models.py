@@ -93,6 +93,9 @@ class KundeCreate(BaseModel):
     aktiv: bool = True
     besonderheiten: str | None = None
     lexoffice_id: str | None = None
+    pflegegrad_seit: str | None = None
+    uebertrag_vorvorjahr: float | None = None
+    vorleistungen: str | None = None  # JSON: {"2025": 500.0, "2026": 0}
 
     def get_fax(self) -> str | None:
         return self.pflegekasse_fax or self.faxKasse
@@ -117,6 +120,9 @@ class KundeUpdate(BaseModel):
     aktiv: bool | None = None
     besonderheiten: str | None = None
     lexoffice_id: str | None = None
+    pflegegrad_seit: str | None = None
+    uebertrag_vorvorjahr: float | None = None
+    vorleistungen: str | None = None  # JSON: {"2025": 500.0, "2026": 0}
 
 
 class KundeResponse(BaseModel):
@@ -140,6 +146,9 @@ class KundeResponse(BaseModel):
     aktiv: bool = True
     besonderheiten: str | None = None
     lexoffice_id: str | None = None
+    pflegegrad_seit: str | None = None
+    uebertrag_vorvorjahr: float | None = None
+    vorleistungen: str | None = None  # JSON: {"2025": 500.0, "2026": 0}
     created_at: str | None = None
     updated_at: str | None = None
 

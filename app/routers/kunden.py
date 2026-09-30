@@ -32,6 +32,9 @@ def _row_to_response(row: dict) -> KundeResponse:
         aktiv=bool(row.get("aktiv", 1)),
         besonderheiten=row.get("besonderheiten"),
         lexoffice_id=row.get("lexoffice_id"),
+        pflegegrad_seit=row.get("pflegegrad_seit"),
+        uebertrag_vorvorjahr=row.get("uebertrag_vorvorjahr") or 0,
+        vorleistungen=row.get("vorleistungen"),
         created_at=row.get("created_at"),
         updated_at=row.get("updated_at"),
     )
@@ -92,8 +95,9 @@ async def create_kunde(
         """INSERT INTO kunden
            (name, vorname, strasse, plz, ort, telefon, email, geburtsdatum,
             pflegegrad, versichertennummer_encrypted, pflegekasse, pflegekasse_fax,
-            iban_encrypted, kundentyp, aktiv, besonderheiten, lexoffice_id)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            iban_encrypted, kundentyp, aktiv, besonderheiten, lexoffice_id,
+            pflegegrad_seit, uebertrag_vorvorjahr, vorleistungen)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         (
             kunde.name,
             kunde.vorname,
@@ -112,6 +116,9 @@ async def create_kunde(
             1 if kunde.aktiv else 0,
             kunde.besonderheiten,
             kunde.lexoffice_id,
+            kunde.pflegegrad_seit,
+            kunde.uebertrag_vorvorjahr or 0,
+            kunde.vorleistungen,
         ),
     )
     db.commit()

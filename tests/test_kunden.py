@@ -137,3 +137,56 @@ class TestKundenEncryption:
             assert row["iban_encrypted"] != "DE89370400440532013000"
         finally:
             conn.close()
+
+
+class TestEntlastungsAnpassungen:
+    """Anpassungsfelder aus dem Entlastungsmodul (pflegegradSeit, uebertragVorvorjahr,
+    vorleistungen) muessen gespeichert und wieder ausgeliefert werden."""
+
+    def test_update_und_reload(self, auth_client, created_kunde):
+        kunde_id = created_kunde["id"]
+        # So kommt es vom Frontend an (camelToSnake in db.js)
+        resp = auth_client.put(
+            f"/api/v1/kunden/{kunde_id}",
+            json={
+                "pflegegrad_seit": "2026-03-15",
+                "uebertrag_vorvorjahr": 42.5,
+                "vorleistungen": '{"2025": 100.0, "2026": 0}',
+            },
+        )
+        assert resp.status_code == 200
+        data = auth_client.get(f"/api/v1/kunden/{kunde_id}").json()
+        assert data["pflegegrad_seit"] == "2026-03-15"
+        assert data["uebertrag_vorvorjahr"] == 42.5
+        assert data["vorleistungen"] == '{"2025": 100.0, "2026": 0}'
+        # andere Felder bleiben unberuehrt
+        assert data["pflegegrad"] == created_kunde["pflegegrad"]
+
+    def test_defaults_neuer_kunde(self, auth_client, created_kunde):
+        assert created_kunde["pflegegrad_seit"] is None
+        assert created_kunde["uebertrag_vorvorjahr"] == 0
+        assert created_kunde["vorleistungen"] is None
+
+    def test_migration_bestehende_db(self, tmp_path):
+        """Alte kunden-Tabelle ohne die Spalten wird beim Start ergaenzt, Daten bleiben."""
+        import sqlite3
+        import app.database as db_mod
+        from pathlib import Path
+
+        db_mod.DATA_DIR = Path(tmp_path)
+        alt = tmp_path / "alt.db"
+        conn = sqlite3.connect(alt)
+        conn.execute("CREATE TABLE kunden (id INTEGER PRIMARY KEY, name TEXT NOT NULL, "
+                     "pflegegrad INTEGER, kundentyp TEXT NOT NULL DEFAULT 'pflege', "
+                     "aktiv INTEGER NOT NULL DEFAULT 1)")
+        conn.execute("INSERT INTO kunden (name, pflegegrad) VALUES ('Alt', 3)")
+        conn.commit()
+        conn.close()
+
+        db_mod.init_mandant_db("alt.db")
+
+        conn = sqlite3.connect(alt)
+        cols = {r[1] for r in conn.execute("PRAGMA table_info(kunden)")}
+        assert {"pflegegrad_seit", "uebertrag_vorvorjahr", "vorleistungen"} <= cols
+        assert conn.execute("SELECT name, pflegegrad FROM kunden").fetchone() == ("Alt", 3)
+        conn.close()

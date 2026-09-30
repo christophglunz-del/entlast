@@ -135,6 +135,9 @@ def init_mandant_db(db_datei: str):
                 aktiv INTEGER NOT NULL DEFAULT 1,
                 besonderheiten TEXT,
                 lexoffice_id TEXT,
+                pflegegrad_seit TEXT,
+                uebertrag_vorvorjahr REAL DEFAULT 0,
+                vorleistungen TEXT,
                 created_at TEXT NOT NULL DEFAULT (datetime('now')),
                 updated_at TEXT NOT NULL DEFAULT (datetime('now'))
             );
@@ -284,6 +287,18 @@ def init_mandant_db(db_datei: str):
         }
         for col, sql in rechnungen_migrations.items():
             if col not in rechnungen_cols:
+                conn.execute(sql)
+        conn.commit()
+
+        # Neue Spalten in kunden (Anpassungen Entlastungsbetrag)
+        kunden_cols = {row["name"] for row in conn.execute("PRAGMA table_info(kunden)").fetchall()}
+        kunden_migrations = {
+            "pflegegrad_seit": "ALTER TABLE kunden ADD COLUMN pflegegrad_seit TEXT",
+            "uebertrag_vorvorjahr": "ALTER TABLE kunden ADD COLUMN uebertrag_vorvorjahr REAL DEFAULT 0",
+            "vorleistungen": "ALTER TABLE kunden ADD COLUMN vorleistungen TEXT",
+        }
+        for col, sql in kunden_migrations.items():
+            if col not in kunden_cols:
                 conn.execute(sql)
         conn.commit()
 

@@ -91,8 +91,9 @@ async def import_alles(
                        (id, name, vorname, strasse, plz, ort, telefon, email, geburtsdatum,
                         pflegegrad, versichertennummer_encrypted, pflegekasse, pflegekasse_fax,
                         iban_encrypted, kundentyp, aktiv, besonderheiten, lexoffice_id,
+                        pflegegrad_seit, uebertrag_vorvorjahr, vorleistungen,
                         created_at, updated_at)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (
                         row.get("id"), row.get("name"), row.get("vorname"),
                         row.get("strasse"), row.get("plz"), row.get("ort"),
@@ -101,7 +102,9 @@ async def import_alles(
                         row.get("pflegekasse"), row.get("pflegekasse_fax"),
                         row.get("iban_encrypted"), row.get("kundentyp", "pflege"),
                         row.get("aktiv", 1), row.get("besonderheiten"),
-                        row.get("lexoffice_id"), row.get("created_at"), row.get("updated_at"),
+                        row.get("lexoffice_id"), row.get("pflegegrad_seit"),
+                        row.get("uebertrag_vorvorjahr") or 0, row.get("vorleistungen"),
+                        row.get("created_at"), row.get("updated_at"),
                     ),
                 )
             counts["kunden"] = len(data["kunden"])
