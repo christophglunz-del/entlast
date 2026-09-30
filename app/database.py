@@ -5,6 +5,7 @@ Die zentrale auth.db verwaltet Mandanten und Benutzer.
 """
 
 import os
+import re
 import sqlite3
 from pathlib import Path
 
@@ -179,7 +180,7 @@ def init_mandant_db(db_datei: str):
 
             CREATE TABLE IF NOT EXISTS termine (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                kunde_id INTEGER NOT NULL,
+                kunde_id INTEGER,
                 datum TEXT NOT NULL,
                 von TEXT,
                 bis TEXT,
@@ -188,8 +189,15 @@ def init_mandant_db(db_datei: str):
                 erledigt INTEGER NOT NULL DEFAULT 0,
                 wiederkehrend INTEGER NOT NULL DEFAULT 0,
                 wiederholungs_muster TEXT,
+                google_uid TEXT,
                 created_at TEXT NOT NULL DEFAULT (datetime('now')),
                 FOREIGN KEY (kunde_id) REFERENCES kunden(id)
+            );
+
+            -- UIDs geloeschter Google-Termine (Loesch-Schutz beim Google-Sync)
+            CREATE TABLE IF NOT EXISTS google_uid_geloescht (
+                google_uid TEXT PRIMARY KEY,
+                geloescht_am TEXT NOT NULL DEFAULT (datetime('now'))
             );
 
             CREATE TABLE IF NOT EXISTS abtretungen (
@@ -277,6 +285,19 @@ def init_mandant_db(db_datei: str):
             conn.execute("ALTER TABLE termine ADD COLUMN wiederholungs_muster TEXT")
         conn.commit()
 
+        # termine: google_uid (Google-Kalender-Sync) + kunde_id nullbar (Google-Import ohne Kunde)
+        if "google_uid" not in existing_cols:
+            conn.execute("ALTER TABLE termine ADD COLUMN google_uid TEXT")
+            conn.commit()
+        kunde_id_notnull = any(
+            row["name"] == "kunde_id" and row["notnull"]
+            for row in conn.execute("PRAGMA table_info(termine)").fetchall()
+        )
+        if kunde_id_notnull:
+            _termine_kunde_id_nullbar(conn)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_termine_google_uid ON termine(google_uid)")
+        conn.commit()
+
         # Neue Spalten in rechnungen (Storno via Lex-Gutschrift)
         rechnungen_cols = {row["name"] for row in conn.execute("PRAGMA table_info(rechnungen)").fetchall()}
         rechnungen_migrations = {
@@ -319,6 +340,34 @@ def init_mandant_db(db_datei: str):
         conn.commit()
     finally:
         conn.close()
+
+
+def _termine_kunde_id_nullbar(conn: sqlite3.Connection):
+    """Baut termine so um, dass kunde_id NULL sein darf (SQLite kennt kein ALTER COLUMN).
+
+    Alle Spalten und Daten werden uebernommen; laeuft in einer Transaktion.
+    """
+    create_sql = conn.execute(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='termine'"
+    ).fetchone()["sql"]
+    neu_sql = re.sub(r"kunde_id\s+INTEGER\s+NOT\s+NULL", "kunde_id INTEGER", create_sql, count=1, flags=re.I)
+    neu_sql = neu_sql.replace("termine", "termine_neu", 1)
+    spalten = ", ".join(r["name"] for r in conn.execute("PRAGMA table_info(termine)").fetchall())
+    conn.execute("PRAGMA foreign_keys = OFF")
+    try:
+        conn.execute("BEGIN")
+        conn.execute(neu_sql)
+        conn.execute(f"INSERT INTO termine_neu ({spalten}) SELECT {spalten} FROM termine")
+        conn.execute("DROP TABLE termine")
+        conn.execute("ALTER TABLE termine_neu RENAME TO termine")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_termine_kunde ON termine(kunde_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_termine_datum ON termine(datum)")
+        conn.execute("COMMIT")
+    except Exception:
+        conn.execute("ROLLBACK")
+        raise
+    finally:
+        conn.execute("PRAGMA foreign_keys = ON")
 
 
 def write_audit_log(
