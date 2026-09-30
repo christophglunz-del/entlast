@@ -43,7 +43,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.warn('Auth fehlgeschlagen, Weiterleitung zum Login:', e.message);
         // Endlos-Redirect verhindern: nur weiterleiten wenn nicht schon auf Login-Seite
         if (!window.location.pathname.includes('login')) {
-            window.location.href = '/login.html';
+            if (typeof sitzungAbgelaufen === 'function') sitzungAbgelaufen();
+            else window.location.replace('/login.html');
         }
     }
 });

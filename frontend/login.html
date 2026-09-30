@@ -269,6 +269,11 @@
             errorEl.classList.add('active');
         }
 
+        // Nach abgelaufener Sitzung (apiFetch → ?abgelaufen=1) kurz erklären
+        if (new URLSearchParams(window.location.search).has('abgelaufen')) {
+            showError('Deine Anmeldung ist nach 8 Stunden abgelaufen. Bitte melde dich neu an – deine Daten sind gespeichert.');
+        }
+
         // Falls bereits eingeloggt, direkt weiterleiten
         (async () => {
             try {

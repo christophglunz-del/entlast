@@ -32,6 +32,43 @@ function camelToSnake(obj) {
     return obj;
 }
 
+// --- Abgelaufene Anmeldung ---
+// Leitet einmalig zum Login um. Weil manche Browser (Huawei-Tablet, App gerade
+// aus dem Hintergrund geholt) die Umleitung verwerfen, erscheint zusätzlich
+// sofort eine Vollbild-Meldung — nie wieder leere Listen ohne Erklärung.
+
+let _sitzungAbgelaufen = false;
+
+function sitzungAbgelaufen() {
+    if (_sitzungAbgelaufen) return;
+    _sitzungAbgelaufen = true;
+    const ziel = '/login.html?abgelaufen=1';
+
+    const zeigeHinweis = () => {
+        if (document.getElementById('sitzungAbgelaufen')) return;
+        const el = document.createElement('div');
+        el.id = 'sitzungAbgelaufen';
+        el.setAttribute('role', 'alertdialog');
+        el.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.55);' +
+            'display:flex;align-items:center;justify-content:center;padding:16px;';
+        el.innerHTML =
+            '<div style="background:#fff;border-radius:12px;padding:24px;max-width:360px;width:100%;' +
+            'text-align:center;box-shadow:0 8px 30px rgba(0,0,0,0.25);font-family:inherit;">' +
+            '<div style="font-size:2rem;margin-bottom:8px;">🔒</div>' +
+            '<div style="font-weight:700;font-size:1.1rem;margin-bottom:8px;color:#1f2937;">Anmeldung abgelaufen</div>' +
+            '<div style="color:#4b5563;margin-bottom:18px;">Aus Sicherheitsgründen wirst du nach 8 Stunden abgemeldet. ' +
+            'Deine Daten sind vollständig gespeichert.</div>' +
+            '<a href="' + ziel + '" style="display:block;background:#2563eb;color:#fff;text-decoration:none;' +
+            'padding:12px;border-radius:8px;font-weight:600;">Neu anmelden</a></div>';
+        document.body.appendChild(el);
+    };
+
+    if (document.body) zeigeHinweis();
+    else document.addEventListener('DOMContentLoaded', zeigeHinweis);
+
+    try { window.location.replace(ziel); } catch (e) { /* Hinweis bleibt sichtbar */ }
+}
+
 // --- API-Fetch-Wrapper ---
 
 const API_BASE = '/api/v1';
@@ -54,7 +91,7 @@ async function apiFetch(endpoint, options = {}) {
     });
 
     if (res.status === 401) {
-        window.location.href = '/login.html';
+        sitzungAbgelaufen();
         throw new Error('Nicht angemeldet');
     }
 
@@ -346,7 +383,7 @@ const DB = {
             credentials: 'include'
         });
         if (res.status === 401) {
-            window.location.href = '/login.html';
+            sitzungAbgelaufen();
             throw new Error('Nicht angemeldet');
         }
         if (!res.ok) throw new Error(`PDF-Download fehlgeschlagen: ${res.status}`);
@@ -403,7 +440,7 @@ const DB = {
             credentials: 'include'
         });
         if (res.status === 401) {
-            window.location.href = '/login.html';
+            sitzungAbgelaufen();
             throw new Error('Nicht angemeldet');
         }
         if (!res.ok) throw new Error(`PDF-Download fehlgeschlagen: ${res.status}`);
@@ -415,7 +452,7 @@ const DB = {
             credentials: 'include'
         });
         if (res.status === 401) {
-            window.location.href = '/login.html';
+            sitzungAbgelaufen();
             throw new Error('Nicht angemeldet');
         }
         if (!res.ok) throw new Error(`PDF-Download fehlgeschlagen: ${res.status}`);
@@ -427,7 +464,7 @@ const DB = {
             credentials: 'include'
         });
         if (res.status === 401) {
-            window.location.href = '/login.html';
+            sitzungAbgelaufen();
             throw new Error('Nicht angemeldet');
         }
         if (!res.ok) throw new Error(`PDF-Download fehlgeschlagen: ${res.status}`);
@@ -439,7 +476,7 @@ const DB = {
             credentials: 'include'
         });
         if (res.status === 401) {
-            window.location.href = '/login.html';
+            sitzungAbgelaufen();
             throw new Error('Nicht angemeldet');
         }
         if (!res.ok) throw new Error(`PDF-Download fehlgeschlagen: ${res.status}`);
@@ -452,7 +489,7 @@ const DB = {
             credentials: 'include'
         });
         if (res.status === 401) {
-            window.location.href = '/login.html';
+            sitzungAbgelaufen();
             throw new Error('Nicht angemeldet');
         }
         if (!res.ok) throw new Error(`DATEV-Export fehlgeschlagen: ${res.status}`);
