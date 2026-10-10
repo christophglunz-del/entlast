@@ -154,6 +154,7 @@ def init_mandant_db(db_datei: str):
                 betrag REAL,
                 unterschrift_betreuer TEXT,
                 unterschrift_versicherter TEXT,
+                unterschrift_datum TEXT,
                 notiz TEXT,
                 created_at TEXT NOT NULL DEFAULT (datetime('now')),
                 FOREIGN KEY (kunde_id) REFERENCES kunden(id)
@@ -321,6 +322,12 @@ def init_mandant_db(db_datei: str):
         for col, sql in kunden_migrations.items():
             if col not in kunden_cols:
                 conn.execute(sql)
+        conn.commit()
+
+        # Neue Spalten in leistungen (Datum der Monatsunterschrift)
+        leistungen_cols = {row["name"] for row in conn.execute("PRAGMA table_info(leistungen)").fetchall()}
+        if "unterschrift_datum" not in leistungen_cols:
+            conn.execute("ALTER TABLE leistungen ADD COLUMN unterschrift_datum TEXT")
         conn.commit()
 
         # Neue Spalten in fahrten (GPS-Tracking, Adressen, etc.)

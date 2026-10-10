@@ -22,6 +22,7 @@ def _row_to_response(row: dict) -> LeistungResponse:
         betrag=row.get("betrag"),
         unterschrift_betreuer=row.get("unterschrift_betreuer"),
         unterschrift_versicherter=row.get("unterschrift_versicherter"),
+        unterschrift_datum=row.get("unterschrift_datum"),
         notiz=row.get("notiz"),
         created_at=row.get("created_at"),
     )

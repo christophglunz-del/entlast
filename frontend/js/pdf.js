@@ -241,6 +241,10 @@ const PDFHelper = {
       doc.setFont('helvetica', 'normal');
 
       {
+        // Ort/Datum der Unterschrift (gespeichert, sonst heute)
+        const sigDatum = mitVersicherter.unterschriftDatum || App.heute();
+        doc.text(`Ort/Datum: ${((FIRMA||{}).ort || 'Hattingen')}, ${App.formatDatum(sigDatum)}`, 15, y);
+        y += 6;
         doc.text('Unterschrift Versicherte/r (oder Bevollm\u00e4chtigte/r):', 15, y);
         y += 3;
         try {

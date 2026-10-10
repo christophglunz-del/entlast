@@ -641,6 +641,8 @@ const LeistungModule = {
 
     const ersteMitUnterschrift = leistungen.find(l => l.unterschriftVersicherter);
     const alleUnterschrieben = !!ersteMitUnterschrift;
+    // Datum der Unterschrift: gespeichert oder Vorschlag heute
+    const sigDatum = (ersteMitUnterschrift && ersteMitUnterschrift.unterschriftDatum) || '';
 
     container.innerHTML = `
       <div class="card">
@@ -657,6 +659,10 @@ const LeistungModule = {
             <img src="${ersteMitUnterschrift.unterschriftVersicherter}" style="max-width:100%;height:100px;border:1px solid #ddd;border-radius:8px;background:#fff;">
           </div>
           <p class="text-xs text-muted mt-2">\uD83D\uDD12 Unterschrift gespeichert</p>
+          <div class="mt-2" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+            <span><strong>Datum:</strong> ${sigDatum ? App.formatDatum(sigDatum) : App.formatDatum(App.heute()) + ' <span class="text-xs text-muted">(Vorschlag: heute)</span>'}</span>
+            <button class="btn btn-outline" onclick="LeistungModule.unterschriftDatumAendern(${kundeId}, ${monat}, ${jahr})">\uD83D\uDCC5 Datum \u00e4ndern</button>
+          </div>
         ` : `
           <div class="form-group">
             <label><strong>Unterschrift Versicherte/r (oder Bevollm\u00e4chtigte/r)</strong></label>
@@ -665,6 +671,10 @@ const LeistungModule = {
               <div class="sig-placeholder">Hier unterschreiben</div>
             </div>
             <div id="sigVersicherterActions" class="signature-actions"></div>
+          </div>
+          <div class="form-group">
+            <label for="sigDatumInput"><strong>Datum der Unterschrift</strong></label>
+            <input type="date" id="sigDatumInput" class="form-control" value="${App.heute()}">
           </div>
         `}
       </div>
@@ -772,12 +782,13 @@ const LeistungModule = {
     // ein etwaiger Fehler einen Toast erzeugt statt stillzuschweigen)
     try {
       sigData = await trimSignature(sigData);
+      const sigDatum = this._sigDatumWert();
       const alleLeistungen = await DB.leistungenFuerMonat(monat, jahr);
       const leistungen = alleLeistungen.filter(l => l.kundeId === kundeId);
       // Parallel statt sequenziell — spart die seriellen Netzwerk-Round-Trips
       await Promise.all(
         leistungen.map(l =>
-          DB.leistungAktualisieren(l.id, { unterschriftVersicherter: sigData })
+          DB.leistungAktualisieren(l.id, { unterschriftVersicherter: sigData, unterschriftDatum: sigDatum })
         )
       );
       App.toast(`Unterschrift für ${leistungen.length} Einträge gespeichert`, 'success');
@@ -816,6 +827,7 @@ const LeistungModule = {
 
     try {
       const sigVersicherter = await trimSignature(rawSig);
+      const sigDatum = this._sigDatumWert();
       const alleLeistungen = await DB.leistungenFuerMonat(monat, jahr);
       const leistungen = alleLeistungen.filter(l => l.kundeId === kundeId);
 
@@ -823,7 +835,7 @@ const LeistungModule = {
       // (DB läuft im WAL-Modus mit busy_timeout, parallele Writes sind sicher)
       await Promise.all(
         leistungen.map(l =>
-          DB.leistungAktualisieren(l.id, { unterschriftVersicherter: sigVersicherter })
+          DB.leistungAktualisieren(l.id, { unterschriftVersicherter: sigVersicherter, unterschriftDatum: sigDatum })
         )
       );
 
@@ -839,6 +851,56 @@ const LeistungModule = {
     }
   },
 
+  // Datum aus dem Eingabefeld der Unterschriften-Ansicht (Vorschlag: heute)
+  _sigDatumWert() {
+    const input = document.getElementById('sigDatumInput');
+    return (input && input.value) || App.heute();
+  },
+
+  // Dialog: Datum der Monatsunterschrift ändern (Vorschlag: gespeichertes Datum oder heute)
+  async unterschriftDatumAendern(kundeId, monat, jahr) {
+    const alleLeistungen = await DB.leistungenFuerMonat(monat, jahr);
+    const leistungen = alleLeistungen.filter(l => l.kundeId === kundeId);
+    const mitSig = leistungen.find(l => l.unterschriftVersicherter);
+    const aktuell = (mitSig && mitSig.unterschriftDatum) || App.heute();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'sigDatumOverlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;';
+    overlay.innerHTML = `
+      <div class="card" style="width:100%;max-width:360px;margin:0;">
+        <h3 class="card-title mb-2">Datum der Unterschrift</h3>
+        <input type="date" id="sigDatumDialogInput" class="form-control" value="${aktuell}">
+        <div style="display:flex;gap:8px;margin-top:12px;">
+          <button class="btn btn-outline" style="flex:1;" id="sigDatumAbbrechen">Abbrechen</button>
+          <button class="btn btn-primary" style="flex:2;" id="sigDatumUebernehmen">\u2713 \u00dcbernehmen</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    const schliessen = () => overlay.remove();
+    overlay.addEventListener('click', e => { if (e.target === overlay) schliessen(); });
+    document.getElementById('sigDatumAbbrechen').onclick = schliessen;
+    document.getElementById('sigDatumUebernehmen').onclick = async () => {
+      const wert = document.getElementById('sigDatumDialogInput').value;
+      if (!wert) { App.toast('Bitte ein Datum w\u00e4hlen', 'error'); return; }
+      const btn = document.getElementById('sigDatumUebernehmen');
+      btn.disabled = true; btn.textContent = 'Speichere \u2026';
+      try {
+        await Promise.all(
+          leistungen.map(l => DB.leistungAktualisieren(l.id, { unterschriftDatum: wert }))
+        );
+        schliessen();
+        App.toast('Datum gespeichert', 'success');
+        await this.unterschriftenAnzeigen(kundeId, monat, jahr);
+      } catch (err) {
+        console.error('unterschriftDatumAendern Fehler:', err);
+        App.toast('Fehler: ' + (err && err.message ? err.message : 'unbekannt'), 'error');
+        btn.disabled = false; btn.textContent = '\u2713 \u00dcbernehmen';
+      }
+    };
+  },
+
   // Neu unterschreiben: Alte Unterschrift löschen, Canvas zeigen
   async neuUnterschreiben(kundeId, monat, jahr) {
     if (!await App.confirm('Neu unterschreiben? Die alte Unterschrift wird entfernt.')) return;
@@ -849,7 +911,7 @@ const LeistungModule = {
 
       await Promise.all(
         leistungen.map(l =>
-          DB.leistungAktualisieren(l.id, { unterschriftVersicherter: null })
+          DB.leistungAktualisieren(l.id, { unterschriftVersicherter: null, unterschriftDatum: null })
         )
       );
 

@@ -166,6 +166,7 @@ class LeistungCreate(BaseModel):
     betrag: float | None = None
     unterschrift_betreuer: str | None = None  # base64
     unterschrift_versicherter: str | None = None  # base64
+    unterschrift_datum: str | None = None  # YYYY-MM-DD
     notiz: str | None = None
 
 
@@ -180,6 +181,7 @@ class LeistungUpdate(BaseModel):
     betrag: float | None = None
     unterschrift_betreuer: str | None = None
     unterschrift_versicherter: str | None = None
+    unterschrift_datum: str | None = None
     notiz: str | None = None
 
 
@@ -201,6 +203,7 @@ class LeistungResponse(BaseModel):
     betrag: float | None = None
     unterschrift_betreuer: str | None = None
     unterschrift_versicherter: str | None = None
+    unterschrift_datum: str | None = None
     notiz: str | None = None
     created_at: str | None = None
 
