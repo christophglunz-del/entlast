@@ -203,6 +203,14 @@
         <input type="text" id="firmaSteuernummer" class="form-control" placeholder="z.B. 123/456/78901">
       </div>
       <div class="form-group">
+        <label>IK-Nummer (Leistungserbringer)</label>
+        <input type="text" id="firmaIkNummer" class="form-control" inputmode="numeric" maxlength="9" placeholder="9-stellig, z.B. 461234567">
+      </div>
+      <div class="form-group">
+        <label>Angebots-ID (Anerkennung § 45a SGB XI)</label>
+        <input type="text" id="firmaAngebotsId" class="form-control" placeholder="z.B. 080123F8M2">
+      </div>
+      <div class="form-group">
         <label>IBAN</label>
         <input type="text" id="firmaIban" class="form-control" placeholder="DE...">
       </div>
@@ -268,7 +276,8 @@
       firmaIban: 'iban', firmaBic: 'bic', firmaBank: 'bank',
       untertitel: 'untertitel',
       firmaStundensatz: 'stundensatz', firmaKmSatz: 'km_satz',
-      firmaStartAdresse: 'start_adresse'
+      firmaStartAdresse: 'start_adresse',
+      firmaIkNummer: 'ik_nummer', firmaAngebotsId: 'angebots_id'
     };
 
     // Daten laden

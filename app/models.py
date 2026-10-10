@@ -48,6 +48,8 @@ class FirmaResponse(BaseModel):
     stundensatz: float | None = 32.75
     km_satz: float | None = 0.30
     start_adresse: str | None = None
+    ik_nummer: str | None = None
+    angebots_id: str | None = None
 
 
 class FirmaUpdate(BaseModel):
@@ -70,6 +72,8 @@ class FirmaUpdate(BaseModel):
     stundensatz: float | None = None
     km_satz: float | None = None
     start_adresse: str | None = None
+    ik_nummer: str | None = None
+    angebots_id: str | None = None
 
 
 # --- Kunden ---

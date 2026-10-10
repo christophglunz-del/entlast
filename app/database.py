@@ -111,7 +111,9 @@ def init_mandant_db(db_datei: str):
                 kleinunternehmer INTEGER NOT NULL DEFAULT 1,
                 stundensatz REAL DEFAULT 32.75,
                 km_satz REAL DEFAULT 0.30,
-                start_adresse TEXT
+                start_adresse TEXT,
+                ik_nummer TEXT,
+                angebots_id TEXT
             );
 
             -- Firma: genau 1 Zeile sicherstellen
@@ -322,6 +324,13 @@ def init_mandant_db(db_datei: str):
         for col, sql in kunden_migrations.items():
             if col not in kunden_cols:
                 conn.execute(sql)
+        conn.commit()
+
+        # Neue Spalten in firma (IK-Nummer + Angebots-ID des Leistungserbringers)
+        firma_cols = {row["name"] for row in conn.execute("PRAGMA table_info(firma)").fetchall()}
+        for col in ("ik_nummer", "angebots_id"):
+            if col not in firma_cols:
+                conn.execute(f"ALTER TABLE firma ADD COLUMN {col} TEXT")
         conn.commit()
 
         # Neue Spalten in leistungen (Datum der Monatsunterschrift)

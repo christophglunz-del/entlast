@@ -257,6 +257,8 @@ def _get_firma_data(db_datei: str) -> FirmaResponse:
             farbe_primary_dark=row.get("farbe_primary_dark") or "#C2185B",
             untertitel=row.get("untertitel"),
             kleinunternehmer=bool(row.get("kleinunternehmer", 1)),
+            ik_nummer=row.get("ik_nummer"),
+            angebots_id=row.get("angebots_id"),
         )
     finally:
         conn.close()

@@ -89,7 +89,7 @@ const Auth = {
         // Null-Werte aus Server-Antwort filtern (sonst ueberschreiben sie die Defaults)
         const firmaClean = {};
         // snake_case -> camelCase Mapping fuer Firma-Felder
-        const snakeToCamelMap = { km_satz: 'kmSatz', start_adresse: 'startAdresse' };
+        const snakeToCamelMap = { km_satz: 'kmSatz', start_adresse: 'startAdresse', ik_nummer: 'ikNummer', angebots_id: 'angebotsId' };
         for (const [k, v] of Object.entries(firma)) {
             if (v !== null && v !== undefined) {
                 const camelKey = snakeToCamelMap[k] || k;

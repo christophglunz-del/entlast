@@ -33,6 +33,8 @@ def _row_to_response(row: dict) -> FirmaResponse:
         stundensatz=row.get("stundensatz", 32.75),
         km_satz=row.get("km_satz", 0.30),
         start_adresse=row.get("start_adresse"),
+        ik_nummer=row.get("ik_nummer"),
+        angebots_id=row.get("angebots_id"),
     )
 
 
