@@ -116,7 +116,7 @@ const LeistungModule = {
     const rechnungen = await DB.alleRechnungen();
     const rechnungMap = {};
     for (const r of rechnungen) {
-      if (r.kundeId && r.monat && r.jahr) {
+      if (r.kundeId && r.monat && r.jahr && !App.rechnungStorniert(r)) {
         rechnungMap[`${r.kundeId}-${r.monat}-${r.jahr}`] = r;
       }
     }
@@ -1026,7 +1026,7 @@ const LeistungModule = {
     if (!id) {
       const [j, m] = daten.datum.split('-');
       const rechnungen = await DB.alleRechnungen();
-      const re = rechnungen.find(r => r.kundeId === kundeId && r.monat === parseInt(m) && r.jahr === parseInt(j));
+      const re = rechnungen.find(r => r.kundeId === kundeId && r.monat === parseInt(m) && r.jahr === parseInt(j) && !App.rechnungStorniert(r));
       if (re) {
         if (!await App.confirm(`⚠️ Für diesen Kunden wurde im ${App.monatsName(parseInt(m))} ${j} bereits eine Rechnung erstellt. Trotzdem Leistung hinzufügen?`)) return;
       }
@@ -1165,7 +1165,7 @@ const LeistungModule = {
     try {
       // Prüfe ob schon existiert
       const rechnungen = await DB.alleRechnungen();
-      const existing = rechnungen.find(r => r.kundeId === kundeId && r.monat === monat && r.jahr === jahr);
+      const existing = rechnungen.find(r => r.kundeId === kundeId && r.monat === monat && r.jahr === jahr && !App.rechnungStorniert(r));
       if (existing) {
         await apiFetch(`/rechnungen/${existing.id}`, {
           method: 'PUT',
@@ -1183,7 +1183,7 @@ const LeistungModule = {
         });
         // versand_art nachtragen
         const neu = await DB.alleRechnungen();
-        const re = neu.find(r => r.kundeId === kundeId && r.monat === monat && r.jahr === jahr);
+        const re = neu.find(r => r.kundeId === kundeId && r.monat === monat && r.jahr === jahr && !App.rechnungStorniert(r));
         if (re) {
           await apiFetch(`/rechnungen/${re.id}`, {
             method: 'PUT',
@@ -1444,7 +1444,7 @@ const LeistungModule = {
 
     try {
       const rechnungen = await DB.alleRechnungen();
-      const existing = rechnungen.find(r => r.kundeId === kundeId && r.monat === monat && r.jahr === jahr);
+      const existing = rechnungen.find(r => r.kundeId === kundeId && r.monat === monat && r.jahr === jahr && !App.rechnungStorniert(r));
       if (existing) {
         await apiFetch(`/rechnungen/${existing.id}`, {
           method: 'PUT',
@@ -1461,7 +1461,7 @@ const LeistungModule = {
           }),
         });
         const neu = await DB.alleRechnungen();
-        const re = neu.find(r => r.kundeId === kundeId && r.monat === monat && r.jahr === jahr);
+        const re = neu.find(r => r.kundeId === kundeId && r.monat === monat && r.jahr === jahr && !App.rechnungStorniert(r));
         if (re) {
           await apiFetch(`/rechnungen/${re.id}`, {
             method: 'PUT',

@@ -50,7 +50,7 @@ const App = {
   async registerServiceWorker() {
     if ('serviceWorker' in navigator) {
       try {
-        const registration = await navigator.serviceWorker.register('/sw.js?v=108', { updateViaCache: 'none' });
+        const registration = await navigator.serviceWorker.register('/sw.js?v=109', { updateViaCache: 'none' });
         console.log('Service Worker registriert:', registration.scope);
 
         // Sofort prüfen: Steht schon ein neuer SW im "waiting"? Dann aktivieren.
@@ -194,6 +194,11 @@ const App = {
       style: 'currency',
       currency: 'EUR'
     }).format(betrag || 0);
+  },
+
+  // Stornierte lokale Rechnung? Sie zählt nicht als "Monat abgerechnet".
+  rechnungStorniert(r) {
+    return !!(r && (r.stornoLexofficeId || r.status === 'storniert'));
   },
 
   // Kundenname formatiert: "Vorname Nachname"

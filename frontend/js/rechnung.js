@@ -1102,7 +1102,7 @@ const RechnungModule = {
     try {
       // Prüfe Duplikat
       const rechnungen = await DB.alleRechnungen();
-      const existing = rechnungen.find(r => r.kundeId === kundeId && r.monat === monat && r.jahr === jahr);
+      const existing = rechnungen.find(r => r.kundeId === kundeId && r.monat === monat && r.jahr === jahr && !App.rechnungStorniert(r));
       if (existing) {
         await apiFetch(`/rechnungen/${existing.id}`, {
           method: 'PUT',
@@ -1119,7 +1119,7 @@ const RechnungModule = {
           }),
         });
         const neu = await DB.alleRechnungen();
-        const re = neu.find(r => r.kundeId === kundeId && r.monat === monat && r.jahr === jahr);
+        const re = neu.find(r => r.kundeId === kundeId && r.monat === monat && r.jahr === jahr && !App.rechnungStorniert(r));
         if (re) {
           await apiFetch(`/rechnungen/${re.id}`, {
             method: 'PUT',
