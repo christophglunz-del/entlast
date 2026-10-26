@@ -171,9 +171,15 @@ const KundenModule = {
     const container = document.getElementById('kundenContent');
     if (!container) return;
 
-    const kassenOptions = PFLEGEKASSEN.map(k =>
+    let kassenOptions = PFLEGEKASSEN.map(k =>
       `<option value="${k.name}" ${kunde && kunde.pflegekasse === k.name ? 'selected' : ''}>${k.name}</option>`
     ).join('');
+    // Kasse, die (noch) nicht in den Stammdaten steht, sichtbar halten —
+    // sonst würde sie beim Speichern stillschweigend gelöscht.
+    if (kunde && kunde.pflegekasse && !PFLEGEKASSEN.some(k => k.name === kunde.pflegekasse)) {
+      const v = this.escapeHtml(kunde.pflegekasse);
+      kassenOptions = `<option value="${v}" selected>${v} (nicht in Kassenliste)</option>` + kassenOptions;
+    }
 
     container.innerHTML = `
       <form id="kundeForm" onsubmit="event.preventDefault(); KundenModule.speichern();">

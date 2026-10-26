@@ -18,6 +18,17 @@ const RechnungModule = {
     return pk ? pk.name : null;
   },
 
+  // Faxnummer der Kasse: zuerst das Kundenfeld "Fax Kasse", sonst die Nummer
+  // aus den Pflegekassen-Stammdaten (die meisten Kunden haben kein eigenes Feld).
+  _kassenFax(kunde) {
+    if (!kunde) return '';
+    const eigene = kunde.faxKasse || kunde.pflegekasseFax || '';
+    if (eigene) return eigene;
+    const name = this._bekannteKasse(kunde.pflegekasse);
+    const pk = name ? (window.PFLEGEKASSEN || []).find(k => k.name === name) : null;
+    return (pk && pk.fax) || '';
+  },
+
   async init() {
     await this.listeAnzeigen();
     // URL-Parameter: ?kunde=ID&monat=M&jahr=J → Felder vorauswählen
@@ -780,9 +791,9 @@ const RechnungModule = {
         App.toast('Sipgate Zugangsdaten fehlen — bitte in Einstellungen hinterlegen', 'error');
         return;
       }
-      const faxNummer = SipgateAPI.faxNummerNormalisieren(kunde.faxKasse);
+      const faxNummer = SipgateAPI.faxNummerNormalisieren(this._kassenFax(kunde));
       if (!faxNummer) {
-        App.toast('Keine Faxnummer beim Kunden hinterlegt (Feld "Fax Kasse")', 'error');
+        App.toast('Keine Faxnummer hinterlegt (weder beim Kunden noch bei der Pflegekasse)', 'error');
         return;
       }
     }
@@ -801,7 +812,7 @@ const RechnungModule = {
 
     // Bestätigung
     const kanalText = versandart === 'fax'
-      ? `per Fax an ${SipgateAPI.faxNummerNormalisieren(kunde.faxKasse)}`
+      ? `per Fax an ${SipgateAPI.faxNummerNormalisieren(this._kassenFax(kunde))}`
       : 'per Brief über LetterXpress';
     if (!await App.confirm(`Kassenversand ${kanalText}?\n\nAnschreiben + Rechnung werden zusammengefügt und versendet.`)) return;
 
@@ -848,7 +859,7 @@ const RechnungModule = {
       );
 
       if (versandart === 'fax') {
-        const faxNummer = SipgateAPI.faxNummerNormalisieren(kunde.faxKasse);
+        const faxNummer = SipgateAPI.faxNummerNormalisieren(this._kassenFax(kunde));
         App.toast(`Fax wird gesendet an ${faxNummer}...`, 'info');
         const ergebnis = await SipgateAPI.faxSenden(faxNummer, kombiniertBase64, dateiname);
 
@@ -923,9 +934,9 @@ const RechnungModule = {
     }
 
     // Faxnummer prüfen
-    const faxNummer = SipgateAPI.faxNummerNormalisieren(kunde.faxKasse);
+    const faxNummer = SipgateAPI.faxNummerNormalisieren(this._kassenFax(kunde));
     if (!faxNummer) {
-      App.toast('Keine Faxnummer beim Kunden hinterlegt (Feld "Fax Kasse")', 'error');
+      App.toast('Keine Faxnummer hinterlegt (weder beim Kunden noch bei der Pflegekasse)', 'error');
       return;
     }
 
@@ -1615,12 +1626,7 @@ const RechnungModule = {
   async faxDetail(lexofficeId) {
     try {
       const { kunde, empfaenger } = await this._ladeRechnungUndKunde(lexofficeId);
-      let faxNr = kunde ? (kunde.faxKasse || kunde.pflegekasseFax || '') : '';
-      // Fallback: Faxnummer aus Pflegekassen-Tabelle nachschlagen
-      if (!faxNr && kunde && kunde.pflegekasse && window.PFLEGEKASSEN) {
-        const pk = PFLEGEKASSEN.find(k => k.name === kunde.pflegekasse);
-        if (pk && pk.fax) faxNr = pk.fax;
-      }
+      const faxNr = this._kassenFax(kunde);
 
       if (!SipgateAPI.istKonfiguriert()) await SipgateAPI.init();
       if (!SipgateAPI.istKonfiguriert()) { App.toast('Sipgate nicht konfiguriert', 'error'); return; }
