@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import Response
 from app.auth import get_current_user, get_db
+from app.rundung import betrag_berechnen
 
 logger = logging.getLogger("entlast.lexoffice")
 
@@ -155,7 +156,8 @@ async def rechnung_erstellen(
             diff = (eh * 60 + em) - (sh * 60 + sm)
             gesamt_stunden += max(0, diff / 60)
 
-    betrag = round(gesamt_stunden * stundensatz, 2)
+    # Dieselbe Rechnung wie die Position unten: gerundete Stunden x Stundensatz
+    betrag = betrag_berechnen(round(gesamt_stunden, 2), stundensatz)
 
     # Variante ermitteln
     besonderheiten = (kunde.get("besonderheiten") or "").lower()

@@ -202,12 +202,10 @@ const LeistungModule = {
         const kundeEintraege = eintraege.filter(l => l.kundeId === kid);
         const anzahl = kundeEintraege.length;
         let gesamtStunden = 0;
-        let gesamtBetrag = 0;
         for (const l of kundeEintraege) {
-          const std = App.stundenBerechnen(l.startzeit, l.endzeit);
-          gesamtStunden += std;
-          gesamtBetrag += App.betragBerechnen(std);
+          gesamtStunden += App.stundenBerechnen(l.startzeit, l.endzeit);
         }
+        const gesamtBetrag = App.summeBerechnen(gesamtStunden);
         // Monatsblatt gilt als unterschrieben, sobald eine Unterschrift vorliegt.
         // PDF (pdf.js) und Detailansicht drucken/zeigen genau diese eine Unterschrift
         // fürs ganze Monatsblatt — daher hier 'some' statt 'every'. Sonst meldet die
@@ -551,7 +549,7 @@ const LeistungModule = {
       const std = App.stundenBerechnen(l.startzeit, l.endzeit);
       const betrag = App.betragBerechnen(std);
       gesamtStunden += std;
-      gesamtBetrag += betrag;
+      gesamtBetrag = App.summeBerechnen(gesamtStunden);
       const arten = this.leistungsArtenKurz(l);
       const bgColor = i % 2 === 0 ? '#f8f9fa' : '#ffffff';
       // Wenn unterschrieben: nicht mehr bearbeitbar
@@ -1240,13 +1238,11 @@ const LeistungModule = {
         return;
       }
 
-      let betrag = 0;
       let gesamtStunden = 0;
       kundeLeistungen.forEach(l => {
-        const stunden = App.stundenBerechnen(l.startzeit, l.endzeit);
-        gesamtStunden += stunden;
-        betrag += App.betragBerechnen(stunden);
+        gesamtStunden += App.stundenBerechnen(l.startzeit, l.endzeit);
       });
+      const betrag = App.summeBerechnen(gesamtStunden);
 
       // Variante bestimmen
       const istPflegekunde = !kunde.kundentyp || kunde.kundentyp === 'pflege';

@@ -197,7 +197,7 @@ const PDFHelper = {
       const stunden = App.stundenBerechnen(leistung.startzeit, leistung.endzeit);
       const betrag = App.betragBerechnen(stunden);
       gesamtStunden += stunden;
-      gesamtBetrag += betrag;
+      gesamtBetrag = App.summeBerechnen(gesamtStunden);
 
       // Zeile mit abwechselndem Hintergrund
       if (idx % 2 === 0) {
@@ -230,6 +230,12 @@ const PDFHelper = {
     doc.text('Gesamt:', 130, y);
     doc.text(gesamtStunden.toFixed(2).replace('.', ',') + ' Std.', 155, y);
     doc.text(App.formatBetrag(gesamtBetrag), 175, y);
+    // Erklärt, warum die gerundeten Zeilenbeträge nicht exakt die Summe ergeben
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(...this.GRAY);
+    doc.text('Gesamtbetrag = Gesamtstunden x Stundensatz; die Einzelbeträge sind gerundet.', 15, y + 5);
+    doc.setTextColor(...this.BLACK);
     y += 15;
 
     // Unterschrift Versicherte/r (oder Bevollmächtigte/r)
@@ -661,10 +667,9 @@ const PDFHelper = {
     y += lines.length * 4 + 8;
 
     // Rechnungsbetrag
-    const gesamtBetrag = leistungen.reduce((sum, l) => {
-      const std = App.stundenBerechnen(l.startzeit, l.endzeit);
-      return sum + App.betragBerechnen(std);
-    }, 0);
+    const gesamtBetrag = App.summeBerechnen(leistungen.reduce(
+      (sum, l) => sum + App.stundenBerechnen(l.startzeit, l.endzeit), 0
+    ));
 
     doc.setFont('helvetica', 'bold');
     doc.text(`Rechnungsbetrag: ${App.formatBetrag(gesamtBetrag)}`, 15, y);

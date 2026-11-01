@@ -50,7 +50,7 @@ const App = {
   async registerServiceWorker() {
     if ('serviceWorker' in navigator) {
       try {
-        const registration = await navigator.serviceWorker.register('/sw.js?v=110', { updateViaCache: 'none' });
+        const registration = await navigator.serviceWorker.register('/sw.js?v=111', { updateViaCache: 'none' });
         console.log('Service Worker registriert:', registration.scope);
 
         // Sofort prüfen: Steht schon ein neuer SW im "waiting"? Dann aktivieren.
@@ -305,6 +305,15 @@ const App = {
   // Betrag berechnen
   betragBerechnen(stunden) {
     return Math.round(stunden * ((FIRMA || {}).stundensatz || 32.75) * 100) / 100;
+  },
+
+  // Monatssumme: auf zwei Stellen gerundete Gesamtstunden x Stundensatz. Genauso rechnet
+  // die Rechnungsposition. Einzelbeträge aufzusummieren ergäbe etwas anderes (9 x 49,13).
+  // In ganzen Zahlen gerechnet, sonst wird aus 0,58 x 32,75 = 18,995 fälschlich 18,99.
+  summeBerechnen(gesamtStunden) {
+    const stundenHundertstel = Math.round(gesamtStunden * 100);
+    const satzCent = Math.round(((FIRMA || {}).stundensatz || 32.75) * 100);
+    return Math.round(stundenHundertstel * satzCent / 100) / 100;
   },
 
   // Sync-Zeitstempel relativ formatieren

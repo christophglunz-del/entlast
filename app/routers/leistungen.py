@@ -3,6 +3,7 @@
 import sqlite3
 from fastapi import APIRouter, Depends, HTTPException, Query
 from app.auth import get_current_user, get_db
+from app.rundung import betrag_berechnen
 from app.models import LeistungCreate, LeistungUpdate, LeistungResponse, UnterschriftRequest
 
 router = APIRouter(prefix="/leistungen", tags=["leistungen"])
@@ -108,7 +109,7 @@ async def create_leistung(
     if betrag is None and dauer_std is not None:
         firma = db.execute("SELECT stundensatz FROM firma WHERE id = 1").fetchone()
         stundensatz = firma["stundensatz"] if firma and firma["stundensatz"] else 32.75
-        betrag = round(dauer_std * stundensatz, 2)
+        betrag = betrag_berechnen(dauer_std, stundensatz)
 
     cursor = db.execute(
         """INSERT INTO leistungen

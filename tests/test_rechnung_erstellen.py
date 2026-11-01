@@ -217,3 +217,40 @@ class TestKeineStilleUmleitung:
         })
         assert resp.status_code == 409
         assert _FakeClient.posts == []
+
+
+class TestRundung:
+    def test_einzelbetrag_kaufmaennisch(self, lex):
+        """1,5 Std. x 32,75 = 49,125 wird bei neuen Leistungen 49,13, nicht 49,12."""
+        kid = _kunde(lex)
+        resp = lex.post("/api/v1/leistungen", json={
+            "kunde_id": kid, "datum": "2026-10-05", "von": "09:00", "bis": "10:30",
+        })
+        assert resp.json()["betrag"] == 49.13
+
+    def test_mitgegebener_betrag_bleibt(self, lex):
+        kid = _kunde(lex)
+        resp = lex.post("/api/v1/leistungen", json={
+            "kunde_id": kid, "datum": "2026-10-05", "von": "09:00", "bis": "10:30", "betrag": 49.12,
+        })
+        assert resp.json()["betrag"] == 49.12
+
+    def test_neun_termine_ergeben_gesamtstunden_mal_satz(self, lex):
+        kid = _kunde(lex)
+        for tag in range(1, 10):
+            _leistung(lex, kid, tag)
+        resp = _erstellen(lex, kid, "direkt")
+        assert resp.status_code == 200
+        assert resp.json()["betrag"] == 442.13
+        assert resp.json()["stunden"] == 13.5
+        position = _FakeClient.posts[0]["lineItems"][0]
+        assert position["quantity"] == 13.5
+        assert position["unitPrice"]["netAmount"] == 32.75
+
+    def test_lokaler_betrag_passt_zur_rechnungsposition(self, lex):
+        """80 Minuten: Position 1,33 Std. x 32,75 = 43,56, nicht ungerundet 43,67."""
+        kid = _kunde(lex)
+        _leistung(lex, kid, 5, von="09:00", bis="10:20")
+        resp = _erstellen(lex, kid, "direkt")
+        assert _FakeClient.posts[0]["lineItems"][0]["quantity"] == 1.33
+        assert resp.json()["betrag"] == 43.56
