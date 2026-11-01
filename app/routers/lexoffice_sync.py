@@ -276,7 +276,11 @@ async def rechnung_erstellen(
         "totalPrice": {"currency": "EUR"},
         "taxConditions": {
             "taxType": "vatfree",
-            "taxTypeNote": "Umsatzsteuer wird nicht berechnet (§ 19 Abs. 1 UStG)",
+            "taxTypeNote": (
+                "Umsatzsteuerfrei nach § 4 Nr. 16 Satz 1 Buchst. g UStG (anerkanntes Angebot zur "
+                "Unterstützung im Alltag nach § 45a SGB XI). Im Übrigen wird als Kleinunternehmer "
+                "gem. § 19 Abs. 1 UStG keine Umsatzsteuer berechnet."
+            ),
         },
         "title": "Rechnung",
         "introduction": "Meine Leistungen stelle ich Ihnen wie folgt in Rechnung.",

@@ -10,7 +10,11 @@ import copy
 import httpx
 import pytest
 
-STEUER_NOTIZ = "Umsatzsteuer wird nicht berechnet (§ 19 Abs. 1 UStG)"
+STEUER_NOTIZ = (
+    "Umsatzsteuerfrei nach § 4 Nr. 16 Satz 1 Buchst. g UStG (anerkanntes Angebot zur "
+    "Unterstützung im Alltag nach § 45a SGB XI). Im Übrigen wird als Kleinunternehmer "
+    "gem. § 19 Abs. 1 UStG keine Umsatzsteuer berechnet."
+)
 
 KASSEN_REMARK = (
     "Die Abrechnung erfolgt im Rahmen der Direktabrechnung gemäß der vorliegenden "

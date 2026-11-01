@@ -701,14 +701,15 @@ const PDFHelper = {
     y += 4;
     doc.text('- Rechnung (Lexoffice)', 15, y);
 
-    // Kleinunternehmer-Hinweis
+    // Steuerhinweis, gleicher Wortlaut wie auf der Rechnung (lexoffice_sync.py)
     doc.setFontSize(7);
     doc.setTextColor(...this.GRAY);
     const pageHeight = doc.internal.pageSize.getHeight();
-    doc.text(
-      'Gemäß § 19 Abs. 1 UStG wird keine Umsatzsteuer berechnet.',
-      15, pageHeight - 25
+    const steuerZeilen = doc.splitTextToSize(
+      'Umsatzsteuerfrei nach § 4 Nr. 16 Satz 1 Buchst. g UStG (anerkanntes Angebot zur Unterstützung im Alltag nach § 45a SGB XI). Im Übrigen wird als Kleinunternehmer gem. § 19 Abs. 1 UStG keine Umsatzsteuer berechnet.',
+      doc.internal.pageSize.getWidth() - 30
     );
+    doc.text(steuerZeilen, 15, pageHeight - 22 - steuerZeilen.length * 3);
 
     this.addFooter(doc);
     return doc;
