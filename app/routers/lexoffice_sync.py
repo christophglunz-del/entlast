@@ -160,7 +160,15 @@ async def rechnung_erstellen(
     # Variante ermitteln
     besonderheiten = (kunde.get("besonderheiten") or "").lower()
     pflegekasse = kunde.get("pflegekasse") or ""
-    if req.empfaenger == "direkt" or not pflegekasse or pflegekasse == "Sonstige":
+    hat_kasse = bool(pflegekasse) and pflegekasse != "Sonstige"
+    if req.empfaenger == "kasse" and not hat_kasse:
+        # Nicht still auf den Kunden umleiten: eine Rechnung bekommt sofort eine Nummer.
+        raise HTTPException(
+            409,
+            "Rechnung an die Pflegekasse nicht möglich: Beim Kunden ist keine Pflegekasse "
+            "eingetragen. Bitte Kundendaten prüfen.",
+        )
+    if req.empfaenger == "direkt" or not hat_kasse:
         variante = "privat"
     elif "lbv" in besonderheiten:
         variante = "lbv"

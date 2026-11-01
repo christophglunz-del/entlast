@@ -1250,15 +1250,18 @@ const LeistungModule = {
 
       // Variante bestimmen
       const istPflegekunde = !kunde.kundentyp || kunde.kundentyp === 'pflege';
+      const kassenWahl = this._hatKasse(kunde) && istPflegekunde;
       let variante = 'privat';
-      if (kunde.pflegekasse && istPflegekunde) {
+      if (kassenWahl) {
         variante = LexofficeAPI.varianteErmitteln(kunde);
       }
 
-      const empfName = variante === 'privat' ? App.kundenName(kunde) : (kunde.pflegekasse || 'Pflegekasse');
+      // Nur die Variante 'kasse' geht an die Kasse; 'privat' und 'lbv' gehen an den Kunden
+      // (so baut es auch der Server, lexoffice_sync.py).
+      const empfName = variante === 'kasse' ? kunde.pflegekasse : App.kundenName(kunde);
 
       // Empfänger-Auswahl bei Pflegekunden
-      const empfaengerWahl = (kunde.pflegekasse && istPflegekunde) ? `
+      const empfaengerWahl = kassenWahl ? `
         <div class="form-group" style="margin-bottom:12px;">
           <label>Rechnungsempfänger</label>
           <select id="overlayEmpfaenger" class="form-control" onchange="LeistungModule._empfaengerOverlayGeaendert(this.value, ${kundeId})">
@@ -1277,12 +1280,14 @@ const LeistungModule = {
 
           ${empfaengerWahl}
 
+          <div id="overlayEmpfWarnung" class="hidden" style="padding:8px;background:#fee2e2;color:#991b1b;border:1px solid #dc2626;border-radius:8px;margin-bottom:12px;font-weight:600;"></div>
+
           ${kunde.besonderheiten ? `<div style="padding:8px;background:var(--warning-bg);border-radius:8px;margin-bottom:12px;"><strong>⚠️</strong> ${this.escapeHtml(kunde.besonderheiten)}</div>` : ''}
 
           <table style="width:100%;font-size:0.9rem;border-collapse:collapse;">
             <tr><td style="padding:4px 8px;color:var(--gray-600);">Empfänger</td><td id="overlayEmpfName" style="padding:4px 8px;font-weight:600;">${empfName}</td></tr>
             <tr><td style="padding:4px 8px;color:var(--gray-600);vertical-align:top;">Anschrift</td><td id="overlayEmpfAdresse" style="padding:4px 8px;color:var(--gray-500);">lädt …</td></tr>
-            ${variante !== 'privat' ? `<tr><td style="padding:4px 8px;color:var(--gray-600);">Versicherte/r</td><td style="padding:4px 8px;">${App.kundenName(kunde)}</td></tr>` : ''}
+            ${variante === 'kasse' ? `<tr><td style="padding:4px 8px;color:var(--gray-600);">Versicherte/r</td><td style="padding:4px 8px;">${App.kundenName(kunde)}</td></tr>` : ''}
             <tr><td style="padding:4px 8px;color:var(--gray-600);">Variante</td><td id="overlayVariante" style="padding:4px 8px;">${variante === 'kasse' ? 'Pflegekasse (§45b)' : variante === 'lbv' ? 'LBV-Splitting' : 'Privatrechnung'}</td></tr>
             <tr><td style="padding:4px 8px;color:var(--gray-600);">Zeitraum</td><td style="padding:4px 8px;">${App.monatsName(monat)} ${jahr}</td></tr>
             <tr><td style="padding:4px 8px;color:var(--gray-600);">Leistungen</td><td style="padding:4px 8px;">${kundeLeistungen.length} Einträge, ${gesamtStunden.toFixed(1)} Stunden</td></tr>
@@ -1311,6 +1316,8 @@ const LeistungModule = {
       // Daten zwischenspeichern
       this._pendingRechnung = { kundeId, monat, jahr, betrag, kunde, kundeLeistungen, variante };
 
+      this._empfaengerWarnungAnzeigen(kunde, variante);
+
       // Empfänger-Anschrift asynchron aus Lexoffice nachladen
       this._anschriftLaden(kunde, variante);
 
@@ -1318,6 +1325,35 @@ const LeistungModule = {
       console.error('Fehler:', err);
       content.innerHTML = `<div class="card" style="background:white;"><p style="color:var(--danger);">Fehler: ${err.message}</p><button class="btn btn-outline" onclick="LeistungModule.rechnungOverlaySchliessen()">Schließen</button></div>`;
     }
+  },
+
+  // "Sonstige" ist kein Empfänger: Der Server macht daraus immer eine Privatrechnung.
+  _hatKasse(kunde) {
+    return !!kunde.pflegekasse && kunde.pflegekasse !== 'Sonstige';
+  },
+
+  // Warntext, wenn eine Rechnung an den Kunden geht, obwohl eine Kasse zu erwarten wäre:
+  // Pflegekunde ohne Kasse, Kunde mit Kasse aber anderem Typ, oder "Direkt an Kunden" gewählt.
+  _empfaengerWarnung(kunde, variante) {
+    if (variante !== 'privat') return '';
+    const istPflegekunde = !kunde.kundentyp || kunde.kundentyp === 'pflege';
+    if (!this._hatKasse(kunde)) {
+      return istPflegekunde
+        ? 'Keine Pflegekasse eingetragen: Die Rechnung geht an den Kunden, nicht an eine Pflegekasse.'
+        : '';
+    }
+    if (!istPflegekunde) {
+      return `Pflegekasse ${kunde.pflegekasse} ist eingetragen, aber der Kundentyp ist „${kunde.kundentyp}“: Die Rechnung geht an den Kunden, nicht an die Pflegekasse.`;
+    }
+    return `Die Rechnung geht an den Kunden, nicht an ${kunde.pflegekasse}.`;
+  },
+
+  _empfaengerWarnungAnzeigen(kunde, variante) {
+    const el = document.getElementById('overlayEmpfWarnung');
+    if (!el) return;
+    const text = this._empfaengerWarnung(kunde, variante);
+    el.textContent = text ? `⚠️ ${text}` : '';
+    el.classList.toggle('hidden', !text);
   },
 
   // Empfänger-Anschrift aus dem Lexoffice-Kontakt laden — das ist die Adresse,
@@ -1328,10 +1364,10 @@ const LeistungModule = {
       ? [a.street, [a.zip, a.city].filter(Boolean).join(' ')].filter(Boolean).join(', ')
       : '';
     let kontakt = null;
-    if (variante === 'privat' && kunde.lexofficeId) {
+    if (variante !== 'kasse' && kunde.lexofficeId) {
       kontakt = await apiFetch('/lexoffice/proxy/contacts/' + kunde.lexofficeId);
     } else {
-      const name = variante === 'privat' ? App.kundenName(kunde) : kunde.pflegekasse;
+      const name = variante === 'kasse' ? kunde.pflegekasse : App.kundenName(kunde);
       if (!name) return '';
       const res = await apiFetch('/lexoffice/proxy/contacts?name=' + encodeURIComponent(name));
       const liste = (res && res.content) ? res.content : (Array.isArray(res) ? res : []);
@@ -1367,7 +1403,7 @@ const LeistungModule = {
   _empfaengerAnschrift(kunde, variante) {
     const formatiere = q =>
       [q.strasse, [q.plz, q.ort].filter(Boolean).join(' ')].filter(Boolean).join(', ');
-    if (variante === 'privat') {
+    if (variante !== 'kasse') {
       return formatiere(kunde);
     }
     const pk = (window.PFLEGEKASSEN || []).find(k => k.name === kunde.pflegekasse);
@@ -1381,21 +1417,26 @@ const LeistungModule = {
     if (!this._pendingRechnung) return;
     const kunde = this._pendingRechnung.kunde;
     if (wert === 'kasse' && kunde.pflegekasse) {
-      if (empfNameEl) empfNameEl.textContent = kunde.pflegekasse;
       this._pendingRechnung.variante = LexofficeAPI.varianteErmitteln(kunde);
+      if (empfNameEl) empfNameEl.textContent = this._pendingRechnung.variante === 'kasse' ? kunde.pflegekasse : App.kundenName(kunde);
       if (varianteEl) varianteEl.textContent = this._pendingRechnung.variante === 'kasse' ? 'Pflegekasse (§45b)' : this._pendingRechnung.variante === 'lbv' ? 'LBV-Splitting' : 'Privatrechnung';
     } else {
       if (empfNameEl) empfNameEl.textContent = App.kundenName(kunde);
       this._pendingRechnung.variante = 'privat';
       if (varianteEl) varianteEl.textContent = 'Privatrechnung';
     }
+    this._empfaengerWarnungAnzeigen(kunde, this._pendingRechnung.variante);
     // Anschrift passend zum neuen Empfänger aus Lexoffice nachladen
     this._anschriftLaden(kunde, this._pendingRechnung.variante);
   },
 
   async _rechnungAbsenden() {
     if (!this._pendingRechnung) return;
-    const { kundeId, monat, jahr } = this._pendingRechnung;
+    const { kundeId, monat, jahr, kunde, variante } = this._pendingRechnung;
+
+    const warnung = this._empfaengerWarnung(kunde, variante);
+    if (warnung && !await App.confirm(`${warnung}\n\nRechnung trotzdem erstellen?`)) return;
+    if (!this._pendingRechnung) return;  // zwischenzeitlich abgesendet oder geschlossen
     this._pendingRechnung = null;
 
     const empfaenger = document.getElementById('overlayEmpfaenger')?.value || 'kasse';
