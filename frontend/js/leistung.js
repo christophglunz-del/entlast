@@ -246,13 +246,17 @@ const LeistungModule = {
                 const btn = (bg, label, onclick) =>
                   `<button onclick="event.stopPropagation(); ${onclick}" class="btn btn-sm" style="font-size:0.75rem;background:${bg};color:#fff;border:none;">${label}</button>`;
                 const labels = {fax:'📠 RE gefaxt', fax_warteschlange:'📠 Fax wird gesendet', brief:'✉️ RE Brief', uebergabe:'🤝 RE übergeben', serviceportal:'🌐 RE Portal', manuell:'✋ RE manuell'};
+                // Stornieren nur mit Lexoffice-Verweis; „manuell“ markierte Einträge haben keinen
+                const storno = re && re.lexofficeId
+                  ? `<button onclick="event.stopPropagation(); LeistungModule.rechnungStornieren('${re.lexofficeId}')" class="btn btn-sm" style="font-size:0.75rem;background:white;color:#dc2626;border:1px solid #dc2626;">🚫 Stornieren</button>`
+                  : '';
                 if (re && labels[re.versandArt]) {
                   const bg = re.versandArt === 'fax_warteschlange' ? '#2196f3' : '#2e7d32';
                   const onclick = re.lexofficeId ? `LeistungModule.rechnungDetailAnzeigen('${re.lexofficeId}')` : '';
-                  return btn(bg, labels[re.versandArt], onclick);
+                  return btn(bg, labels[re.versandArt], onclick) + storno;
                 }
                 if (re && re.lexofficeId) {
-                  return btn('#f59e0b', '💰 RE erstellt', `LeistungModule.rechnungDetailAnzeigen('${re.lexofficeId}')`);
+                  return btn('#f59e0b', '💰 RE erstellt', `LeistungModule.rechnungDetailAnzeigen('${re.lexofficeId}')`) + storno;
                 }
                 return btn('#dc2626', '💰 RE erstellen', `LeistungModule.rechnungErstellenOverlay(${kid}, ${mi}, ${ji})`);
               })()}
@@ -1570,7 +1574,14 @@ const LeistungModule = {
         <div class="card" style="background:white;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
             <h3 style="margin:0;font-size:1.1rem;">Rechnungsdetail</h3>
-            <button class="btn btn-sm" onclick="LeistungModule.rechnungOverlaySchliessen()" style="font-size:1.3rem;background:none;border:none;">✕</button>
+            <div style="display:flex;align-items:center;gap:8px;">
+              ${(rechnung.voucherStatus || '').toLowerCase() === 'voided' ? `
+                <span style="background:#fef2f2;color:#dc2626;padding:4px 8px;border-radius:4px;font-size:0.75rem;font-weight:600;white-space:nowrap;">🚫 Storniert</span>
+              ` : `
+                <button class="btn btn-sm" style="color:#dc2626;border:1px solid #dc2626;background:white;padding:4px 10px;font-size:0.85rem;" onclick="LeistungModule.rechnungStornieren('${lexofficeId}')">🚫 Stornieren</button>
+              `}
+              <button class="btn btn-sm" onclick="LeistungModule.rechnungOverlaySchliessen()" style="font-size:1.3rem;background:none;border:none;">✕</button>
+            </div>
           </div>
 
           <table style="width:100%;font-size:0.9rem;border-collapse:collapse;">
@@ -1657,6 +1668,46 @@ const LeistungModule = {
           <button class="btn btn-sm btn-outline" onclick="LeistungModule.rechnungOverlaySchliessen()">Schließen</button>
         </div>
       `;
+    }
+  },
+
+  // Rechnung stornieren: Gutschrift in Lexoffice, lokaler Eintrag wird storniert,
+  // der Monat steht danach wieder auf „RE erstellen“.
+  async rechnungStornieren(lexofficeId) {
+    if (this._stornoLaeuft) return;
+    this._stornoLaeuft = true;
+    try {
+      if (!LexofficeAPI.istKonfiguriert()) await LexofficeAPI.init();
+      const rechnung = await LexofficeAPI.getInvoice(lexofficeId);
+      const status = (rechnung.voucherStatus || '').toLowerCase();
+      const nr = rechnung.voucherNumber || '';
+      if (status === 'voided') {
+        App.toast(`Rechnung ${nr} ist in Lexoffice bereits storniert`, 'error');
+        return;
+      }
+      const lokal = (await DB.alleRechnungen()).find(r => r.lexofficeId === lexofficeId);
+      const total = rechnung.totalPrice || {};
+      const summe = total.totalGrossAmount != null ? total.totalGrossAmount : total.totalNetAmount;
+      const empfaenger = (rechnung.address || {}).name || '';
+      const hinweise = [];
+      if (status === 'paid' || status === 'paidoff') hinweise.push('Die Rechnung ist laut Lexoffice bereits bezahlt.');
+      if (lokal && lokal.versandArt) hinweise.push('Die Rechnung wurde bereits versendet. Die App schickt die Gutschrift nicht an den Empfänger.');
+      const text = `Rechnung ${nr} (${empfaenger}${summe != null ? ', ' + App.formatBetrag(summe) : ''}) wirklich stornieren?\n\n`
+        + 'Es wird in Lexoffice eine Gutschrift erzeugt, das lässt sich nicht rückgängig machen. Danach kann die Rechnung neu erstellt werden.'
+        + (hinweise.length ? '\n\n' + hinweise.join('\n') : '');
+      if (!await App.confirm(text)) return;
+
+      App.toast('Storno wird erzeugt …', 'info');
+      const res = await LexofficeAPI.cancelInvoice(lexofficeId);
+      const gutschrift = res && (res.gutschriftNummer || res.gutschrift_nummer);
+      App.toast(`Rechnung ${nr} storniert` + (gutschrift ? ` (Gutschrift ${gutschrift})` : ''), 'success', 5000);
+      this.rechnungOverlaySchliessen();
+      await this.listeAnzeigen();
+    } catch (err) {
+      console.error('Storno-Fehler:', err);
+      App.toast('Storno fehlgeschlagen: ' + (err && err.message ? err.message : 'unbekannt'), 'error');
+    } finally {
+      this._stornoLaeuft = false;
     }
   },
 
